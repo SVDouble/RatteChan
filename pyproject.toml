@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "rattechan"
+version = "0.1.0"
+description = ""
+authors = ["Valentin Safronov <svdouble@hotmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+matplotlib = "^3.9.2"
+numpy = "^2.1.1"
+
+
+[tool.poetry.group.docs.dependencies]
+jupyter-book = "^1.0.2"
+sphinx-inline-tabs = "^2023.4.21"
+sphinx-examples = "^0.0.5"
+sphinx-proof = "^0.2.0"
+sphinx-hoverxref = "^1.4.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

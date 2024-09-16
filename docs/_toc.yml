@@ -1,0 +1,12 @@
+# Table of Contents
+# For more information, visit https://jupyterbook.org/customize/toc.html
+
+format: jb-book
+root: intro
+parts:
+  - caption: About RatteChan 🐭
+    chapters:
+      - file: applications
+#  - file: technical-design
+#  - file: development-log
+#  - file: thesis-draft
