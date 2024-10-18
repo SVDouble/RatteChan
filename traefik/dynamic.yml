@@ -1,0 +1,50 @@
+http:
+  routers:
+    traefik:
+      rule: 'Host(`{{env "SERVER_NAME"}}`)'
+      service: "api@internal"
+      entryPoints: http   # Use only the HTTP entry point
+      middlewares: no-auth-secured@file
+
+  middlewares:
+    ## Primitive Middlewares
+    user-auth:
+      basicAuth:
+        usersFile: '/.htpasswd'
+
+    gzip:
+      compress: { }
+
+    rate-limit:
+      rateLimit:
+        average: 250
+        burst: 50
+
+    default-secure-headers:
+      headers:
+        customResponseHeaders:
+          X-Frame-Options: 'deny'
+          X-Content-Type-Options: 'nosniff'
+          sslRedirect: false  # Ensure SSL redirection is disabled
+
+    portal-service-secure-headers:
+      headers:
+        customResponseHeaders:
+          X-Frame-Options: 'SAMEORIGIN'
+          Referrer-Policy: 'strict-origin-when-cross-origin'
+
+    ## Chain Middlewares
+    basic-auth-secured:
+      chain:
+        middlewares:
+          - 'user-auth'
+          - 'default-secure-headers'
+          - 'rate-limit'
+          - 'gzip'
+
+    no-auth-secured:
+      chain:
+        middlewares:
+          - 'default-secure-headers'
+          - 'rate-limit'
+          - 'gzip'
