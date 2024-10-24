@@ -1,0 +1,2 @@
+numpy==2.1.2 ; python_version >= "3.12" and python_version < "4.0"
+paho-mqtt==2.1.0 ; python_version >= "3.12" and python_version < "4.0"

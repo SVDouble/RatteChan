@@ -122,14 +122,17 @@ services:
     restart: unless-stopped
     logging: *default-logging
 
-  dummy_mqtt_device:
-    image: eclipse-mosquitto:latest
-    container_name: "rattechan-dummy-mqtt-device"
+  fake-data-generator:
+    build:
+      context: fake-data-generator
+      dockerfile: Dockerfile
+    container_name: "rattechan-fake-data-generator"
     networks:
       - rattechan_core
-    volumes:
-        - ./mosquitto/mqtt_publish.sh:/mqtt_publish.sh:ro
-    command: ["/bin/sh", "/mqtt_publish.sh"]
+    environment:
+      MQTT_BROKER: "mosquitto"
+      MQTT_PORT: 9001
+      MQTT_TOPIC: "rattechan/sensor"
     depends_on:
       - mosquitto
     restart: unless-stopped
