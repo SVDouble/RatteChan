@@ -17,3 +17,22 @@ datasources:
     access: proxy
     url: http://loki:3100
     editable: true
+
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    database: rattechan_db
+    user: ${INFLUXDB_USER}
+    secureJsonData:
+      password: ${INFLUXDB_PASSWORD}
+    editable: true
+
+  - name: MQTT
+    type: grafana-mqtt-datasource
+    access: proxy
+    jsonData:
+      uri: ws://mosquitto:9001
+      clientId: grafana-mqtt-client
+      auth: false
+    editable: true
