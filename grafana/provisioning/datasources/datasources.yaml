@@ -22,10 +22,12 @@ datasources:
     type: influxdb
     access: proxy
     url: http://influxdb:8086
-    database: rattechan_db
-    user: ${INFLUXDB_USER}
+    jsonData:
+      organization: rattechan_org     # InfluxDB v2 organization
+      defaultBucket: rattechan_bucket # InfluxDB v2 bucket
+      version: Flux                   # InfluxDB v2 uses the Flux query language
     secureJsonData:
-      password: ${INFLUXDB_PASSWORD}
+      token: ${INFLUXDB_TOKEN}        # Use token-based authentication for InfluxDB v2
     editable: true
 
   - name: MQTT

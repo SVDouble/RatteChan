@@ -65,11 +65,15 @@ services:
     networks:
       - rattechan_core
     volumes:
-      - rattechan_influxdb_data:/var/lib/influxdb
+      - rattechan_influxdb_data:/var/lib/influxdb2
     environment:
-      INFLUXDB_DB: rattechan_db
-      INFLUXDB_ADMIN_USER: ${INFLUXDB_ADMIN_USER}
-      INFLUXDB_ADMIN_PASSWORD: ${INFLUXDB_ADMIN_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_ADMIN_USER}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_ADMIN_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_ORG=rattechan_org
+      - DOCKER_INFLUXDB_INIT_BUCKET=rattechan_bucket
+      - DOCKER_INFLUXDB_INIT_RETENTION=1w
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
     restart: unless-stopped
     logging: *default-logging
 
@@ -95,10 +99,10 @@ services:
     volumes:
       - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
     environment:
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_DATABASE=rattechan_db
-      - INFLUXDB_USER=${INFLUXDB_ADMIN_USER}
-      - INFLUXDB_PASSWORD=${INFLUXDB_ADMIN_PASSWORD}
+      - INFLUX_URL=http://influxdb:8086
+      - INFLUX_BUCKET=rattechan_bucket
+      - INFLUX_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUX_ORG=rattechan_org
     depends_on:
       - mosquitto
       - influxdb
@@ -109,6 +113,8 @@ services:
   mqttx:
     image: emqx/mqttx-web
     container_name: "rattechan-mqttx"
+    profiles:
+      - debug
     labels:
       - "traefik.enable=true"
       - 'traefik.docker.network=rattechan_proxy'
@@ -123,10 +129,12 @@ services:
     logging: *default-logging
 
   fake-data-generator:
+    container_name: "rattechan-fake-data-generator"
+    profiles:
+      - debug
     build:
       context: fake-data-generator
       dockerfile: Dockerfile
-    container_name: "rattechan-fake-data-generator"
     networks:
       - rattechan_core
     environment:
@@ -154,6 +162,7 @@ services:
       GF_SERVER_DOMAIN: ${SERVER_NAME}
       GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: true
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
