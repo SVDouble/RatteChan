@@ -137,3 +137,5 @@ dmypy.json
 
 # Temporary editor files
 *.swp
+
+.idea
