@@ -1,5 +1,6 @@
 #include "MLX90393.hpp"
 #include "driver/i2c.h"
+#include "esp_log.h"
 
 // Constructor for I2C communication
 MLX90393::MLX90393(i2c_port_t i2c_port, uint8_t i2c_address) : i2c_port(i2c_port), i2c_address(i2c_address) {
@@ -9,7 +10,9 @@ MLX90393::MLX90393(i2c_port_t i2c_port, uint8_t i2c_address) : i2c_port(i2c_port
             .scl_io_num = CONFIG_PIN_NUM_SCL,
             .sda_pullup_en = GPIO_PULLUP_ENABLE,
             .scl_pullup_en = GPIO_PULLUP_ENABLE,
-            .master.clk_speed = 400000
+            .master = {
+                    .clk_speed = 400000
+            }
     };
     i2c_param_config(i2c_port, &config);
     i2c_driver_install(i2c_port, config.mode, 0, 0, 0);
@@ -82,10 +85,18 @@ void MLX90393::HS(char *receiveBuffer) {
 // ************************************* COMMUNICATION LEVEL ************************************
 
 void MLX90393::Send_I2C(char *receiveBuffer, char *sendBuffer, int sendMessageLength, int receiveMessageLength) {
-    i2c_master_write_to_device(i2c_port, i2c_address, (uint8_t *) sendBuffer, sendMessageLength,
-                               1000 / portTICK_PERIOD_MS);
-    i2c_master_read_from_device(i2c_port, i2c_address, (uint8_t *) receiveBuffer, receiveMessageLength,
-                                1000 / portTICK_PERIOD_MS);
+    esp_err_t write_err = i2c_master_write_to_device(i2c_port, i2c_address, (uint8_t *) sendBuffer, sendMessageLength,
+                                                     pdMS_TO_TICKS(1000));
+    if (write_err != ESP_OK) {
+        ESP_LOGW("MLX90393", "I2C write failed with error: %s", esp_err_to_name(write_err));
+    }
+
+    esp_err_t read_err = i2c_master_read_from_device(i2c_port, i2c_address, (uint8_t *) receiveBuffer,
+                                                     receiveMessageLength,
+                                                     pdMS_TO_TICKS(1000));
+    if (read_err != ESP_OK) {
+        ESP_LOGW("MLX90393", "I2C read failed with error: %s", esp_err_to_name(read_err));
+    }
 }
 
 // *************************************** EXTRA FUNCTIONS **************************************
