@@ -1,13 +1,14 @@
 import asyncio
 import json
-import numpy as np
 import os
 from datetime import datetime
+
+import numpy as np
 import paho.mqtt.client as mqtt
 
 # MQTT Configuration
 MQTT_BROKER = os.getenv("MQTT_BROKER", "mosquitto")
-MQTT_TOPIC = os.getenv("MQTT_TOPIC", "rattechan/sensor")
+MQTT_TOPIC = os.getenv("MQTT_TOPIC", "generator")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 9001))
 
 # Read frequency from environment variable, default to 100 Hz if not set
@@ -35,17 +36,23 @@ async def publish_data():
         angles = np.array(
             [time_elapsed, time_elapsed + np.pi / 2, time_elapsed + np.pi]
         )  # Use np.pi for phase shifts
-        noise = np.random.uniform(0.0, 0.1, size=3)  # Generate random noise
 
-        # Calculate x, y, z values
-        data = np.sin(angles) + noise  # Sine calculations with noise
-        x, y, z = data[0], data[1], data[2]
+        def publish_data(data: np.ndarray, topic: str):
+            # Create a JSON message
+            message = {
+                "timestamp": timestamp,
+                "x": float(data[0]),
+                "y": float(data[1]),
+                "z": float(data[2]),
+            }
 
-        # Create a JSON message
-        message = {"timestamp": timestamp, "x": float(x), "y": float(y), "z": float(z)}
+            # Publish the message
+            client.publish(topic, json.dumps(message))
 
-        # Publish the message
-        client.publish(MQTT_TOPIC, json.dumps(message))
+        publish_data(np.sin(angles), f"{MQTT_TOPIC}/clean")
+        publish_data(
+            np.sin(angles) + np.random.uniform(0.0, 0.1, size=3), f"{MQTT_TOPIC}/noisy"
+        )
 
         # Sleep for the calculated interval to achieve the configured frequency
         await asyncio.sleep(interval)

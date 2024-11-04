@@ -140,7 +140,7 @@ services:
     environment:
       MQTT_BROKER: "mosquitto"
       MQTT_PORT: 9001
-      MQTT_TOPIC: "rattechan/sensor"
+      MQTT_TOPIC: "generator"
     depends_on:
       - mosquitto
     restart: unless-stopped
