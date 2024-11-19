@@ -16,12 +16,14 @@
 namespace mqtt = idf::mqtt;
 
 namespace {
-    constexpr auto *TAG = "DATA_COLLECTOR";
-    constexpr float PUBLISH_FREQUENCY = 0.01;
-    constexpr uint8_t I2C_ADDRESS = 0x18; // Address with A0 and A1 grounded
+    constexpr auto *TAG = "RATTE";
+    constexpr float PUBLISH_FREQUENCY_HZ = 100;
+    constexpr uint8_t I2C_ADDRESS_0 = 0x19; // 0x18 - Address with A0 and A1 grounded ('0b11000'), 0x19 - A0=1
+    constexpr uint8_t I2C_ADDRESS_1 = 0x18;
 
     // Create an MLX90393 sensor instance on I2C port 0
-    MLX90393 sensor(I2C_NUM_0, I2C_ADDRESS);
+    MLX90393 sensor0(I2C_NUM_0, I2C_ADDRESS_0);
+    MLX90393 sensor1(I2C_NUM_0, I2C_ADDRESS_1);
 
     class MyClient final : public mqtt::Client {
     public:
@@ -33,11 +35,13 @@ namespace {
 
         void on_connected(esp_mqtt_event_handle_t const event) override {
             // Set up burst mode for continuous measurement on XYZ axes and temperature
-            char burst_init_response[1];
-            sensor.SB(burst_init_response, 0x0F);  // Start burst mode with XYZ and T
+            char sensor0_buffer[1], sensor1_buffer[1];
+            // Start burst mode with XYZ and T
+            sensor0.SB(sensor0_buffer, 0x0F);
+            sensor1.SB(sensor1_buffer, 0x0F);
 
             // Check if BURST_MODE bit is set (bit 7)
-            if (burst_init_response[0] & 0x80) {
+            if ((sensor0_buffer[0] & 0x80) && (sensor1_buffer[0] & 0x80)) {
                 ESP_LOGI("MLX90393", "Burst mode successfully activated.");
             } else {
                 ESP_LOGW("MLX90393", "Burst mode not activated. Check configuration.");
@@ -47,11 +51,7 @@ namespace {
                     [](void *param) {
                         auto *client = static_cast<MyClient *>(param);
                         TickType_t last_wake_time = xTaskGetTickCount();
-                        constexpr TickType_t frequency = pdMS_TO_TICKS(1000 * PUBLISH_FREQUENCY);
-
-                        // Start continuous burst mode for x, y, z, and temperature
-                        char receiveBuffer[1];
-                        sensor.SB(receiveBuffer, 0x0F);  // 0x0F enables XYZ and T in burst mode
+                        constexpr TickType_t frequency = pdMS_TO_TICKS(1000 / PUBLISH_FREQUENCY_HZ);
 
                         while (true) {
                             client->publish_data();
@@ -75,26 +75,35 @@ namespace {
 
         void on_data(esp_mqtt_event_handle_t const event) override {}
 
-        void publish_data() {
-            float ts = esp_timer_get_time() / 1000000.0f;  // Convert microseconds to seconds
-            char receiveBuffer[10];
-
-            // Trigger a read of XYZ and Temperature data
-            sensor.RM(receiveBuffer, 0x0F);
+        static void read_data(MLX90393 *sensor, cJSON *json, char const *name) {
+            char buffer[10];
+            sensor->RM(buffer, 0x0F); // TODO: remove t
 
             // Extract sensor data
-            int16_t x = (receiveBuffer[1] << 8) | receiveBuffer[2];
-            int16_t y = (receiveBuffer[3] << 8) | receiveBuffer[4];
-            int16_t z = (receiveBuffer[5] << 8) | receiveBuffer[6];
-            int16_t t = (receiveBuffer[7] << 8) | receiveBuffer[8];
+            int16_t x = (buffer[1] << 8) | buffer[2];
+            int16_t y = (buffer[3] << 8) | buffer[4];
+            int16_t z = (buffer[5] << 8) | buffer[6];
 
-            // Create JSON payload
+            // Append sensor data to JSON with unique keys
+            char buf[256];
+            snprintf(buf, sizeof(buf), "%s_x", name);
+            cJSON_AddNumberToObject(json, buf, x);
+
+            snprintf(buf, sizeof(buf), "%s_y", name);
+            cJSON_AddNumberToObject(json, buf, y);
+
+            snprintf(buf, sizeof(buf), "%s_z", name);
+            cJSON_AddNumberToObject(json, buf, z);
+        }
+
+        void publish_data() {
             cJSON *json = cJSON_CreateObject();
+
+            float ts = esp_timer_get_time() / 1000000.0f;  // Convert microseconds to seconds
             cJSON_AddNumberToObject(json, "ts", ts);
-            cJSON_AddNumberToObject(json, "x", x);
-            cJSON_AddNumberToObject(json, "y", y);
-            cJSON_AddNumberToObject(json, "z", z);
-            cJSON_AddNumberToObject(json, "t", t);
+
+            read_data(&sensor0, json, "s0");
+            read_data(&sensor1, json, "s1");
 
             // Convert JSON object to string
             char *payload = cJSON_PrintUnformatted(json);

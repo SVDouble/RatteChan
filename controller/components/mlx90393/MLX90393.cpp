@@ -1,5 +1,5 @@
 #include "MLX90393.hpp"
-#include "driver/i2c.h"
+#include "driver/i2c_master.h"
 #include "esp_log.h"
 
 // Constructor for I2C communication
