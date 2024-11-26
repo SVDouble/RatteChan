@@ -47,7 +47,7 @@ namespace {
                 ESP_LOGW("MLX90393", "Burst mode not activated. Check configuration.");
             }
 
-            xTaskCreate(
+            xTaskCreatePinnedToCore(
                     [](void *param) {
                         auto *client = static_cast<MyClient *>(param);
                         TickType_t last_wake_time = xTaskGetTickCount();
@@ -58,7 +58,7 @@ namespace {
                             vTaskDelayUntil(&last_wake_time, frequency);
                         }
                     },
-                    "DataPublisherTask", 4096, this, 5, nullptr
+                    "DataPublisherTask", 4096, this, tskIDLE_PRIORITY + 1, nullptr, 1
             );
 
             xTaskCreate(
@@ -69,7 +69,7 @@ namespace {
                             client->log_publish_stats();
                         }
                     },
-                    "PublishStatsTask", 2048, this, 5, nullptr
+                    "PublishStatsTask", 2048, this, tskIDLE_PRIORITY + 1, nullptr
             );
         }
 
@@ -137,6 +137,10 @@ namespace {
 }
 
 extern "C" [[noreturn]] void app_main(void) {
+    //esp_log_level_set("transport_base", ESP_LOG_VERBOSE);
+    //esp_log_level_set("mqtt_client", ESP_LOG_VERBOSE);
+    esp_log_level_set("random", ESP_LOG_INFO);
+
     ESP_LOGI(TAG, "[APP] Startup..");
     ESP_LOGI(TAG, "[APP] Free memory: %" PRIu32 " bytes", esp_get_free_heap_size());
     ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
