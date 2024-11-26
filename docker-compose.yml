@@ -5,6 +5,9 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
+
+  ## CORE SERVICES
+
   traefik:
     image: traefik:latest
     container_name: "rattechan-traefik"
@@ -28,7 +31,6 @@ services:
       start_period: '5s'
       retries: 3
     logging: *default-logging
-
 
   redis:
     image: redis/redis-stack:latest
@@ -57,6 +59,86 @@ services:
     restart: unless-stopped
     logging: *default-logging
 
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: "rattechan-mosquitto"
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    networks:
+      - rattechan_core
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - rattechan_mosquitto_data:/mosquitto/data
+    restart: unless-stopped
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: "rattechan-grafana"
+    networks:
+      - rattechan_core
+      - rattechan_proxy
+    volumes:
+      - rattechan_grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_INSTALL_PLUGINS: "redis-datasource,grafana-mqtt-datasource"
+      GF_SERVER_DOMAIN: ${SERVER_NAME}
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: true
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - 'traefik.docker.network=rattechan_proxy'
+      - "traefik.http.routers.grafana.rule=Host(`${SERVER_NAME}`) && PathPrefix(`/grafana`)"
+      - "traefik.http.routers.grafana.entrypoints=http"
+      - 'traefik.http.routers.grafana.middlewares=no-auth-secured@file'
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    security_opt:
+      - 'no-new-privileges:true'
+    logging: *default-logging
+
+  ## LOGGING SERVICES
+
+  loki:
+    image: grafana/loki:latest
+    container_name: "rattechan-loki"
+    ports:
+      - "3100:3100"
+    networks:
+      - rattechan_core
+      - rattechan_proxy
+    volumes:
+      - rattechan_loki_data:/etc/loki:rw
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - 'traefik.docker.network=rattechan_proxy'
+      - "traefik.http.routers.loki.rule=Host(`${SERVER_NAME}`) && PathPrefix(`/loki`)"
+      - "traefik.http.routers.loki.entrypoints=http"
+      - 'traefik.http.routers.loki.middlewares=no-auth-secured@file'
+      - "traefik.http.services.loki.loadbalancer.server.port=3100"
+    logging: *default-logging
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: "rattechan-promtail"
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro,rshared # Set as read-only since Promtail only reads logs
+      - ./promtail/config.yml:/etc/promtail/config.yml:ro  # Ensure config is read-only
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker socket for metadata
+      - rattechan_promtail_data:/etc/promtail  # Volume for storing positions
+    networks:
+      - rattechan_core
+    restart: unless-stopped
+    logging: *default-logging
+
+  ## DATA PERSISTENCE SERVICES
+
   influxdb:
     image: influxdb:latest
     container_name: "rattechan-influxdb"
@@ -77,19 +159,6 @@ services:
     restart: unless-stopped
     logging: *default-logging
 
-  mosquitto:
-    image: eclipse-mosquitto:latest
-    container_name: "rattechan-mosquitto"
-    ports:
-      - "1883:1883"
-      - "9001:9001"
-    networks:
-      - rattechan_core
-    volumes:
-      - ./mosquitto/config:/mosquitto/config:ro
-      - rattechan_mosquitto_data:/mosquitto/data
-    restart: unless-stopped
-    logging: *default-logging
 
   telegraf:
     image: telegraf:latest
@@ -109,6 +178,31 @@ services:
     restart: unless-stopped
     logging: *default-logging
 
+  ## SENSOR SERVICES
+  controller:
+    build:
+      context: controller-rpi
+      dockerfile: Dockerfile
+    container_name: "controller-rpi"
+    networks:
+      - rattechan_core
+    environment:
+      REDIS_URL: redis://secretum-redis:6379
+      GPIO_ENABLED: 0
+    volumes:
+      - /dev/gpiomem0:/dev/gpiomem0
+    labels:
+      - "traefik.enable=true"
+      - 'traefik.docker.network=secretum_proxy'
+      - "traefik.http.routers.app.entrypoints=http"
+      - "traefik.http.routers.app.rule=Host(`${SERVER_NAME}`) && PathPrefix(`/app`)"
+      - 'traefik.http.routers.app.middlewares=no-auth-secured@file'
+      - "traefik.http.services.app.loadbalancer.server.port=8000"
+      - "traefik.http.middlewares.app.stripprefix.prefixes=/app"
+    restart: 'unless-stopped'
+    privileged: true
+
+  ## DEBUGGING SERVICES
 
   mqttx:
     image: emqx/mqttx-web
@@ -143,68 +237,6 @@ services:
       MQTT_TOPIC: "generator"
     depends_on:
       - mosquitto
-    restart: unless-stopped
-    logging: *default-logging
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: "rattechan-grafana"
-    networks:
-      - rattechan_core
-      - rattechan_proxy
-    volumes:
-      - rattechan_grafana_data:/var/lib/grafana
-      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_INSTALL_PLUGINS: "redis-datasource,grafana-mqtt-datasource"
-      GF_SERVER_DOMAIN: ${SERVER_NAME}
-      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana/"
-      GF_SERVER_SERVE_FROM_SUB_PATH: true
-      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
-    restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - 'traefik.docker.network=rattechan_proxy'
-      - "traefik.http.routers.grafana.rule=Host(`${SERVER_NAME}`) && PathPrefix(`/grafana`)"
-      - "traefik.http.routers.grafana.entrypoints=http"
-      - 'traefik.http.routers.grafana.middlewares=no-auth-secured@file'
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-    security_opt:
-      - 'no-new-privileges:true'
-    logging: *default-logging
-
-  loki:
-    image: grafana/loki:latest
-    container_name: "rattechan-loki"
-    ports:
-      - "3100:3100"
-    networks:
-      - rattechan_core
-      - rattechan_proxy
-    volumes:
-      - rattechan_loki_data:/etc/loki:rw
-    restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - 'traefik.docker.network=rattechan_proxy'
-      - "traefik.http.routers.loki.rule=Host(`${SERVER_NAME}`) && PathPrefix(`/loki`)"
-      - "traefik.http.routers.loki.entrypoints=http"
-      - 'traefik.http.routers.loki.middlewares=no-auth-secured@file'
-      - "traefik.http.services.loki.loadbalancer.server.port=3100"
-    logging: *default-logging
-
-  promtail:
-    image: grafana/promtail:latest
-    container_name: "rattechan-promtail"
-    volumes:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro,rshared # Set as read-only since Promtail only reads logs
-      - ./promtail/config.yml:/etc/promtail/config.yml:ro  # Ensure config is read-only
-      - /var/run/docker.sock:/var/run/docker.sock  # Docker socket for metadata
-      - rattechan_promtail_data:/etc/promtail  # Volume for storing positions
-    networks:
-      - rattechan_core
     restart: unless-stopped
     logging: *default-logging
 
