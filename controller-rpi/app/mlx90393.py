@@ -41,10 +41,10 @@ class SPI(SPIDevice):
 
 # I2C Communication
 class I2C:
-    def __init__(self, *, i2c_address, bus=1):
+    def __init__(self, *, address, bus=1):
         from smbus2 import SMBus
 
-        self.i2c_address = i2c_address
+        self.i2c_address = address
         self._bus = SMBus(bus)
         self.lock = asyncio.Lock()
 
@@ -131,10 +131,9 @@ class MLX90393:
         return response
 
     # RT Command
-    async def rt(self) -> bytes:
+    async def rt(self) -> None:
         command = bytes([0xF0])
-        response = await self.backend.transfer(command, response_length=1)
-        return response
+        await self.backend.transfer(command)
 
     # NOP Command
     async def nop(self) -> bytes:
@@ -154,7 +153,7 @@ class MLX90393:
         response = await self.backend.transfer(command, response_length=1)
         return response
 
-    async def start_burst_mode(self, zyxt=0b1110) -> bool:
+    async def start_burst_mode(self, zyxt=0b1110):
         """
         Start burst mode for the specified axes (X, Y, Z).
         Args:
@@ -162,9 +161,11 @@ class MLX90393:
         Returns:
             bool: True if burst mode was successfully activated, False otherwise.
         """
-
-        response = await self.sb(zyxt)
-        return bool(response[0] & 0x80)
+        await self.ex()
+        while True:
+            response = await self.sb(zyxt)
+            if response[0] & 0x80:
+                break
 
     async def read_burst_data(self, zyxt=0b1110) -> SensorData:
         """

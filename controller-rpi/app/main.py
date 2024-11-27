@@ -29,6 +29,11 @@ async def read(devices: dict[str, MLX90393], interval_ms: int, metrics: Metrics)
         """
         Task to periodically read data from a device.
         """
+        try:
+            await asyncio.wait_for(device.start_burst_mode(), timeout=1)
+        except asyncio.TimeoutError:
+            raise RuntimeError("Failed to start burst mode")
+
         while True:
             start_time = time.time()
             try:
@@ -57,7 +62,7 @@ async def read(devices: dict[str, MLX90393], interval_ms: int, metrics: Metrics)
 async def main():
     settings = get_settings()
     repository = Repository(settings)
-    sensors = {addr: MLX90393(I2C(i2c_address=addr)) for addr in settings.sensors}
+    sensors = {addr: MLX90393(I2C(address=addr)) for addr in settings.sensors}
 
     # Create a metrics object for tracking counts
     metrics = Metrics()
@@ -68,6 +73,6 @@ async def main():
     # Main data processing loop
     async with repository:
         async for name, data in read(
-            sensors, interval_ms=1000 // settings.publish_frequency_hz, metrics=metrics
+                sensors, interval_ms=1000 // settings.publish_frequency_hz, metrics=metrics
         ):
             await repository.publish_sensor_data(data)
