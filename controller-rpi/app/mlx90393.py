@@ -1,27 +1,24 @@
 import asyncio
-from abc import ABC, abstractmethod
+from typing import Protocol
 
 from gpiozero import SPIDevice
 
 from app.models import SensorData
 
-__all__ = ["CommunicationInterface", "SPI", "I2C", "MLX90393"]
+__all__ = ["Backend", "SPI", "I2C", "MLX90393"]
 
 
 # Communication Interface
-class CommunicationInterface(ABC):
-    @abstractmethod
-    async def transfer(self, data: bytes, response_length: int = 0) -> bytes:
-        pass
+class Backend(Protocol):
+    async def transfer(self, data: bytes, response_length: int = 0) -> bytes: ...
 
 
 # SPI Communication
-class SPI(CommunicationInterface, SPIDevice):
+class SPI(SPIDevice):
     def __init__(self, *, chip_select_pin, clock_pin, mosi_pin, miso_pin, **kwargs):
         from gpiozero.pins.lgpio import LGPIOHardwareSPI
 
         super().__init__(
-            self,
             clock_pin=clock_pin,
             mosi_pin=mosi_pin,
             miso_pin=miso_pin,
@@ -43,7 +40,7 @@ class SPI(CommunicationInterface, SPIDevice):
 
 
 # I2C Communication
-class I2C(CommunicationInterface):
+class I2C:
     def __init__(self, *, i2c_address, bus=1):
         from smbus2 import SMBus
 
@@ -76,8 +73,8 @@ class I2C(CommunicationInterface):
 
 # MLX90393 Sensor Class with All Commands
 class MLX90393:
-    def __init__(self, comm_interface: CommunicationInterface):
-        self.comm_interface = comm_interface
+    def __init__(self, backend: Backend):
+        self.backend = backend
 
     # Count set bits in zyxt to determine data length
     def count_set_bits(self, n: int) -> int:
@@ -86,40 +83,38 @@ class MLX90393:
     # EX Command
     async def ex(self) -> bytes:
         command = bytes([0x80])
-        response = await self.comm_interface.transfer(command, response_length=1)
+        response = await self.backend.transfer(command, response_length=1)
         return response
 
     # SB Command
     async def sb(self, zyxt: int) -> bytes:
         command = bytes([0x10 | (zyxt & 0x0F)])
-        response = await self.comm_interface.transfer(command, response_length=1)
+        response = await self.backend.transfer(command, response_length=1)
         return response
 
     # SWOC Command
     async def swoc(self, zyxt: int) -> bytes:
         command = bytes([0x20 | (zyxt & 0x0F)])
-        response = await self.comm_interface.transfer(command, response_length=1)
+        response = await self.backend.transfer(command, response_length=1)
         return response
 
     # SM Command
     async def sm(self, zyxt: int) -> bytes:
         command = bytes([0x30 | (zyxt & 0x0F)])
-        response = await self.comm_interface.transfer(command, response_length=1)
+        response = await self.backend.transfer(command, response_length=1)
         return response
 
     # RM Command
     async def rm(self, zyxt: int) -> bytes:
         command = bytes([0x40 | (zyxt & 0x0F)])
         data_length = 1 + 2 * self.count_set_bits(zyxt & 0x0F)
-        response = await self.comm_interface.transfer(
-            command, response_length=data_length
-        )
+        response = await self.backend.transfer(command, response_length=data_length)
         return response
 
     # RR Command
     async def rr(self, address: int) -> bytes:
         command = bytes([0x50, (address << 2) & 0xFC])
-        response = await self.comm_interface.transfer(command, response_length=3)
+        response = await self.backend.transfer(command, response_length=3)
         return response
 
     # WR Command
@@ -132,31 +127,31 @@ class MLX90393:
                 (address << 2) & 0xFC,
             ]
         )
-        response = await self.comm_interface.transfer(command, response_length=1)
+        response = await self.backend.transfer(command, response_length=1)
         return response
 
     # RT Command
     async def rt(self) -> bytes:
         command = bytes([0xF0])
-        response = await self.comm_interface.transfer(command, response_length=1)
+        response = await self.backend.transfer(command, response_length=1)
         return response
 
     # NOP Command
     async def nop(self) -> bytes:
         command = bytes([0x00])
-        response = await self.comm_interface.transfer(command, response_length=1)
+        response = await self.backend.transfer(command, response_length=1)
         return response
 
     # HR Command
     async def hr(self) -> bytes:
         command = bytes([0xD0])
-        response = await self.comm_interface.transfer(command, response_length=1)
+        response = await self.backend.transfer(command, response_length=1)
         return response
 
     # HS Command
     async def hs(self) -> bytes:
         command = bytes([0xE0])
-        response = await self.comm_interface.transfer(command, response_length=1)
+        response = await self.backend.transfer(command, response_length=1)
         return response
 
     async def start_burst_mode(self, zyxt=0b1110) -> bool:

@@ -38,8 +38,8 @@ async def read(devices: dict[str, MLX90393], interval_ms: int):
             await asyncio.sleep(interval_ms / 1000.0)
 
     # Start a coroutine for each device
-    coroutines = [read_device(name, device) for name, device in devices.items()]
-    asyncio.create_task(asyncio.gather(*coroutines))
+    for name, device in devices.items():
+        asyncio.create_task(read_device(name, device))
 
     # Yield data as it becomes available in the queue
     while True:
