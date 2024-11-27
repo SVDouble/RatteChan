@@ -1,5 +1,7 @@
 import asyncio
+import time
 
+from app.metrics import Metrics
 from app.mlx90393 import MLX90393, I2C
 from app.repository import Repository
 from app.utils import get_settings, get_logger
@@ -7,35 +9,40 @@ from app.utils import get_settings, get_logger
 logger = get_logger(__name__)
 
 
-async def log_message_rate(counter):
+async def log_metrics(metrics: Metrics):
     """
-    Logs the message rate (messages per second) at regular intervals.
+    Logs the current metrics at regular intervals.
     Args:
-        counter: An asyncio-compatible object to count messages (e.g., asyncio.Lock + variable).
+        metrics: Metrics object to track arbitrary counters.
     """
-
     while True:
         await asyncio.sleep(1)  # Log every second
-        async with counter["lock"]:
-            rate = counter["count"]
-            counter["count"] = 0  # Reset count for the next interval
-        logger.info(f"Messages per second: {rate}")
+        snapshot = await metrics.reset()
+        log_message = ", ".join(f"{name}: {value}" for name, value in snapshot.items())
+        logger.info(f"Metrics: {log_message}")
 
 
-async def read(devices: dict[str, MLX90393], interval_ms: int):
+async def read(devices: dict[str, MLX90393], interval_ms: int, metrics: Metrics):
     queue = asyncio.Queue()
 
     async def read_device(name, device):
         """
-        Coroutine to read data from a single device and add it to the queue.
-        Args:
-            name (str): Name of the device.
-            device (MLX90393): The device instance.
+        Task to periodically read data from a device.
         """
         while True:
-            data = await device.read_burst_data()
-            await queue.put((name, data))
-            await asyncio.sleep(interval_ms / 1000.0)
+            start_time = time.time()
+            try:
+                data = await device.read_burst_data()
+                await queue.put((name, data))
+                await metrics.increment("messages")
+                await metrics.increment(f"{name}_messages")
+            except Exception as e:
+                await metrics.increment("errors")
+                await metrics.increment(f"{name}_errors")
+                logger.error(f"Error reading data from {name}: {e}")
+
+            elapsed_time = (time.time() - start_time) * 1000.0
+            await asyncio.sleep(max(0.0, interval_ms - elapsed_time) / 1000.0)
 
     # Start a coroutine for each device
     for name, device in devices.items():
@@ -52,15 +59,15 @@ async def main():
     repository = Repository(settings)
     sensors = {addr: MLX90393(I2C(i2c_address=addr)) for addr in settings.sensors}
 
-    # Shared counter for message logging
-    counter = {"count": 0, "lock": asyncio.Lock()}
-    asyncio.create_task(log_message_rate(counter))
+    # Create a metrics object for tracking counts
+    metrics = Metrics()
+
+    # Start logging metrics in the background
+    asyncio.create_task(log_metrics(metrics))
 
     # Main data processing loop
     async with repository:
         async for name, data in read(
-            sensors, interval_ms=1000 // settings.publish_frequency_hz
+            sensors, interval_ms=1000 // settings.publish_frequency_hz, metrics=metrics
         ):
             await repository.publish_sensor_data(data)
-            async with counter["lock"]:
-                counter["count"] += 1
