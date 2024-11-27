@@ -4,6 +4,7 @@ __all__ = ["SensorData"]
 
 
 class SensorData(BaseModel):
-    x: int
-    y: int
-    z: int
+    x: int | None = None
+    y: int | None = None
+    z: int | None = None
+    t: int | None = None

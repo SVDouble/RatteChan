@@ -142,6 +142,8 @@ services:
   influxdb:
     image: influxdb:latest
     container_name: "rattechan-influxdb"
+    profiles:
+      - persistence
     expose:
       - "8086"
     networks:
@@ -163,6 +165,8 @@ services:
   telegraf:
     image: telegraf:latest
     container_name: "rattechan-telegraf"
+    profiles:
+      - persistence
     networks:
       - rattechan_core
     volumes:
@@ -187,8 +191,8 @@ services:
     networks:
       - rattechan_core
     environment:
-      REDIS_URL: redis://secretum-redis:6379
-      GPIO_ENABLED: 0
+      - MQTT_BROKER=mosquitto
+      - MQTT_TOPIC=ratte/data
     volumes:
       - /dev/gpiomem0:/dev/gpiomem0
     labels:
