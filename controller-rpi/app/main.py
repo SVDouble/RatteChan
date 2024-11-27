@@ -50,22 +50,17 @@ async def read(devices: dict[str, MLX90393], interval_ms: int):
 async def main():
     settings = get_settings()
     repository = Repository(settings)
-
-    # Initialize sensors
-    sensors = {
-        addr: MLX90393(I2C(i2c_address=addr)) for addr in settings.sensor_addresses
-    }
+    sensors = {addr: MLX90393(I2C(i2c_address=addr)) for addr in settings.sensors}
 
     # Shared counter for message logging
     counter = {"count": 0, "lock": asyncio.Lock()}
-
-    # Start logging task
     asyncio.create_task(log_message_rate(counter))
 
     # Main data processing loop
-    async for name, data in read(
-        sensors, interval_ms=1000 // settings.publish_frequency_hz
-    ):
-        await repository.publish_sensor_data(data)
-        async with counter["lock"]:
-            counter["count"] += 1
+    async with repository:
+        async for name, data in read(
+            sensors, interval_ms=1000 // settings.publish_frequency_hz
+        ):
+            await repository.publish_sensor_data(data)
+            async with counter["lock"]:
+                counter["count"] += 1
