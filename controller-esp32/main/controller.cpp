@@ -9,9 +9,13 @@
 #include <esp_wifi_types_generic.h>
 #include <esp_wifi.h>
 #include <esp_timer.h>
+#include <lwip/sockets.h>
+
 #include "freertos/semphr.h"
 
 #include "MLX90393.hpp"
+#include "../../../../../../../opt/esp-idf/components/mqtt/esp-mqtt/lib/include/mqtt_client_priv.h"
+#include "../../../../../../../opt/esp-idf/components/tcp_transport/private_include/esp_transport_internal.h"
 
 namespace mqtt = idf::mqtt;
 
@@ -34,6 +38,14 @@ namespace {
         SemaphoreHandle_t publish_mutex = xSemaphoreCreateMutex();
 
         void on_connected(esp_mqtt_event_handle_t const event) override {
+            // Disable Nagle's algorithm
+            const auto t = handler->transport;
+            const int socket = t->_get_socket(t);
+            constexpr int flag = 1;
+            if (const int r = setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int)); r < 0) {
+                ESP_LOGE(TAG, "setsockopt failed: %s", esp_err_to_name(r));
+            }
+
             // Set up burst mode for continuous measurement on XYZ axes and temperature
             char sensor0_buffer[1], sensor1_buffer[1];
             // Start burst mode with XYZ and T
