@@ -22,41 +22,36 @@ async def log_metrics(metrics: Metrics):
         logger.info(f"Metrics: {log_message}")
 
 
-async def read(devices: dict[str, MLX90393], interval_ms: int, metrics: Metrics):
-    queue = asyncio.Queue()
+async def read_device(
+    name: str,
+    device: MLX90393,
+    *,
+    queue: asyncio.Queue,
+    interval_ms: int,
+    metrics: Metrics,
+):
+    """
+    Task to periodically read data from a device.
+    """
+    try:
+        await asyncio.wait_for(device.start_burst_mode(), timeout=1)
+    except asyncio.TimeoutError:
+        raise RuntimeError("Failed to start burst mode")
 
-    async def read_device(name, device):
-        """
-        Task to periodically read data from a device.
-        """
-        try:
-            await asyncio.wait_for(device.start_burst_mode(), timeout=1)
-        except asyncio.TimeoutError:
-            raise RuntimeError("Failed to start burst mode")
-
-        while True:
-            start_time = time.time()
-            try:
-                data = await device.read_burst_data()
-                await queue.put((name, data))
-                await metrics.increment("messages")
-                await metrics.increment(f"{name}_messages")
-            except Exception as e:
-                await metrics.increment("errors")
-                await metrics.increment(f"{name}_errors")
-                logger.error(f"Error reading data from {name}: {e}")
-
-            elapsed_time = (time.time() - start_time) * 1000.0
-            await asyncio.sleep(max(0.0, interval_ms - elapsed_time) / 1000.0)
-
-    # Start a coroutine for each device
-    for name, device in devices.items():
-        asyncio.create_task(read_device(name, device))
-
-    # Yield data as it becomes available in the queue
     while True:
-        name, data = await queue.get()
-        yield name, data
+        start_time = time.time()
+        try:
+            data = await device.read_burst_data()
+            await queue.put((name, data))
+            await metrics.increment("[*] messages")
+            await metrics.increment(f"[id={name}] messages")
+        except Exception as e:
+            await metrics.increment("[*] errors")
+            await metrics.increment(f"[id={name}] errors")
+            logger.debug(f"Error reading data from {name}: {e}")
+
+        elapsed_time = (time.time() - start_time) * 1000.0
+        await asyncio.sleep(max(0.0, interval_ms - elapsed_time) / 1000.0)
 
 
 async def main():
@@ -70,9 +65,22 @@ async def main():
     # Start logging metrics in the background
     asyncio.create_task(log_metrics(metrics))
 
+    # Start a coroutine for each device
+    queue = asyncio.Queue()
+    interval_ms = 1000 // settings.publish_frequency_hz
+    for name, device in sensors.items():
+        asyncio.create_task(
+            read_device(
+                name,
+                device,
+                queue=queue,
+                interval_ms=interval_ms,
+                metrics=metrics,
+            )
+        )
+
     # Main data processing loop
     async with repository:
-        async for name, data in read(
-                sensors, interval_ms=1000 // settings.publish_frequency_hz, metrics=metrics
-        ):
-            await repository.publish_sensor_data(data)
+        while True:
+            name, data = await queue.get()
+            await repository.publish_sensor_data(name, data)
