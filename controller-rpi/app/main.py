@@ -18,7 +18,9 @@ async def log_metrics(metrics: Metrics):
     while True:
         await asyncio.sleep(1)  # Log every second
         snapshot = await metrics.reset()
-        log_message = ", ".join(f"{name}: {value}" for name, value in snapshot.items())
+        log_message = ", ".join(
+            f"{name}: {value}" for name, value in sorted(snapshot.items())
+        )
         logger.info(f"Metrics: {log_message}")
 
 
@@ -43,11 +45,11 @@ async def read_device(
         try:
             data = await device.read_burst_data()
             await queue.put((name, data))
-            await metrics.increment("[*] messages")
-            await metrics.increment(f"[id={name}] messages")
+            await metrics.increment("M[*]")
+            await metrics.increment(f"M[id={name}]")
         except Exception as e:
-            await metrics.increment("[*] errors")
-            await metrics.increment(f"[id={name}] errors")
+            await metrics.increment("E[*]")
+            await metrics.increment(f"E[id={name}]")
             logger.debug(f"Error reading data from {name}: {e}")
 
         elapsed_time = (time.time() - start_time) * 1000.0
