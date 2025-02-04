@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.models import Sensor
+
 __all__ = ["Settings"]
 
 
@@ -18,4 +20,4 @@ class Settings(BaseSettings):
 
     publish_frequency_hz: float = 100
 
-    sensors: list[int]
+    sensors: list[Sensor]

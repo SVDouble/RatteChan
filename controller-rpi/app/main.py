@@ -57,7 +57,10 @@ async def read_device(
 async def main():
     settings = get_settings()
     repository = Repository(settings)
-    sensors = {addr: MLX90393(I2C(address=addr)) for addr in settings.sensors}
+    sensors = {
+        sensor.name: MLX90393(I2C(bus=sensor.bus, address=sensor.address))
+        for sensor in settings.sensors
+    }
 
     # Create a metrics object for tracking counts
     metrics = Metrics()

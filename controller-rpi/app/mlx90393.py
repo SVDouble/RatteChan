@@ -41,7 +41,7 @@ class SPI(SPIDevice):
 
 # I2C Communication
 class I2C:
-    def __init__(self, *, address, bus=1):
+    def __init__(self, *, address: int, bus: int):
         from smbus2 import SMBus
 
         self.i2c_address = address
