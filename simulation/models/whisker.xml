@@ -1,0 +1,100 @@
+<mujoco>
+    <include file="scene.xml"/>
+
+    <extension>
+        <plugin plugin="mujoco.elasticity.cable"/>
+        <plugin plugin="mujoco.pid">
+            <instance name="pid">
+                <config key="kp" value="400.0"/>
+                <config key="ki" value="40"/>
+                <config key="kd" value="4"/>
+                <config key="slewmax" value="3"/>
+                <config key="imax" value="1"/>
+            </instance>
+        </plugin>
+    </extension>
+
+    <option gravity="0 0 0" integrator="implicitfast"/>
+
+    <asset>
+        <mesh name="object_complex_f1" file="../assets/object_complex_f1.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="object_complex_f2" file="../assets/object_complex_f2.stl" scale="0.001 0.001 0.001"/>
+    </asset>
+
+    <visual>
+        <global offheight="2160" offwidth="3840"/>
+        <quality offsamples="8"/>
+    </visual>
+
+    <worldbody>
+        <light diffuse=".8 .8 .8" pos="0 0 5" dir="0 0 -1"/>
+        <geom type="plane" size="0 0 0.03" material="matplane" rgba="1 1 1 1"/>
+        <geom type="plane" pos="0 0 0.002" axisangle="1 0 0 180" size="0 0 0.03" material="matplane" rgba="0 0 0 0"/>
+        <camera name="whisker_cam_3" pos="0.5 -0.1 1.1"/>
+        <camera name="whisker_cam_4" pos="-0.1 0.2 0.3" xyaxes="1 0 1 1 1 0"/>
+
+        <body name="whisker_base" pos="-0.1 0.1 0.001" axisangle="1 0 0 90">
+            <joint name="whisker_joint_x" type="slide" axis="0 0 1" damping="10" stiffness="0" armature="0.1"/>
+            <joint name="whisker_joint_y" type="slide" axis="1 0 0" damping="10" stiffness="0" armature="0.1"/>
+            <joint name="whisker_joint_z" type="hinge" axis="0 1 0" damping="1" armature="0.01"/>
+            <!--"contype="0" conaffinity="0"": used to avoid the unknowable vibration of whisker when contacting the whisker base-->
+            <geom type="cylinder" size="0.005 0.005" rgba=".8 .3 .1 .5" mass="0.1" contype="0" conaffinity="0"/>
+            <camera name="whisker_cam" pos="0 0.25 0.05" xyaxes="1 0 0 0 0 -1"/>
+            <camera name="whisker_cam_2" pos="-0.15 0 0.05" xyaxes="0 0 1 0 1 0"/>
+            <site name="vel_sensor"/>
+
+            <body name="whisker_body">
+                <!-- xqy: joint still not sure -->
+                <joint name="base2whisker_z" type="hinge" axis="0 1 0" damping="0.01" stiffness="1" armature="0.00001"/>
+                <geom type="cylinder" size="0.000125 0.01" rgba=".8 .3 .7 1" mass="0.005" contype="0" conaffinity="0"/>
+                <!-- <site name="force_sensor"/> -->
+
+                <composite prefix="whisker" type="cable" curve="0 0 s" count="40 1 1"
+                           size="0.1 0 0" initial="none">
+                    <plugin plugin="mujoco.elasticity.cable">
+                        <config key="twist" value="40e9"/>
+                        <!-- https://www.ulbrich.com/alloys/nitinol-wire-astm-f2063/ -->
+                        <config key="bend" value="100e9"/>
+                        <config key="vmax" value="0.001"/>
+                    </plugin>
+                    <!-- xqy: joint still not sure -->
+                    <joint kind="main" damping="0.0001" armature="0.00001"/>
+                    <geom type="capsule" size=".000125" rgba=".8 0 0 1" condim="1" density="6450"/>
+                </composite>
+            </body>
+
+        </body>
+
+        <body>
+            <geom type="mesh" mesh="object_complex_f1" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 .9"/>
+        </body>
+        <body>
+            <geom type="mesh" mesh="object_complex_f2" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 .9"/>
+        </body>
+
+
+    </worldbody>
+
+
+    <actuator>
+        <!-- velocity control -->
+        <velocity joint="whisker_joint_x" name="whisker_move_vel_x"/>
+        <velocity joint="whisker_joint_y" name="whisker_move_vel_y"/>
+        <plugin joint="whisker_joint_z" plugin="mujoco.pid" instance="pid" actdim="2"/>
+    </actuator>
+
+    <sensor>
+        <jointpos joint="base2whisker_z" name="base2whisker_z"/>
+
+        <velocimeter site="vel_sensor" name="vel_sensor"/>
+
+        <jointpos joint="whisker_joint_x" name="whisker_joint_x"/>
+        <jointpos joint="whisker_joint_y" name="whisker_joint_y"/>
+        <jointpos joint="whisker_joint_z" name="whisker_joint_z"/>
+
+        <framepos objtype="site" objname="whiskerS_last" reftype="site" refname="vel_sensor" name="tip_pos"/>
+        <gyro site="vel_sensor" name="gyro_sensor"/>
+
+    </sensor>
+
+</mujoco>

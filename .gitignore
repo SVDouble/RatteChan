@@ -139,3 +139,6 @@ dmypy.json
 *.swp
 
 .idea
+
+# simulation
+simulation/outputs
