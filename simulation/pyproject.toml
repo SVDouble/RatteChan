@@ -1,26 +1,21 @@
-[tool.poetry]
+[project]
 name = "rattechan-simulation"
 version = "0.1.0"
 description = ""
 authors = ["Valentin Safronov <svdouble@hotmail.com>"]
 readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.12"
-numpy = "^2.1.2"
-pydantic = "^2.10.1"
-pydantic-settings = "^2.6.1"
-rich = "13.9.4"
-mujoco = "^3.2.7"
-mediapy = "^1.2.2"
-scipy = "^1.15.1"
-filterpy = "^1.4.5"
-tqdm = "^4.67.1"
-
-
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.8.0"
-pre-commit = "^4.0.1"
+requires-python = ">=3.13"
+dependencies = [
+    "filterpy>=1.4.5",
+    "mediapy>=1.2.2",
+    "mujoco>=3.2.7",
+    "numpy>=2.2.3",
+    "pydantic>=2.10.6",
+    "pydantic-settings>=2.7.1",
+    "rich>=13.9.4",
+    "scipy>=1.15.1",
+    "tqdm>=4.67.1",
+]
 
 [tool.ruff]
 line-length = 88
@@ -28,6 +23,8 @@ lint.select = ["E", "F", "W", "C", "N", "B"]
 # Disallow all relative imports.
 lint.flake8-tidy-imports.ban-relative-imports = "all"
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+dev = [
+    "pre-commit>=4.1.0",
+    "ruff>=0.9.6",
+]

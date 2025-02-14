@@ -4,6 +4,6 @@
         <texture type="skybox" builtin="gradient" rgb1="1 1 1" rgb2=".6 .8 1" width="256" height="256"/>
         <texture name="texplane" type="2d" builtin="checker" rgb1=".2 .3 .4" rgb2=".1 0.15 0.2" width="512" height="512"
                  mark="cross" markrgb=".8 .8 .8"/>
-        <material name="matplane" reflectance="0" texture="texplane" texrepeat="2 2" texuniform="true"/>
+        <material name="matplane" reflectance="1" texture="texplane" texrepeat="2 2" texuniform="true"/>
     </asset>
 </mujoco>

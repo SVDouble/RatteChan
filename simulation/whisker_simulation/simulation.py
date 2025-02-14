@@ -28,15 +28,16 @@ class WhiskerSimulation:
 
     def control(self, _: mujoco.MjModel, __: mujoco.MjData):
         time = self.data.time
-        deflection = self.data.sensor("base2whisker_z").data.item()
+        deflection = self.data.sensor("whisker_r0_a").data.item()
         x, y = (
-            self.data.sensor("whisker_joint_x").data.item(),
-            self.data.sensor("whisker_joint_y").data.item(),
+            self.data.sensor("body_x").data.item(),
+            self.data.sensor("body_y").data.item(),
         )
-        theta = self.data.sensor("whisker_joint_z").data.item()
+        theta = self.data.sensor("body_a").data.item()
         control_values = self.controller.control(time, deflection, x, y, theta)
         if control_values is not None:
-            self.data.ctrl[0 : len(control_values)] = control_values
+            body_vx, body_vy = control_values
+            self.data.ctrl[0:2] = [body_vx, body_vy]
 
     def record(self):
         renderer = mujoco.Renderer(self.model, width=720, height=512)

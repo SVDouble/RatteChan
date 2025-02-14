@@ -1,9 +1,11 @@
+import numpy as np
+
 __all__ = ["DeflectionModel"]
 
 
 class DeflectionModel:
     @staticmethod
-    def fx(an):  # X
+    def get_x(an):  # X
         poly = (
             -1.41e18 * an**5
             - 8.617e14 * an**4
@@ -15,7 +17,7 @@ class DeflectionModel:
         return (100 - poly) / 1000
 
     @staticmethod
-    def fy(an):  # Y
+    def get_y(an):  # Y
         poly = (
             -1.389e19 * an**5
             - 1.317e16 * an**4
@@ -25,3 +27,8 @@ class DeflectionModel:
             - 2.149
         )
         return -poly / 1000
+
+    @staticmethod
+    def get_position(an):
+        x, y = DeflectionModel.get_x(an), DeflectionModel.get_y(an)
+        return np.array([x, y])
