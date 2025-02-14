@@ -14,8 +14,8 @@
 #include "freertos/semphr.h"
 
 #include "MLX90393.hpp"
-#include "../../../../../../../opt/esp-idf/components/mqtt/esp-mqtt/lib/include/mqtt_client_priv.h"
-#include "../../../../../../../opt/esp-idf/components/tcp_transport/private_include/esp_transport_internal.h"
+#include "/opt/esp-idf/components/mqtt/esp-mqtt/lib/include/mqtt_client_priv.h"
+#include "/opt/esp-idf/components/tcp_transport/private_include/esp_transport_internal.h"
 
 namespace mqtt = idf::mqtt;
 

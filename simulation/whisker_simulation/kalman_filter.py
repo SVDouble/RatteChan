@@ -1,7 +1,7 @@
 import numpy as np
 from filterpy.kalman import KalmanFilter
 
-__all__ = ['WhiskerKalmanFilter']
+__all__ = ["WhiskerKalmanFilter"]
 
 
 class WhiskerKalmanFilter:
