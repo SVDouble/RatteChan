@@ -1,31 +1,43 @@
-from typing import Tuple, Optional
+import logging
+from functools import lru_cache
 
-import numpy as np
+from rich.logging import RichHandler, Console
 
-__all__ = ["PID"]
+__all__ = ["get_config", "get_logger"]
 
 
-class PID:
-    def __init__(
-        self,
-        kp: float,
-        ki: float,
-        kd: float,
-        dt: float,
-        out_limits: Tuple[Optional[float], Optional[float]] = (None, None),
-    ) -> None:
-        self.kp: float = kp
-        self.ki: float = ki
-        self.kd: float = kd
-        self.dt: float = dt
-        self.integral: float = 0.0
-        self.last_error: float = 0.0
-        self.out_limits: Tuple[Optional[float], Optional[float]] = out_limits
+console = Console(color_system="256", width=150, style="blue")
 
-    def __call__(self, error: float) -> float:
-        self.integral += error * self.dt
-        derivative = (error - self.last_error) / self.dt
-        output = self.kp * error + self.ki * self.integral + self.kd * derivative
-        self.last_error = error
-        min_out, max_out = self.out_limits
-        return np.clip(output, min_out, max_out)
+
+@lru_cache()
+def get_config():
+    from whisker_simulation.config import Config
+
+    return Config()
+
+
+@lru_cache()
+def get_logger(module_name):
+    logger = logging.getLogger(module_name)
+    handler = RichHandler(console=console, enable_link_path=False)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(handler)
+    config = get_config()
+    logger.setLevel(config.log_level)
+    return logger
+
+
+@lru_cache()
+def get_monitor():
+    from whisker_simulation.monitor import Monitor
+
+    config = get_config()
+    if config.use_monitor:
+        return Monitor()
+
+    class Dummy:
+        def __getattr__(self, name):
+            # Return a no-op function for any attribute access.
+            return lambda *args, **kwargs: None
+
+    return Dummy()

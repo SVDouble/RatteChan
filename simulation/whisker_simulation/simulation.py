@@ -6,25 +6,21 @@ import mujoco
 from mujoco import viewer
 from tqdm import tqdm
 
+from whisker_simulation.config import Config
 from whisker_simulation.controller import WhiskerController
 
 
 class WhiskerSimulation:
-    def __init__(
-        self,
-        model_path: str,
-        duration: float,
-        camera_fps: int,
-        control_rps: int,
-    ):
-        self.model_path = model_path
-        self.duration = duration
-        self.camera_fps = camera_fps
-        self.control_rps = control_rps
-
+    def __init__(self, config: Config):
+        self.model_path = str(config.model_path)
         self.model = mujoco.MjModel.from_xml_path(self.model_path)
         self.data = mujoco.MjData(self.model)
+        self.control_rps = config.control_rps
+
         self.controller = WhiskerController(self.model.opt.timestep, self.control_rps)
+
+        self.duration = config.recording_duration
+        self.camera_fps = config.recording_camera_fps
 
     def control(self, _: mujoco.MjModel, __: mujoco.MjData):
         time = self.data.time

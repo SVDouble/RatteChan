@@ -5,9 +5,13 @@ import scipy.interpolate as interpolate
 from filterpy.kalman import KalmanFilter
 
 from whisker_simulation.deflection_model import DeflectionModel
-from whisker_simulation.utils import PID
+from whisker_simulation.pid import PID
+from whisker_simulation.utils import get_monitor
+
 
 __all__ = ["WhiskerController"]
+
+monitor = get_monitor()
 
 
 class WhiskerController:
@@ -46,7 +50,12 @@ class WhiskerController:
         )
         self.target_body_yaw = 1e-6
 
+        # runtime
+        self.time = 0
+
     def control(self, time, deflection, x, y, yaw):
+        self.time = time
+
         # if not enough time has passed, keep the control values
         if time - self.last_control_time < self.control_period:
             return
@@ -91,20 +100,20 @@ class WhiskerController:
         return self.rotate_ccw(tip, yaw) + body
 
     def update_tip_spline(self, new_tip, body):
-        # add the new tip point
         has_new_point = False
-        if not self.keypoints:
-            self.keypoints.append(new_tip)
-            self.spline_last_body = body
-            has_new_point = True
-        else:
+        # add the new tip point
+        if self.keypoints:
             last_tip = np.array(self.keypoints[-1])
             tip_d = np.linalg.norm(np.array(new_tip) - last_tip)
             body_d = np.linalg.norm(body - self.spline_last_body)
             if min(tip_d, body_d) >= self.min_keypoint_distance:
-                self.keypoints.append(new_tip)
-                self.spline_last_body = body
                 has_new_point = True
+        if not self.keypoints:
+            has_new_point = True
+        if has_new_point:
+            self.keypoints.append(new_tip)
+            self.spline_last_body = body
+            monitor.add_keypoint(self.time, new_tip)
         if len(self.keypoints) <= self.spline_degree:
             return has_new_point
         if not has_new_point:

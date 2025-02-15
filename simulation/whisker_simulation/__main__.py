@@ -1,9 +1,6 @@
 from whisker_simulation.simulation import WhiskerSimulation
+from whisker_simulation.utils import get_config
 
-simulation = WhiskerSimulation(
-    model_path="models/whisker.xml",
-    duration=160,
-    camera_fps=30,
-    control_rps=100,
-)
+config = get_config()
+simulation = WhiskerSimulation(config)
 simulation.run()
