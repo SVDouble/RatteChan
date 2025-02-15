@@ -24,20 +24,20 @@ class WhiskerSimulation:
 
         self.model = mujoco.MjModel.from_xml_path(self.model_path)
         self.data = mujoco.MjData(self.model)
-        self.controller = WhiskerController(self.control_rps)
+        self.controller = WhiskerController(self.model.opt.timestep, self.control_rps)
 
     def control(self, _: mujoco.MjModel, __: mujoco.MjData):
         time = self.data.time
-        deflection = self.data.sensor("whisker_r0_a").data.item()
+        deflection = self.data.sensor("wr0_deflection").data.item()
         x, y = (
             self.data.sensor("body_x").data.item(),
             self.data.sensor("body_y").data.item(),
         )
-        theta = self.data.sensor("body_a").data.item()
+        theta = self.data.sensor("body_yaw").data.item()
         control_values = self.controller.control(time, deflection, x, y, theta)
         if control_values is not None:
-            body_vx, body_vy = control_values
-            self.data.ctrl[0:2] = [body_vx, body_vy]
+            body_vx, body_vy, angle = control_values
+            self.data.ctrl[0:3] = [body_vx, body_vy, angle]
 
     def record(self):
         renderer = mujoco.Renderer(self.model, width=720, height=512)
@@ -72,7 +72,7 @@ class WhiskerSimulation:
         mujoco.set_mjcb_control(self.control)
 
         # set the initial control values
-        self.data.ctrl[1] = self.controller.TOTAL_VEL
+        self.data.ctrl[1] = self.controller.total_velocity
 
         # launch the viewer
         mujoco.viewer.launch(self.model, self.data)

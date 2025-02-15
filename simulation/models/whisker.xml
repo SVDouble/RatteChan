@@ -51,7 +51,7 @@
             <joint name="body_x" type="slide" axis="0 0 1" damping="10" stiffness="0" armature="0.1"/>
             <joint name="body_y" type="slide" axis="1 0 0" damping="10" stiffness="0" armature="0.1"/>
             <!-- Hinge joint for rotation -->
-            <joint name="body_a" type="hinge" axis="0 1 0" damping="1" armature="0.01"/>
+            <joint name="body_yaw" type="hinge" axis="0 1 0" damping="1" armature="0.01"/>
             <!-- Cylinder geom representing the physical base (collision disabled to avoid unwanted vibrations) -->
             <geom type="cylinder" size="0.005 0.005" rgba=".8 .3 .1 .5" mass="0.1" contype="0" conaffinity="0"/>
             <!-- Cameras attached to the whisker base -->
@@ -63,7 +63,7 @@
             <!-- Whisker body attached to the base -->
             <body name="whisker_body">
                 <!-- Hinge joint connecting base to whisker body -->
-                <joint name="whisker_r0_a" type="hinge" axis="0 1 0" damping="0.01" stiffness="1" armature="0.00001"/>
+                <joint name="wr0_deflection" type="hinge" axis="0 1 0" damping="0.01" stiffness="1" armature="0.00001"/>
                 <!-- Thin cylinder geom for the whisker body -->
                 <geom type="cylinder" size="0.000125 0.01" rgba=".8 .3 .7 1" mass="0.005" contype="0" conaffinity="0"/>
                 <!-- Composite element representing a flexible cable attached to the whisker -->
@@ -95,22 +95,24 @@
     <!-- Actuators: define how joints are controlled -->
     <actuator>
         <!-- Velocity actuators for sliding joints -->
-        <velocity joint="body_x" name="whisker_move_vel_x"/>
-        <velocity joint="body_y" name="whisker_move_vel_y"/>
+        <velocity joint="body_x" name="body_vx"/>
+        <velocity joint="body_y" name="body_vy"/>
+<!--        <velocity joint="body_yaw" name="body_yaw"/>-->
+
         <!-- PID-controlled actuator for the hinge joint using the PID plugin -->
-        <plugin joint="body_a" plugin="mujoco.pid" instance="pid" actdim="2"/>
+        <plugin joint="body_yaw" name="body_yaw" plugin="mujoco.pid" instance="pid" actdim="2"/>
     </actuator>
 
     <!-- Sensors: collect simulation data -->
     <sensor>
         <!-- Sensor for measuring the position of the hinge between base and whisker -->
-        <jointpos joint="whisker_r0_a" name="whisker_r0_a"/>
+        <jointpos joint="wr0_deflection" name="wr0_deflection"/>
         <!-- Velocimeter for measuring linear velocity at the sensor site -->
         <velocimeter site="vel_sensor" name="vel_sensor"/>
         <!-- Joint position sensors for the whisker base joints -->
         <jointpos joint="body_x" name="body_x"/>
         <jointpos joint="body_y" name="body_y"/>
-        <jointpos joint="body_a" name="body_a"/>
+        <jointpos joint="body_yaw" name="body_yaw"/>
         <!-- Frame position sensor: tracks a site relative to 'vel_sensor' -->
         <framepos objtype="site" objname="whiskerS_last" reftype="site" refname="vel_sensor" name="tip_pos"/>
         <!-- Gyro sensor for measuring angular velocity at the sensor site -->
