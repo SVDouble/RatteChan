@@ -34,15 +34,14 @@ class WhiskerController:
         # velocity and angle control
         self.last_control_time = 0
         self.total_velocity = 0.25
-        self.target_deflection = -3.2e-4
-        self.deflection_detection_threshold = 5e-5
-        self.deflected_whisker_dims = self.deflection_model.get_position(
-            self.target_deflection
-        )
-        self.pid_deflection = PID(kp=3000, ki=10, kd=0, dt=dt, out_limits=(-0.15, 0.15))
+        self.target_deflection_range = np.array([-2e-4, -3.5e-4])
+        self.yaw_angle_range = np.array([0, np.pi / 4])
+        self.deflection_detection_threshold = 1e-6
+        self.pid_deflection = PID(kp=3000, ki=10, kd=0, dt=dt, out_limits=(-self.total_velocity, self.total_velocity))
 
+        self.angular_velocity_limit = 4 * np.pi
         self.pid_body_yaw = PID(
-            kp=10, ki=0.001, kd=0, dt=dt, out_limits=(-np.pi, np.pi)
+            kp=10, ki=0.01, kd=0.1, dt=dt, out_limits=(-self.angular_velocity_limit, self.angular_velocity_limit)
         )
         self.target_body_yaw = 1e-6
 
@@ -65,11 +64,16 @@ class WhiskerController:
         if not self.spline:
             return
 
-        # estimate the control values
+        # set the target deflection based on the spline curvature
         target_body_yaw = self.get_target_body_yaw()
-        body_v = self.get_target_body_velocity(deflection, target_body_yaw)
+        target_deflection = np.interp(target_body_yaw, self.yaw_angle_range, self.target_deflection_range)
+
+        # body velocity is relative to the body frame, so we need to rotate it to the world frame
+        body_vx_s = self.pid_deflection(-(float(target_deflection) - deflection))
+        body_vy_s = np.sqrt(self.total_velocity ** 2 - body_vx_s ** 2)
+        body_v_w = self.rotate_ccw(np.array([body_vx_s, body_vy_s]), target_body_yaw)
         body_omega = self.pid_body_yaw(target_body_yaw - yaw)
-        return body_v[0], body_v[1], body_omega
+        return body_v_w[0], body_v_w[1], body_omega
 
     def get_tip_position(self, deflection, body, yaw):
         """Get the tip position in world coordinates"""
@@ -84,7 +88,10 @@ class WhiskerController:
         else:
             self.tip_xy_filter.x = tip
         self.tip_xy_filter.predict()
-        self.tip_xy_filter.update(tip)
+        try:
+            self.tip_xy_filter.update(tip)
+        except np.linalg.LinAlgError:
+            pass
         tip = self.tip_xy_filter.x.copy()
 
         # transform the tip position to world coordinates
@@ -145,12 +152,6 @@ class WhiskerController:
         limit = 0.0015
         self.target_body_yaw += np.clip(angle - self.target_body_yaw, -limit, limit)
         return self.target_body_yaw
-
-    def get_target_body_velocity(self, deflection, target_body_yaw):
-        # why -deflection? it just works
-        body_vx_s = self.pid_deflection(-(self.target_deflection - deflection))
-        body_vy_s = np.sqrt(self.total_velocity**2 - body_vx_s**2)
-        return self.rotate_ccw(np.array([body_vx_s, body_vy_s]), target_body_yaw)
 
     @staticmethod
     def rotate_ccw(v, theta):
