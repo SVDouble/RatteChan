@@ -37,15 +37,11 @@ class PID:
 
     def __call__(self, error: float) -> float:
         self.integral += error * self.dt
-        derivative: float = (error - self.last_error) / self.dt
-        output: float = self.kp * error + self.ki * self.integral + self.kd * derivative
-        min_out, max_out = self.out_limits
-        if min_out is not None:
-            output = max(min_out, output)
-        if max_out is not None:
-            output = min(max_out, output)
+        derivative = (error - self.last_error) / self.dt
+        output = self.kp * error + self.ki * self.integral + self.kd * derivative
         self.last_error = error
-        return output
+        min_out, max_out = self.out_limits
+        return np.clip(output, min_out, max_out)
 
 
 class WhiskerController:
@@ -61,7 +57,7 @@ class WhiskerController:
         self.spline_degree = 3
         self.n_keypoints = 7
         self.n_knots = 5
-        self.min_keypoint_distance = 5e-3  # TODO: use velocity to determine this
+        self.min_keypoint_distance = 1e-2  # TODO: use velocity to determine this
         self.keypoints = deque(maxlen=self.n_keypoints)
         self.spline = None
         self.spline_last_body = None
@@ -69,17 +65,13 @@ class WhiskerController:
         # velocity and angle control
         self.last_control_time = 0
         self.total_velocity = 0.25
-        self.target_deflection = -3e-4
-        self.deflection_detection_threshold = 1e-5
+        self.target_deflection = -3.2e-4
+        self.deflection_detection_threshold = 5e-5
         self.deflected_whisker_dims = self.deflection_model.get_position(
             self.target_deflection
         )
-        self.target_body_yaw = 0.5 * np.pi
-        vlims = (-self.total_velocity, self.total_velocity)
-        self.pid_x = PID(kp=1, ki=0, kd=0, dt=dt, out_limits=vlims)
-        self.pid_y = PID(kp=1, ki=0, kd=0, dt=dt, out_limits=vlims)
-        self.pid_yaw = PID(kp=0.1, ki=0, kd=0, dt=dt, out_limits=(-0.5, 0.5))
-        self.last_body = None
+        self.pid_deflection = PID(kp=300000, ki=1000, kd=0, dt=dt, out_limits=(-15, 15))
+        self.target_body_yaw = 0
 
     def control(self, time, deflection, x, y, yaw):
         # if not enough time has passed, keep the control values
@@ -96,59 +88,14 @@ class WhiskerController:
         tip_now = self.get_tip_position(deflection, body, yaw)
 
         # update the spline and predict the next tip position
-        if not self.update_tip_spline(tip_now, body) or not self.spline:
+        self.update_tip_spline(tip_now, body)
+        if not self.spline:
             return
 
-        tip_anchor = self.spline_estimate_tip(0.5)
-        tip_next1 = self.spline_estimate_tip(self.spline_future_point(1))
-        tip_next2 = self.spline_estimate_tip(self.spline_future_point(2))
-
-        # calculate the target body position
-        # when the body reaches the target deflection,
-        # it should be at the angle parallel to (tip_next2 - tip_now)
-        # and at the position tip_next1 with the whisker deflection offset
-
-        # calculate and unwrap the angle between the first and predicted tip
-        angle_wrapped = (
-            np.arctan2(tip_next2[1] - tip_anchor[1], tip_next2[0] - tip_anchor[0]) - np.pi / 2
-        )
-        angle = np.unwrap(np.array([self.target_body_yaw, angle_wrapped]))[-1]
-        # self.target_body_yaw += np.clip(angle - prev_angle, -limit, limit)
-        self.target_body_yaw = angle
-
-        rotated_whisker_dims = self.rotate_ccw(
-            self.deflected_whisker_dims, self.target_body_yaw
-        )
-        body_ideal_target = tip_next1 - rotated_whisker_dims
-        body_target = body * 0.95 + body_ideal_target * 0.05
-
-        # calculate the control values
-        control_omega = self.pid_yaw(self.target_body_yaw - yaw)
-        raw_vx = self.pid_x(body_target[0] - x)
-        raw_vy = self.pid_y(body_target[1] - y)
-
-        # Scale the translational velocity to have magnitude self.total_velocity
-        raw_v = np.array([raw_vx, raw_vy])
-        # raw_v = target_body - body
-        norm = np.linalg.norm(raw_v)
-        control_v = (
-            raw_v * (self.total_velocity / norm) if norm > 0 else np.array([0.0, 0.0])
-        )
-        print(f"body: {body}, target_body: {body_target}")
-        print(
-            f"offset: {self.deflected_whisker_dims}, rotated_offset: {rotated_whisker_dims}"
-        )
-        print(f"body yaw: {yaw}, target yaw: {self.target_body_yaw}")
-        print(f"control_v: {control_v}, control_omega: {control_omega}")
-        print("\n")
-        # self.draw_spline(
-        #     np.array([self.spline_future_point(1), self.spline_future_point(2)]),
-        #     contact=tip_now,
-        #     body=body,
-        #     target=body_target,
-        # )
-        #input()
-        return control_v[0], control_v[1], 0
+        # estimate the control values
+        target_body_yaw = self.get_target_body_yaw()
+        body_v = self.get_target_body_velocity(deflection, target_body_yaw)
+        return body_v[0], body_v[1], self.target_body_yaw
 
     def get_tip_position(self, deflection, body, yaw):
         """Get the tip position in world coordinates"""
@@ -211,12 +158,35 @@ class WhiskerController:
     def spline_future_point(self, k):
         return 1 + k / (len(self.keypoints) - 1)
 
+    def get_target_body_yaw(self):
+        # get predicted tip positions
+        tip_from = self.spline_estimate_tip(self.spline_future_point(-1))
+        tip_to = self.spline_estimate_tip(self.spline_future_point(1))
+
+        # calculate and unwrap the angle between the first and predicted tip
+        angle_wrapped = (
+            np.arctan2(tip_to[1] - tip_from[1], tip_to[0] - tip_from[0]) - np.pi / 2
+        )
+        angle = np.unwrap(np.array([self.target_body_yaw, angle_wrapped]))[-1]
+        limit = 0.0015
+        self.target_body_yaw += np.clip(angle - self.target_body_yaw, -limit, limit)
+        return self.target_body_yaw
+
+    def get_target_body_velocity(self, deflection, target_body_yaw):
+        body_vx_s = self.pid_deflection(deflection - self.target_deflection) * 0.01
+        body_vy_s = np.sqrt(self.total_velocity**2 - body_vx_s**2)
+        return self.rotate_ccw(np.array([body_vx_s, body_vy_s]), target_body_yaw)
 
     @staticmethod
     def rotate_ccw(v, theta):
         # noinspection PyPep8Naming
         R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
         return R @ v
+
+    @staticmethod
+    def normalize_and_scale(v, scale):
+        norm = np.linalg.norm(v)
+        return v * (scale / norm) if norm > 0 else np.array([0.0, 0.0])
 
     def draw_spline(self, u: np.ndarray, **kwargs: np.ndarray):
         if self.spline is None:
