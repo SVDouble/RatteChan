@@ -1,47 +1,13 @@
 from collections import deque
-from typing import Tuple, Optional
 
 import numpy as np
 import scipy.interpolate as interpolate
 from filterpy.kalman import KalmanFilter
 
 from whisker_simulation.deflection_model import DeflectionModel
+from whisker_simulation.utils import PID
 
 __all__ = ["WhiskerController"]
-
-
-class WhiskerTipXYFilter(KalmanFilter):
-    def __init__(self, dim=2, init_var=10, q_scale=0.01):
-        super().__init__(dim_x=dim, dim_z=dim)
-        self.H = np.eye(dim)
-        self.P *= init_var
-        self.Q = np.eye(dim) * q_scale
-
-
-class PID:
-    def __init__(
-        self,
-        kp: float,
-        ki: float,
-        kd: float,
-        dt: float,
-        out_limits: Tuple[Optional[float], Optional[float]] = (None, None),
-    ) -> None:
-        self.kp: float = kp
-        self.ki: float = ki
-        self.kd: float = kd
-        self.dt: float = dt
-        self.integral: float = 0.0
-        self.last_error: float = 0.0
-        self.out_limits: Tuple[Optional[float], Optional[float]] = out_limits
-
-    def __call__(self, error: float) -> float:
-        self.integral += error * self.dt
-        derivative = (error - self.last_error) / self.dt
-        output = self.kp * error + self.ki * self.integral + self.kd * derivative
-        self.last_error = error
-        min_out, max_out = self.out_limits
-        return np.clip(output, min_out, max_out)
 
 
 class WhiskerController:
@@ -50,7 +16,10 @@ class WhiskerController:
 
         # tip position estimation using deflection model and kalman filter
         self.deflection_model = DeflectionModel()
-        self.tip_xy_filter = WhiskerTipXYFilter()
+        self.tip_xy_filter = KalmanFilter(dim_x=2, dim_z=2)
+        self.tip_xy_filter.H = np.eye(2)
+        self.tip_xy_filter.P *= 10
+        self.tip_xy_filter.Q = np.eye(2) * 0.01
         self.tip_raw_xy_deque = deque(maxlen=20)
 
         # tip position prediction using spline
@@ -70,8 +39,12 @@ class WhiskerController:
         self.deflected_whisker_dims = self.deflection_model.get_position(
             self.target_deflection
         )
-        self.pid_deflection = PID(kp=300000, ki=1000, kd=0, dt=dt, out_limits=(-15, 15))
-        self.target_body_yaw = 0
+        self.pid_deflection = PID(kp=3000, ki=10, kd=0, dt=dt, out_limits=(-0.15, 0.15))
+
+        self.pid_body_yaw = PID(
+            kp=10, ki=0.001, kd=0, dt=dt, out_limits=(-np.pi, np.pi)
+        )
+        self.target_body_yaw = 1e-6
 
     def control(self, time, deflection, x, y, yaw):
         # if not enough time has passed, keep the control values
@@ -95,7 +68,8 @@ class WhiskerController:
         # estimate the control values
         target_body_yaw = self.get_target_body_yaw()
         body_v = self.get_target_body_velocity(deflection, target_body_yaw)
-        return body_v[0], body_v[1], self.target_body_yaw
+        body_omega = self.pid_body_yaw(target_body_yaw - yaw)
+        return body_v[0], body_v[1], body_omega
 
     def get_tip_position(self, deflection, body, yaw):
         """Get the tip position in world coordinates"""
@@ -173,7 +147,8 @@ class WhiskerController:
         return self.target_body_yaw
 
     def get_target_body_velocity(self, deflection, target_body_yaw):
-        body_vx_s = self.pid_deflection(deflection - self.target_deflection) * 0.01
+        # why -deflection? it just works
+        body_vx_s = self.pid_deflection(-(self.target_deflection - deflection))
         body_vy_s = np.sqrt(self.total_velocity**2 - body_vx_s**2)
         return self.rotate_ccw(np.array([body_vx_s, body_vy_s]), target_body_yaw)
 

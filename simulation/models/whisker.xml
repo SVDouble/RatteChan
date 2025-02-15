@@ -7,15 +7,15 @@
         <!-- Cable elasticity plugin enables flexible cable simulation -->
         <plugin plugin="mujoco.elasticity.cable"/>
         <!-- PID controller plugin with its configuration parameters -->
-        <plugin plugin="mujoco.pid">
-            <instance name="pid">
-                <config key="kp" value="400.0"/>    <!-- Proportional gain -->
-                <config key="ki" value="40"/>       <!-- Integral gain -->
-                <config key="kd" value="4"/>        <!-- Derivative gain -->
-                <config key="slewmax" value="3"/>   <!-- Maximum rate of change -->
-                <config key="imax" value="1"/>      <!-- Maximum integral accumulation -->
-            </instance>
-        </plugin>
+<!--        <plugin plugin="mujoco.pid">-->
+<!--            <instance name="pid">-->
+<!--                <config key="kp" value="400.0"/>    &lt;!&ndash; Proportional gain &ndash;&gt;-->
+<!--                <config key="ki" value="40"/>       &lt;!&ndash; Integral gain &ndash;&gt;-->
+<!--                <config key="kd" value="4"/>        &lt;!&ndash; Derivative gain &ndash;&gt;-->
+<!--                <config key="slewmax" value="3"/>   &lt;!&ndash; Maximum rate of change &ndash;&gt;-->
+<!--                <config key="imax" value="1"/>      &lt;!&ndash; Maximum integral accumulation &ndash;&gt;-->
+<!--            </instance>-->
+<!--        </plugin>-->
     </extension>
 
     <!-- Global simulation options -->
@@ -97,10 +97,10 @@
         <!-- Velocity actuators for sliding joints -->
         <velocity joint="body_x" name="body_vx"/>
         <velocity joint="body_y" name="body_vy"/>
-<!--        <velocity joint="body_yaw" name="body_yaw"/>-->
+        <velocity joint="body_yaw" name="body_omega"/>
 
         <!-- PID-controlled actuator for the hinge joint using the PID plugin -->
-        <plugin joint="body_yaw" name="body_yaw" plugin="mujoco.pid" instance="pid" actdim="2"/>
+<!--        <plugin joint="body_yaw" name="body_yaw" plugin="mujoco.pid" instance="pid" actdim="2"/>-->
     </actuator>
 
     <!-- Sensors: collect simulation data -->
