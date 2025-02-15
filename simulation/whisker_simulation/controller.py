@@ -28,27 +28,39 @@ class WhiskerController:
 
         # tip position prediction using spline
         self.spline_degree = 3
-        self.n_keypoints = 7
-        self.n_knots = 5
-        self.min_keypoint_distance = 1e-2  # TODO: use velocity to determine this
-        self.keypoints = deque(maxlen=self.n_keypoints)
+        self.spline_n_keypoints = 7
+        self.spline_n_knots = 5
+        self.spline_smoothness = 0.1
+        self.keypoint_distance = 1e-3  # TODO: use velocity to determine this
+        self.keypoints = deque(maxlen=self.spline_n_keypoints)
         self.spline = None
         self.spline_last_body = None
 
         # velocity and angle control
         self.last_control_time = 0
-        self.total_velocity = 0.25
+        self.total_velocity = 0.5
         self.target_deflection = -3.2e-4
         self.deflection_detection_threshold = 5e-5
         self.deflected_whisker_dims = self.deflection_model.get_position(
             self.target_deflection
         )
-        self.pid_deflection = PID(kp=3000, ki=10, kd=0, dt=dt, out_limits=(-0.15, 0.15))
+        self.pid_deflection = PID(
+            kp=3000,
+            ki=10,
+            kd=0,
+            dt=dt,
+            out_limits=(-self.total_velocity, self.total_velocity),
+        )
 
         self.pid_body_yaw = PID(
-            kp=10, ki=0.001, kd=0, dt=dt, out_limits=(-np.pi, np.pi)
+            kp=10,
+            ki=0.001,
+            kd=0,
+            dt=dt,
+            out_limits=(-2 * np.pi, 2 * np.pi),
         )
         self.target_body_yaw = 1e-6
+        self.body_yaw_step_limit = 0.003
 
         # runtime
         self.time = 0
@@ -106,7 +118,7 @@ class WhiskerController:
             last_tip = np.array(self.keypoints[-1])
             tip_d = np.linalg.norm(np.array(new_tip) - last_tip)
             body_d = np.linalg.norm(body - self.spline_last_body)
-            if min(tip_d, body_d) >= self.min_keypoint_distance:
+            if min(tip_d, body_d) >= self.keypoint_distance:
                 has_new_point = True
         if not self.keypoints:
             has_new_point = True
@@ -127,11 +139,13 @@ class WhiskerController:
         arc_length = np.concatenate(([0], np.cumsum(distances)))
         u = arc_length / arc_length[-1]  # normalized parameter [0,1]
         # Compute interior quantiles from the normalized parameter as knot locations
-        quantile_levels = np.linspace(0, 1, self.n_knots)[1:-1]
+        quantile_levels = np.linspace(0, 1, self.spline_n_knots)[1:-1]
         knots = np.quantile(u, quantile_levels)
         # Fit a parametric spline through the keypoints with the computed knots
         # noinspection PyTupleAssignmentBalance
-        tck, _ = interpolate.splprep(keypoints.T, t=knots, k=self.spline_degree, s=0.1)
+        tck, _ = interpolate.splprep(
+            keypoints.T, t=knots, k=self.spline_degree, s=self.spline_smoothness
+        )
         self.spline = tck
         return True
 
@@ -151,7 +165,7 @@ class WhiskerController:
             np.arctan2(tip_to[1] - tip_from[1], tip_to[0] - tip_from[0]) - np.pi / 2
         )
         angle = np.unwrap(np.array([self.target_body_yaw, angle_wrapped]))[-1]
-        limit = 0.0015
+        limit = self.body_yaw_step_limit
         self.target_body_yaw += np.clip(angle - self.target_body_yaw, -limit, limit)
         return self.target_body_yaw
 
@@ -166,33 +180,3 @@ class WhiskerController:
         # noinspection PyPep8Naming
         R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
         return R @ v
-
-    @staticmethod
-    def normalize_and_scale(v, scale):
-        norm = np.linalg.norm(v)
-        return v * (scale / norm) if norm > 0 else np.array([0.0, 0.0])
-
-    def draw_spline(self, u: np.ndarray, **kwargs: np.ndarray):
-        if self.spline is None:
-            return
-
-        import matplotlib.pyplot as plt
-
-        u_fine = np.linspace(0, 1, 100)
-        spline_points = interpolate.splev(u_fine, self.spline)
-        predicted = interpolate.splev(u, self.spline)
-        plt.figure()
-        plt.plot(spline_points[0], spline_points[1], "r-", label="Spline")
-        keypoints = np.array(self.keypoints)
-        plt.scatter(keypoints[:, 0], keypoints[:, 1], c="b", label="Keypoints")
-        plt.scatter(
-            predicted[0], predicted[1], c="g", marker="*", s=100, label="Predicted"
-        )
-        for i, (key, p) in enumerate(kwargs.items()):
-            plt.scatter(p[0], p[1], c="cmykw"[i], marker="x", s=100, label=key.title())
-        plt.legend()
-        plt.title("Spline Fit to Keypoints")
-        plt.xlabel("X")
-        plt.ylabel("Y")
-        plt.axis("equal")
-        plt.show()
