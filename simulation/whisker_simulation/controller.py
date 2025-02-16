@@ -5,18 +5,26 @@ import scipy.interpolate as interpolate
 from filterpy.kalman import KalmanFilter
 
 from whisker_simulation.deflection_model import DeflectionModel
-from whisker_simulation.models import Control, WorldState
+from whisker_simulation.models import Control, WorldState, Mode
 from whisker_simulation.pid import PID
-from whisker_simulation.utils import get_monitor
+from whisker_simulation.utils import get_monitor, get_logger
 
-__all__ = ["WhiskerController"]
+__all__ = ["Controller"]
 
+logger = get_logger(__file__)
 monitor = get_monitor()
 
 
-class WhiskerController:
+class Controller:
     def __init__(self, *, initial_state: WorldState, dt: float, control_rps: int):
+        self.time_step = dt
         self.control_period = 1 / control_rps
+
+        # runtime
+        self.mode = Mode.IDLE
+        self.state = initial_state
+        self.last_state = initial_state
+        self.last_control_time = 0
 
         # tip position estimation using deflection model and kalman filter
         self.deflection_model = DeflectionModel()
@@ -37,7 +45,6 @@ class WhiskerController:
         self.spline_last_body = None
 
         # velocity and angle control
-        self.last_control_time = 0
         self.total_velocity = 0.5
         self.target_deflection = -3.2e-4
         self.deflection_detection_threshold = 5e-5
@@ -62,27 +69,82 @@ class WhiskerController:
         self.target_body_yaw = 1e-6
         self.body_yaw_step_limit = 0.003
 
-        # runtime
-        self.state: WorldState = initial_state
-
     def control(self, state: WorldState) -> Control | None:
         self.state = state
 
-        # if not enough time has passed, keep the control values
+        # rate limit the control
         if self.state.time - self.last_control_time < self.control_period:
             return None
         self.last_control_time = self.state.time
 
-        # if the deflection is too small, keep the control values
-        if abs(self.state.wr0_deflection) < self.deflection_detection_threshold:
+        # exit idle mode if the whisker is deflected
+        is_deflected = (
+            abs(self.state.wr0_deflection) < self.deflection_detection_threshold
+        )
+        if self.mode == Mode.IDLE and is_deflected:
+            self.mode = Mode.ENGAGED
+        else:
             return None
 
-        return self.follow_spline()
-
-    def follow_spline(self) -> Control | None:
-        # calculate the whisker tip position
+        # detect anomalies
         tip_now = self.get_tip_position()
 
+        anomaly = self.detect_anomaly(tip_now)
+        if anomaly is not None and anomaly != self.mode:
+            logger.warning(f"Anomaly detected: {anomaly}")
+            self.mode = anomaly
+
+            # the anomaly has just been detected, introduce the countermeasures
+            # TODO
+
+        # if in failure mode, send idle control
+        if self.mode == Mode.FAILURE:
+            return Control(body_vx=0, body_vy=0, body_omega=0)
+
+        if self.mode == Mode.ENGAGED:
+            # if the deflection is too small, keep the control values
+            if is_deflected:
+                return None
+            # swipe the whisker along the surface
+            return self.follow_spline(tip_now)
+
+        # the whisker is disengaged
+        # TODO
+
+    def detect_anomaly(self, tip_now: np.ndarray) -> Mode | None:
+        # assume that when the system has exited idle, steady body velocity has been reached
+        body_dr = self.state.body_r - self.last_state.body_r
+        body_ds = np.linalg.norm(body_dr)
+        expected_body_ds = self.total_velocity * self.time_step
+        if (diff_p := abs(body_ds / expected_body_ds - 1)) > 0.1:
+            logger.error(f"Expected body velocity differs from actual by {diff_p:.2%}")
+            return Mode.FAILURE
+
+        # now we are sure that the body has covered some distance
+        # check whether the whisker is slipping (sliding backwards)
+        # control might not be respected, so rely on the previous world state
+        tip_dr = tip_now - self.last_state.tip_position
+        tip_ds = np.linalg.norm(tip_dr)
+        # the tip might be stuck, so ignore small movements
+        if tip_ds / expected_body_ds >= 0.2:
+            if np.dot(body_dr, tip_dr) < 0:
+                logger.warning("Whisker is slipping backwards")
+                return Mode.SLIPPING
+
+        # the whisker might be slipping forward, but that's alright
+        # still, we want to detect this
+        # the indicator is that the tip is moving faster than the body
+        if tip_ds / body_ds - 1 > 0.5:
+            logger.warning("Whisker is slipping forwards")
+
+        # the whisker might become disengaged
+        # the indicator is that the tip is moving faster than the body
+        # and the deflection is vanishing
+        # TODO
+        return None
+
+
+    def follow_spline(self, tip_now: np.ndarray) -> Control | None:
         # update the spline and predict the next tip position
         self.update_tip_spline(tip_now)
         if not self.spline:
@@ -156,16 +218,16 @@ class WhiskerController:
         self.spline = tck
         return True
 
-    def spline_estimate_tip(self, u) -> np.ndarray:
+    def spline_interpolate(self, u: float) -> np.ndarray:
         return interpolate.splev(u, self.spline)
 
-    def spline_future_point(self, k):
+    def spline_end_kth_point_u(self, k: float) -> float:
         return 1 + k / (len(self.keypoints) - 1)
 
-    def get_target_body_yaw(self):
+    def get_target_body_yaw(self) -> float:
         # get predicted tip positions
-        tip_from = self.spline_estimate_tip(self.spline_future_point(-1))
-        tip_to = self.spline_estimate_tip(self.spline_future_point(1))
+        tip_from = self.spline_interpolate(self.spline_end_kth_point_u(-1))
+        tip_to = self.spline_interpolate(self.spline_end_kth_point_u(1))
 
         # calculate and unwrap the angle between the first and predicted tip
         angle_wrapped = (
@@ -183,7 +245,7 @@ class WhiskerController:
         return self.rotate_ccw(np.array([body_vx_s, body_vy_s]), target_body_yaw)
 
     @staticmethod
-    def rotate_ccw(v, theta):
+    def rotate_ccw(v: np.ndarray, theta: float) -> np.ndarray:
         # noinspection PyPep8Naming
         R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
         return R @ v

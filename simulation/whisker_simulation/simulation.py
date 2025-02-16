@@ -7,11 +7,11 @@ from mujoco import viewer
 from tqdm import tqdm
 
 from whisker_simulation.config import Config
-from whisker_simulation.controller import WhiskerController
+from whisker_simulation.controller import Controller
 from whisker_simulation.models import WorldState
 
 
-class WhiskerSimulation:
+class Simulation:
     def __init__(self, config: Config):
         self.model_path = str(config.model_path)
         # noinspection PyArgumentList
@@ -19,7 +19,7 @@ class WhiskerSimulation:
         self.data = mujoco.MjData(self.model)
         self.control_rps = config.control_rps
         initial_world_state = self.get_world_state_from_mujoco_data()
-        self.controller = WhiskerController(
+        self.controller = Controller(
             initial_state=initial_world_state,
             dt=self.model.opt.timestep,
             control_rps=self.control_rps,

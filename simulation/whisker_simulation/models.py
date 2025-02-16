@@ -1,9 +1,10 @@
+from enum import Enum, auto
 from functools import cached_property
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, computed_field
 
-__all__ = ["WorldState", "Control"]
+__all__ = ["WorldState", "Control", "Mode"]
 
 
 class WorldState(BaseModel):
@@ -27,3 +28,11 @@ class Control(BaseModel):
     body_vx: float
     body_vy: float
     body_omega: float
+
+
+class Mode(int, Enum):
+    IDLE = auto()
+    ENGAGED = auto()
+    SLIPPING = auto()
+    DISENGAGED = auto()
+    FAILURE = auto()
