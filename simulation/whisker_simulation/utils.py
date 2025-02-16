@@ -3,7 +3,7 @@ from functools import lru_cache
 
 from rich.logging import RichHandler, Console
 
-__all__ = ["get_config", "get_logger"]
+__all__ = ["get_config", "get_logger", "get_monitor"]
 
 
 console = Console(color_system="256", width=150, style="blue")

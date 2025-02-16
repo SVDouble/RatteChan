@@ -5,9 +5,9 @@ import scipy.interpolate as interpolate
 from filterpy.kalman import KalmanFilter
 
 from whisker_simulation.deflection_model import DeflectionModel
+from whisker_simulation.models import Control, WorldState
 from whisker_simulation.pid import PID
 from whisker_simulation.utils import get_monitor
-
 
 __all__ = ["WhiskerController"]
 
@@ -15,7 +15,7 @@ monitor = get_monitor()
 
 
 class WhiskerController:
-    def __init__(self, dt: float, control_rps: int):
+    def __init__(self, *, initial_state: WorldState, dt: float, control_rps: int):
         self.control_period = 1 / control_rps
 
         # tip position estimation using deflection model and kalman filter
@@ -63,39 +63,46 @@ class WhiskerController:
         self.body_yaw_step_limit = 0.003
 
         # runtime
-        self.time = 0
+        self.state: WorldState = initial_state
 
-    def control(self, time, deflection, x, y, yaw):
-        self.time = time
+    def control(self, state: WorldState) -> Control | None:
+        self.state = state
 
         # if not enough time has passed, keep the control values
-        if time - self.last_control_time < self.control_period:
-            return
-        self.last_control_time = time
+        if self.state.time - self.last_control_time < self.control_period:
+            return None
+        self.last_control_time = self.state.time
 
         # if the deflection is too small, keep the control values
-        if abs(deflection) < self.deflection_detection_threshold:
-            return
+        if abs(self.state.wr0_deflection) < self.deflection_detection_threshold:
+            return None
 
+        return self.follow_spline()
+
+    def follow_spline(self) -> Control | None:
         # calculate the whisker tip position
-        body = np.array([x, y])
-        tip_now = self.get_tip_position(deflection, body, yaw)
+        tip_now = self.get_tip_position()
 
         # update the spline and predict the next tip position
-        self.update_tip_spline(tip_now, body)
+        self.update_tip_spline(tip_now)
         if not self.spline:
-            return
+            return None
 
         # estimate the control values
         target_body_yaw = self.get_target_body_yaw()
-        body_v = self.get_target_body_velocity(deflection, target_body_yaw)
-        body_omega = self.pid_body_yaw(target_body_yaw - yaw)
-        return body_v[0], body_v[1], body_omega
+        body_v = self.get_target_body_velocity(
+            self.state.wr0_deflection, target_body_yaw
+        )
+        body_omega = self.pid_body_yaw(target_body_yaw - self.state.body_yaw)
+        return Control(
+            body_vx=float(body_v[0]), body_vy=float(body_v[1]), body_omega=body_omega
+        )
 
-    def get_tip_position(self, deflection, body, yaw):
+    def get_tip_position(self):
         """Get the tip position in world coordinates"""
 
         # get raw, local tip position from deflection
+        deflection = self.state.wr0_deflection
         tip = self.deflection_model.get_position(deflection)
 
         # filter the tip position using the kalman filter
@@ -109,23 +116,23 @@ class WhiskerController:
         tip = self.tip_xy_filter.x.copy()
 
         # transform the tip position to world coordinates
-        return self.rotate_ccw(tip, yaw) + body
+        return self.rotate_ccw(tip, self.state.body_yaw) + self.state.body_r
 
-    def update_tip_spline(self, new_tip, body):
+    def update_tip_spline(self, new_tip):
         has_new_point = False
         # add the new tip point
         if self.keypoints:
             last_tip = np.array(self.keypoints[-1])
             tip_d = np.linalg.norm(np.array(new_tip) - last_tip)
-            body_d = np.linalg.norm(body - self.spline_last_body)
+            body_d = np.linalg.norm(self.state.body_r - self.spline_last_body)
             if min(tip_d, body_d) >= self.keypoint_distance:
                 has_new_point = True
         if not self.keypoints:
             has_new_point = True
         if has_new_point:
             self.keypoints.append(new_tip)
-            self.spline_last_body = body
-            monitor.add_keypoint(self.time, new_tip)
+            self.spline_last_body = self.state.body_r
+            monitor.add_keypoint(self.state.time, new_tip)
         if len(self.keypoints) <= self.spline_degree:
             return has_new_point
         if not has_new_point:

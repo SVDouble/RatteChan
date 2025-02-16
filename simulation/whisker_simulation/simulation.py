@@ -8,32 +8,31 @@ from tqdm import tqdm
 
 from whisker_simulation.config import Config
 from whisker_simulation.controller import WhiskerController
+from whisker_simulation.models import WorldState
 
 
 class WhiskerSimulation:
     def __init__(self, config: Config):
         self.model_path = str(config.model_path)
+        # noinspection PyArgumentList
         self.model = mujoco.MjModel.from_xml_path(self.model_path)
         self.data = mujoco.MjData(self.model)
         self.control_rps = config.control_rps
-
-        self.controller = WhiskerController(self.model.opt.timestep, self.control_rps)
+        initial_world_state = self.get_world_state_from_mujoco_data()
+        self.controller = WhiskerController(
+            initial_state=initial_world_state,
+            dt=self.model.opt.timestep,
+            control_rps=self.control_rps,
+        )
 
         self.duration = config.recording_duration
         self.camera_fps = config.recording_camera_fps
 
     def control(self, _: mujoco.MjModel, __: mujoco.MjData):
-        time = self.data.time
-        deflection = self.data.sensor("wr0_deflection").data.item()
-        x, y = (
-            self.data.sensor("body_x").data.item(),
-            self.data.sensor("body_y").data.item(),
-        )
-        theta = self.data.sensor("body_yaw").data.item()
-        control_values = self.controller.control(time, deflection, x, y, theta)
-        if control_values is not None:
-            body_vx, body_vy, angle = control_values
-            self.data.ctrl[0:3] = [body_vx, body_vy, angle]
+        world_state = self.get_world_state_from_mujoco_data()
+        control = self.controller.control(world_state)
+        if control is not None:
+            self.data.ctrl[0:3] = [control.body_vx, control.body_vy, control.body_omega]
 
     def record(self):
         renderer = mujoco.Renderer(self.model, width=720, height=512)
@@ -72,3 +71,12 @@ class WhiskerSimulation:
 
         # launch the viewer
         mujoco.viewer.launch(self.model, self.data)
+
+    def get_world_state_from_mujoco_data(self) -> WorldState:
+        # noinspection PyTypeChecker
+        fields: dict = WorldState.model_fields
+        data = {
+            sensor: self.data.sensor(sensor).data.item()
+            for sensor in fields.keys() - {"time"}
+        }
+        return WorldState(**data, time=self.data.time)
