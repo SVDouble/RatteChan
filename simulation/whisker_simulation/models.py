@@ -11,28 +11,30 @@ class WorldState(BaseModel):
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     time: float
-    wr0_deflection: float
-    body_x: float
-    body_y: float
-    body_yaw: float
+
+    body_x_w: float
+    body_y_w: float
+    body_yaw_w: float
+
+    wr0_yaw_s: float
 
     @computed_field(repr=False)
     @cached_property
-    def body_r(self) -> np.ndarray:
-        return np.array([self.body_x, self.body_y])
+    def body_r_w(self) -> np.ndarray:
+        return np.array([self.body_x_w, self.body_y_w])
 
 
 class Control(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    body_vx: float
-    body_vy: float
-    body_omega: float
+    body_vx_w: float
+    body_vy_w: float
+    body_omega_w: float
 
 
 class Mode(int, Enum):
     IDLE = auto()
     ENGAGED = auto()
-    SLIPPING = auto()
+    SLIPPING_BACKWARDS = auto()
     DISENGAGED = auto()
     FAILURE = auto()

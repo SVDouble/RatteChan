@@ -21,7 +21,6 @@ class Simulation:
         initial_world_state = self.get_world_state_from_mujoco_data()
         self.controller = Controller(
             initial_state=initial_world_state,
-            dt=self.model.opt.timestep,
             control_rps=self.control_rps,
         )
 
@@ -32,7 +31,11 @@ class Simulation:
         world_state = self.get_world_state_from_mujoco_data()
         control = self.controller.control(world_state)
         if control is not None:
-            self.data.ctrl[0:3] = [control.body_vx, control.body_vy, control.body_omega]
+            self.data.ctrl[0:3] = [
+                control.body_vx_w,
+                control.body_vy_w,
+                control.body_omega_w,
+            ]
 
     def record(self):
         renderer = mujoco.Renderer(self.model, width=720, height=512)
@@ -67,7 +70,7 @@ class Simulation:
         mujoco.set_mjcb_control(self.control)
 
         # set the initial control values
-        self.data.ctrl[1] = self.controller.total_velocity
+        self.data.ctrl[1] = self.controller.total_v
 
         # launch the viewer
         mujoco.viewer.launch(self.model, self.data)
