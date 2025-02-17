@@ -1,5 +1,6 @@
 import numpy as np
 
+from whisker_simulation.config import Config
 from whisker_simulation.controller.anomaly_detector import AnomalyDetector
 from whisker_simulation.controller.body_motion import BodyMotionController
 from whisker_simulation.controller.spline import Spline
@@ -14,9 +15,11 @@ monitor = get_monitor()
 
 
 class Controller:
-    def __init__(self, *, initial_state: WorldState, control_rps: float):
+    def __init__(self, *, initial_state: WorldState, config: Config):
+        self.config = config
+
         # runtime
-        self.control_period = 1 / control_rps
+        self.control_period = 1 / config.control_rps
         self.mode = Mode.IDLE
         self.state = initial_state
         self.prev_state = initial_state
@@ -36,7 +39,7 @@ class Controller:
         # velocity and angle control
         self.total_v = 0.05
         self.body_motion_controller = BodyMotionController(
-            total_v=self.total_v, control_rps=control_rps
+            total_v=self.total_v, control_rps=config.control_rps
         )
 
         # anomaly detector
@@ -59,12 +62,14 @@ class Controller:
 
         # detect anomalies (ignore them if mode is IDLE)
         tip_w = self.tip_estimator.get_w(self.state)
-        anomaly = self.anomaly_detector.run(
-            state=self.state,
-            prev_state=self.prev_state,
-            tip_w=tip_w,
-            tip_w_prev=tip_w_prev,
-        )
+        anomaly = None
+        if self.config.detect_anomalies:
+            anomaly = self.anomaly_detector.run(
+                state=self.state,
+                prev_state=self.prev_state,
+                tip_w=tip_w,
+                tip_w_prev=tip_w_prev,
+            )
         if anomaly is not None and anomaly[0] != self.mode:
             anomaly_mode, anomaly_msg = anomaly
             logger.warning(f"Anomaly detected: {anomaly_mode}: {anomaly_msg}")
@@ -94,7 +99,6 @@ class Controller:
             if not is_deflected:
                 return None
             # swipe the whisker along the surface
-            logger.info("Following the surface")
             return self.policy_swipe_surface(tip_w)
 
         # the whisker is disengaged
@@ -118,8 +122,9 @@ class Controller:
         limit = self.body_yaw_step_limit
         angle = np.unwrap(np.array([self.tgt_body_yaw_w, angle_wrapped]))[-1]
         self.tgt_body_yaw_w += np.clip(angle - self.tgt_body_yaw_w, -limit, limit)
-
         # 3. Calculate the required control values to reach the target body yaw
         return self.body_motion_controller.control(
-            tgt_body_yaw_w=self.tgt_body_yaw_w, state=self.state
+            tgt_body_yaw_w=self.tgt_body_yaw_w,
+            state=self.state,
+            prev_state=self.prev_state,
         )

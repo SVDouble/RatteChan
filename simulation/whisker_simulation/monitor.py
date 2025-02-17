@@ -32,15 +32,24 @@ class Monitor:
         plt.axis("equal")
         plt.show()
 
-    def draw_spline(self, spline, keypoints, u: np.ndarray, **kwargs: np.ndarray):
+    def draw_spline(self, spline, u: list[float] | None = None, **kwargs: np.ndarray):
         import matplotlib.pyplot as plt
+        from whisker_simulation.controller.spline import Spline
+
+        spline: Spline
+
+        if spline.coefficients is None:
+            return
+
+        if u is None:
+            u = [spline.end_kth_point_u(0), spline.end_kth_point_u(1)]
 
         u_fine = np.linspace(0, 1, 100)
-        spline_points = interpolate.splev(u_fine, spline)
-        predicted = interpolate.splev(u, spline)
+        spline_points = interpolate.splev(u_fine, spline.coefficients)
+        predicted = interpolate.splev(u, spline.coefficients)
         plt.figure()
         plt.plot(spline_points[0], spline_points[1], "r-", label="Spline")
-        keypoints = np.array(keypoints)
+        keypoints = np.array(spline.keypoints)
         plt.scatter(keypoints[:, 0], keypoints[:, 1], c="b", label="Keypoints")
         plt.scatter(
             predicted[0], predicted[1], c="g", marker="*", s=100, label="Predicted"

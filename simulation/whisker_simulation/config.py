@@ -20,4 +20,5 @@ class Config(BaseSettings):
 
     show_gui: bool = True
     use_monitor: bool = True
+    detect_anomalies: bool = True
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "DEBUG"

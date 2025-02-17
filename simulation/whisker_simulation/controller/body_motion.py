@@ -10,13 +10,13 @@ __all__ = ["BodyMotionController"]
 class BodyMotionController:
     def __init__(self, *, total_v: float, control_rps: float):
         self.total_v = total_v
+        self.initial_dt = 1 / control_rps
         self.tgt_defl = -3.2e-4
-        dt = 1 / control_rps
         self.pid_wr0_yaw_w = PID(
             kp=3000,
             ki=10,
             kd=0,
-            dt=dt,
+            dt=self.initial_dt,
             out_limits=(-self.total_v, self.total_v),
         )
 
@@ -24,11 +24,23 @@ class BodyMotionController:
             kp=10,
             ki=0.001,
             kd=0,
-            dt=dt,
+            dt=self.initial_dt,
             out_limits=(-2 * np.pi, 2 * np.pi),
         )
 
-    def control(self, *, tgt_body_yaw_w: float, state: WorldState) -> Control:
+    def control(
+        self, *, tgt_body_yaw_w: float, state: WorldState, prev_state: WorldState
+    ) -> Control:
+        # 0. Update the time step of the PID controllers
+        dt = (
+            state.time - prev_state.time
+            if state.time != prev_state.time
+            else self.initial_dt
+        )
+        assert dt / self.initial_dt < 0.9, "Time step is smaller than the control period"
+        self.pid_wr0_yaw_w.dt = dt
+        self.pid_body_yaw_w.dt = dt
+
         # 1. Calculate the linear velocity of the body using the PID controller based on the whisker deflection
         # why -deflection? it just works
         body_vx_s = self.pid_wr0_yaw_w(-(self.tgt_defl - state.wr0_yaw_s))

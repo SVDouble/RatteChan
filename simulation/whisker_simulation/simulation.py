@@ -13,6 +13,7 @@ from whisker_simulation.models import WorldState
 
 class Simulation:
     def __init__(self, config: Config):
+        self.config = config
         self.model_path = str(config.model_path)
         # noinspection PyArgumentList
         self.model = mujoco.MjModel.from_xml_path(self.model_path)
@@ -21,7 +22,7 @@ class Simulation:
         initial_world_state = self.get_world_state_from_mujoco_data()
         self.controller = Controller(
             initial_state=initial_world_state,
-            control_rps=self.control_rps,
+            config=self.config,
         )
 
         self.duration = config.recording_duration
