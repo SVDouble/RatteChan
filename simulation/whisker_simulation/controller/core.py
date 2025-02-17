@@ -20,16 +20,14 @@ class Controller:
         self.mode = Mode.IDLE
         self.state = initial_state
         self.prev_state = initial_state
-
-        def __get_state():
-            return self.state
+        self.initial_state = initial_state
 
         # tip position estimation using deflection model and kalman filter
-        self.tip_estimator = TipEstimator(__get_state)
+        self.tip_estimator = TipEstimator(self.initial_state)
         self.defl_detect_threshold = 5e-5
 
         # tip position prediction using spline
-        self.spline = Spline(__get_state)
+        self.spline = Spline()
 
         # body yaw control
         self.tgt_body_yaw_w = 1e-6  # basically 0+, so that unwrapping works properly
@@ -38,7 +36,7 @@ class Controller:
         # velocity and angle control
         self.total_v = 0.05
         self.body_motion_controller = BodyMotionController(
-            total_v=self.total_v, control_rps=control_rps, get_state=__get_state
+            total_v=self.total_v, control_rps=control_rps
         )
 
         # anomaly detector
@@ -52,15 +50,15 @@ class Controller:
         # ATTENTION: time step might be variable due to rate limiting
 
         # before the state got updated, previous state is accessible
-        tip_w_prev = self.tip_estimator.get_w()
+        tip_w_prev = self.tip_estimator.get_w(self.prev_state)
 
         # update the controller state given the current world state
         self.prev_state = self.state
         self.state = state
-        self.tip_estimator.update_wr0_yaw_s()
+        self.tip_estimator.update_wr0_yaw_s(self.state)
 
         # detect anomalies (ignore them if mode is IDLE)
-        tip_w = self.tip_estimator.get_w()
+        tip_w = self.tip_estimator.get_w(self.state)
         anomaly = self.anomaly_detector.run(
             state=self.state,
             prev_state=self.prev_state,
@@ -104,7 +102,7 @@ class Controller:
 
     def policy_swipe_surface(self, tip_w: np.ndarray) -> Control | None:
         # 1. Update the spline and predict the next tip position
-        self.spline.add_keypoint(tip_w)
+        self.spline.add_keypoint(keypoint=tip_w, state=self.state)
         if not self.spline:
             return None
 
@@ -122,4 +120,6 @@ class Controller:
         self.tgt_body_yaw_w += np.clip(angle - self.tgt_body_yaw_w, -limit, limit)
 
         # 3. Calculate the required control values to reach the target body yaw
-        return self.body_motion_controller.control(self.tgt_body_yaw_w)
+        return self.body_motion_controller.control(
+            tgt_body_yaw_w=self.tgt_body_yaw_w, state=self.state
+        )

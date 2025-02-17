@@ -1,5 +1,4 @@
 from collections import deque
-from typing import Callable
 
 import numpy as np
 import scipy.interpolate as interpolate
@@ -14,9 +13,7 @@ monitor = get_monitor()
 
 
 class Spline:
-    def __init__(self, get_state: Callable[[], WorldState]):
-        self._get_state = get_state
-
+    def __init__(self):
         # spline parameters
         self.degree = 3
         self.n_keypoints = 7
@@ -29,25 +26,21 @@ class Spline:
         self.coefficients = None
         self.prev_body_r_w = None
 
-    @property
-    def _state(self) -> WorldState:
-        return self._get_state()
-
-    def add_keypoint(self, keypoint: np.ndarray) -> bool:
+    def add_keypoint(self, *, keypoint: np.ndarray, state: WorldState) -> bool:
         has_new_point = False
         # add the new tip point
         if self.keypoints:
             prev_keypoint = np.array(self.keypoints[-1])
             keypoint_d = np.linalg.norm(np.array(keypoint) - prev_keypoint)
-            body_d = np.linalg.norm(self._state.body_r_w - self.prev_body_r_w)
+            body_d = np.linalg.norm(state.body_r_w - self.prev_body_r_w)
             if min(keypoint_d, body_d) >= self.keypoint_distance:
                 has_new_point = True
         if not self.keypoints:
             has_new_point = True
         if has_new_point:
             self.keypoints.append(keypoint)
-            self.prev_body_r_w = self._state.body_r_w
-            monitor.add_keypoint(self._state.time, keypoint)
+            self.prev_body_r_w = state.body_r_w
+            monitor.add_keypoint(state.time, keypoint)
         if len(self.keypoints) <= self.degree:
             return has_new_point
         if not has_new_point:
