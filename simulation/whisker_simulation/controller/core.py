@@ -3,10 +3,11 @@ import numpy as np
 from whisker_simulation.config import Config
 from whisker_simulation.controller.anomaly_detector import AnomalyDetector
 from whisker_simulation.controller.body_motion import BodyMotionController
+from whisker_simulation.controller.deflection_model import DeflectionModel
 from whisker_simulation.controller.spline import Spline
 from whisker_simulation.controller.tip_estimator import TipEstimator
 from whisker_simulation.models import Control, WorldState, Mode
-from whisker_simulation.utils import get_monitor, get_logger
+from whisker_simulation.utils import get_monitor, get_logger, normalize, rotate_ccw
 
 __all__ = ["Controller"]
 
@@ -26,20 +27,21 @@ class Controller:
         self.initial_state = initial_state
 
         # tip position estimation using deflection model and kalman filter
-        self.tip_estimator = TipEstimator(self.initial_state)
+        self.defl_model = DeflectionModel()
+        self.tip_estimator = TipEstimator(self.defl_model, self.initial_state)
         self.defl_detect_threshold = 5e-5
 
         # tip position prediction using spline
         self.spline = Spline()
 
         # body yaw control
-        self.tgt_body_yaw_w = 1e-6  # basically 0+, so that unwrapping works properly
-        self.body_yaw_step_limit = 0.003
+        self.tgt_defl = -3e-4
+        self.tilt = 0.2
 
         # velocity and angle control
         self.total_v = 0.05
         self.body_motion_controller = BodyMotionController(
-            total_v=self.total_v, control_rps=config.control_rps
+            total_v=self.total_v, tilt=self.tilt, control_rps=config.control_rps
         )
 
         # anomaly detector
@@ -106,15 +108,52 @@ class Controller:
 
     def policy_swipe_surface(self, tip_w: np.ndarray) -> Control | None:
         # 1. Update the spline and predict the next tip position
-        prev_body_r_w = self.spline.prev_body_r_w
-        has_new_keypoint = self.spline.add_keypoint(keypoint=tip_w, state=self.state)
+        is_new_keypoint = self.spline.add_keypoint(keypoint=tip_w, state=self.state)
         if not self.spline:
             return None
 
-        # 2. Calculate the required control values to reach the target body yaw
-        return self.body_motion_controller.control(
-            spline=self.spline,
+        # 2. Calculate spline curvature
+        spl_k0_w = self.spline(self.spline.end_kth_point_u(0))
+        spl_k1_w = self.spline(self.spline.end_kth_point_u(1))
+        spl_dk_w_n = normalize(spl_k1_w - spl_k0_w)
+        spline_angle = np.arctan2(spl_dk_w_n[1], spl_dk_w_n[0])
+
+        # 3. Calculate the delta offset between the target and current deflection
+        zero_defl_offset_l = self.defl_model.get_position(0)
+        cur_defl_offset_l = self.defl_model.get_position(self.state.wr0_yaw_s)
+        tgt_defl_offset_l = self.defl_model.get_position(self.tgt_defl)
+        defl_doffset_w = rotate_ccw(
+            tgt_defl_offset_l - cur_defl_offset_l, self.state.body_yaw_w
+        )
+        defl_doffset_w_n = normalize(-defl_doffset_w)
+        defl_offset_weight = np.linalg.norm(defl_doffset_w) / np.linalg.norm(
+            tgt_defl_offset_l - zero_defl_offset_l
+        )
+
+        # 4. Choose the target direction as weighted average of the spline and deflection offset
+        k = np.clip(defl_offset_weight * 1.5, 0, 1)
+        tgt_body_dr_n_w = normalize(defl_doffset_w_n * k + spl_dk_w_n * (1 - k))
+
+        # 5. Calculate the control values
+        # for v to follow tgt_body_dr_n_w and for omega to follow the spline slightly tilted
+        control = self.body_motion_controller.control(
             state=self.state,
             prev_state=self.prev_state,
-            has_new_keypoint=has_new_keypoint,
+            tgt_body_dr_n_w=tgt_body_dr_n_w,
+            spline_angle=spline_angle,
         )
+
+        if self.config.debug and is_new_keypoint:
+            ds = self.spline.keypoint_distance * self.spline.n_keypoints
+            poi = {
+                "body": self.state.body_r_w,
+                "d_defl": self.state.body_r_w + defl_doffset_w_n * ds,
+                "d_spl": self.state.body_r_w + spl_dk_w_n * ds,
+                "d_tgt": self.state.body_r_w + tgt_body_dr_n_w * ds,
+            }
+            if k < 0.05:
+                del poi["d_defl"]
+            if k > 0.5:
+                monitor.draw_spline(self.spline, **poi)
+
+        return control

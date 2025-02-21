@@ -11,8 +11,8 @@ __all__ = ["TipEstimator"]
 
 
 class TipEstimator:
-    def __init__(self, initial_state: WorldState):
-        self.defl_model = DeflectionModel()
+    def __init__(self, defl_model: DeflectionModel, initial_state: WorldState):
+        self.defl_model = defl_model
         self.tip_s_filter = KalmanFilter(dim_x=2, dim_z=2)
         self.tip_s_filter.H = np.eye(2)
         self.tip_s_filter.P *= 10
