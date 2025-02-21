@@ -1,7 +1,6 @@
 __all__ = ["Monitor"]
 
 import numpy as np
-from scipy import interpolate
 
 
 class Monitor:
@@ -32,32 +31,35 @@ class Monitor:
         plt.axis("equal")
         plt.show()
 
-    def draw_spline(self, spline, u: list[float] | None = None, **kwargs: np.ndarray):
+    def draw_spline(self, spline, **kwargs: np.ndarray):
         import matplotlib.pyplot as plt
         from whisker_simulation.controller.spline import Spline
 
         spline: Spline
 
-        if spline.coefficients is None:
+        if spline.spl is None:
             return
 
-        if u is None:
-            u = [spline.end_kth_point_u(0), spline.end_kth_point_u(1)]
-
-        u_fine = np.linspace(0, 1, 100)
-        spline_points = interpolate.splev(u_fine, spline.coefficients)
-        predicted = interpolate.splev(u, spline.coefficients)
         plt.figure()
+
+        spline_points = spline(np.linspace(0, 1, 100))
         plt.plot(spline_points[0], spline_points[1], "r-", label="Spline")
+
         keypoints = np.array(spline.keypoints)
         plt.scatter(keypoints[:, 0], keypoints[:, 1], c="b", label="Keypoints")
+
+        pred_tip = spline(spline.end_kth_point_u(1))
         plt.scatter(
-            predicted[0], predicted[1], c="g", marker="*", s=100, label="Predicted"
+            pred_tip[0], pred_tip[1], c="g", marker="*", s=100, label="Predicted"
         )
+
         for i, (key, p) in enumerate(kwargs.items()):
-            plt.scatter(p[0], p[1], c="cmykw"[i], marker="x", s=100, label=key.title())
+            plt.scatter(
+                p[0], p[1], c="cmykrbg"[i], marker="x", s=100, label=key.title()
+            )
+
         plt.legend()
-        plt.title("Spline Fit to Keypoints")
+        plt.title("Map")
         plt.xlabel("X")
         plt.ylabel("Y")
         plt.axis("equal")

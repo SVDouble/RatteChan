@@ -106,25 +106,15 @@ class Controller:
 
     def policy_swipe_surface(self, tip_w: np.ndarray) -> Control | None:
         # 1. Update the spline and predict the next tip position
-        self.spline.add_keypoint(keypoint=tip_w, state=self.state)
+        prev_body_r_w = self.spline.prev_body_r_w
+        has_new_keypoint = self.spline.add_keypoint(keypoint=tip_w, state=self.state)
         if not self.spline:
             return None
 
-        # 2. Calculate the target body yaw
-        # get predicted tip positions
-        tip_from = self.spline.interpolate(self.spline.end_kth_point_u(-1))
-        tip_to = self.spline.interpolate(self.spline.end_kth_point_u(1))
-
-        # calculate and unwrap the angle between the first and predicted tip
-        angle_wrapped = (
-            np.arctan2(tip_to[1] - tip_from[1], tip_to[0] - tip_from[0]) - np.pi / 2
-        )
-        limit = self.body_yaw_step_limit
-        angle = np.unwrap(np.array([self.tgt_body_yaw_w, angle_wrapped]))[-1]
-        self.tgt_body_yaw_w += np.clip(angle - self.tgt_body_yaw_w, -limit, limit)
-        # 3. Calculate the required control values to reach the target body yaw
+        # 2. Calculate the required control values to reach the target body yaw
         return self.body_motion_controller.control(
-            tgt_body_yaw_w=self.tgt_body_yaw_w,
+            spline=self.spline,
             state=self.state,
             prev_state=self.prev_state,
+            has_new_keypoint=has_new_keypoint,
         )

@@ -4,7 +4,14 @@ from functools import lru_cache
 import numpy as np
 from rich.logging import RichHandler, Console
 
-__all__ = ["get_config", "get_logger", "get_monitor", "rotate_ccw"]
+__all__ = [
+    "get_config",
+    "get_logger",
+    "get_monitor",
+    "rotate_ccw",
+    "normalize",
+    "unwrap_pid_error",
+]
 
 
 console = Console(color_system="256", width=150, style="blue")
@@ -48,3 +55,14 @@ def rotate_ccw(v: np.ndarray, theta: float) -> np.ndarray:
     # noinspection PyPep8Naming
     R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
     return R @ v
+
+
+def normalize(v: np.ndarray) -> np.ndarray:
+    norm = np.linalg.norm(v)
+    if norm == 0:
+        return np.zeros_like(v)
+    return v / np.linalg.norm(v)
+
+
+def unwrap_pid_error(theta: float) -> float:
+    return (theta + np.pi) % (2 * np.pi) - np.pi

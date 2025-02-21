@@ -1,31 +1,15 @@
 <mujoco>
-    <!-- Include external scene definitions -->
-    <include file="scene.xml"/>
-
-    <!-- Extensions: load plugins for additional functionality -->
-    <extension>
-        <!-- Cable elasticity plugin enables flexible cable simulation -->
-        <plugin plugin="mujoco.elasticity.cable"/>
-        <!-- PID controller plugin with its configuration parameters -->
-<!--        <plugin plugin="mujoco.pid">-->
-<!--            <instance name="pid">-->
-<!--                <config key="kp" value="400.0"/>    &lt;!&ndash; Proportional gain &ndash;&gt;-->
-<!--                <config key="ki" value="40"/>       &lt;!&ndash; Integral gain &ndash;&gt;-->
-<!--                <config key="kd" value="4"/>        &lt;!&ndash; Derivative gain &ndash;&gt;-->
-<!--                <config key="slewmax" value="3"/>   &lt;!&ndash; Maximum rate of change &ndash;&gt;-->
-<!--                <config key="imax" value="1"/>      &lt;!&ndash; Maximum integral accumulation &ndash;&gt;-->
-<!--            </instance>-->
-<!--        </plugin>-->
-    </extension>
-
-    <!-- Global simulation options -->
-    <option gravity="0 0 0" integrator="implicitfast"/>  <!-- Zero gravity; using a fast implicit integrator -->
-
-    <!-- Assets: external mesh files -->
+    <compiler angle="degree"/>
     <asset>
-        <mesh name="object_complex_f1" file="../assets/object_complex_f1.stl" scale="0.001 0.001 0.001"/>
-        <mesh name="object_complex_f2" file="../assets/object_complex_f2.stl" scale="0.001 0.001 0.001"/>
+        <texture type="skybox" builtin="gradient" rgb1="1 1 1" rgb2=".6 .8 1" width="256" height="256"/>
+        <texture name="texplane" type="2d" builtin="checker" rgb1=".2 .3 .4" rgb2=".1 0.15 0.2" width="512" height="512"
+                 mark="cross" markrgb=".8 .8 .8"/>
+        <material name="matplane" reflectance="1" texture="texplane" texrepeat="2 2" texuniform="true"/>
     </asset>
+
+    <extension>
+        <plugin plugin="mujoco.elasticity.cable"/>
+    </extension>
 
     <!-- Visual settings for rendering -->
     <visual>
@@ -33,47 +17,58 @@
         <quality offsamples="8"/>                  <!-- Anti-aliasing sample count -->
     </visual>
 
+
+    <!-- Global simulation options -->
+    <option gravity="0 0 0" integrator="implicitfast"/>
+
+    <!-- Assets: external mesh files -->
+    <asset>
+        <mesh name="object_complex_f1" file="../assets/object_complex_f1.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="object_complex_f2" file="../assets/object_complex_f2.stl" scale="0.001 0.001 0.001"/>
+    </asset>
+
     <!-- World definition -->
     <worldbody>
         <!-- Light source: positioned above, shining downward -->
         <light diffuse=".8 .8 .8" pos="0 0 5" dir="0 0 -1"/>
         <!-- Visible ground plane -->
         <geom type="plane" size="0 0 0.03" material="matplane" rgba="1 1 1 1"/>
-        <!-- Invisible plane for potential collision/contact purposes -->
-        <geom type="plane" pos="0 0 0.002" axisangle="1 0 0 180" size="0 0 0.03" material="matplane" rgba="0 0 0 0"/>
+
         <!-- Additional cameras for alternative viewpoints -->
         <camera name="whisker_cam_3" pos="0.5 -0.1 1.1"/>
         <camera name="whisker_cam_4" pos="-0.1 0.2 0.3" xyaxes="1 0 1 1 1 0"/>
 
+        <!-- Meshes to swipe the whisker against -->
+        <body>
+            <geom type="mesh" mesh="object_complex_f1" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 .9"/>
+            <geom type="mesh" mesh="object_complex_f2" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 .9"/>
+        </body>
+
         <!-- Whisker assembly: base with attached moving parts -->
         <body name="whisker_base" pos="-0.1 0.1 0.001" axisangle="1 0 0 90">
             <!-- Slide joints for x and y movement -->
-            <joint name="body_x_w" type="slide" axis="0 0 1" stiffness="0"/>
-            <joint name="body_y_w" type="slide" axis="1 0 0" stiffness="0"/>
+            <joint name="body_x_w" type="slide" axis="0 0 1" stiffness="0" armature="0.1"/>
+            <joint name="body_y_w" type="slide" axis="1 0 0" stiffness="0" armature="0.1"/>
             <!-- Hinge joint for rotation -->
-            <joint name="body_yaw_w" type="hinge" axis="0 1 0" damping="1" armature="0.01"/>
+            <joint name="body_yaw_w" type="hinge" axis="0 1 0" armature="0.01"/>
             <!-- Cylinder geom representing the physical base (collision disabled to avoid unwanted vibrations) -->
             <geom type="cylinder" size="0.005 0.005" rgba=".8 .3 .1 .5" mass="0.1" contype="0" conaffinity="0"/>
             <!-- Cameras attached to the whisker base -->
             <camera name="whisker_cam" pos="0 0.25 0.05" xyaxes="1 0 0 0 0 -1"/>
             <camera name="whisker_cam_2" pos="-0.15 0 0.05" xyaxes="0 0 1 0 1 0"/>
-            <!-- Sensor site for measuring velocity -->
-            <site name="vel_sensor"/>
 
-            <!-- Whisker body attached to the base -->
+            <!-- Whisker attached to the base -->
             <body name="whisker_body">
                 <!-- Hinge joint connecting base to whisker body -->
                 <joint name="wr0_yaw_s" type="hinge" axis="0 1 0" damping="0.01" stiffness="1" armature="0.00001"/>
                 <!-- Thin cylinder geom for the whisker body -->
                 <geom type="cylinder" size="0.000125 0.01" rgba=".8 .3 .7 1" mass="0.005" contype="0" conaffinity="0"/>
-                <!-- Composite element representing a flexible cable attached to the whisker -->
-                <composite prefix="whisker" type="cable" curve="0 0 s" count="40 1 1"
-                           size="0.1 0 0" initial="none">
-                    <!-- Configure cable elasticity properties -->
+                <!-- Flexible cable representing the whisker -->
+                <composite prefix="whisker" type="cable" curve="0 0 s" count="40 1 1" size="0.1 0 0" initial="none">
                     <plugin plugin="mujoco.elasticity.cable">
-                        <config key="twist" value="40e9"/>  <!-- Twist stiffness -->
-                        <config key="bend" value="100e9"/>   <!-- Bending stiffness -->
-                        <config key="vmax" value="0.001"/>    <!-- Maximum velocity -->
+                        <config key="twist" value="40e9"/>
+                        <config key="bend" value="100e9"/>
+                        <config key="vmax" value="0.001"/>
                     </plugin>
                     <!-- Main joint for the cable composite -->
                     <joint kind="main" damping="0.0001" armature="0.00001"/>
@@ -82,41 +77,24 @@
                 </composite>
             </body>
         </body>
-
-        <!-- Additional mesh objects in the scene -->
-        <body>
-            <geom type="mesh" mesh="object_complex_f1" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 .9"/>
-        </body>
-        <body>
-            <geom type="mesh" mesh="object_complex_f2" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 .9"/>
-        </body>
     </worldbody>
 
     <!-- Actuators: define how joints are controlled -->
     <actuator>
-        <!-- Velocity actuators for sliding joints -->
         <velocity joint="body_x_w" name="body_vx"/>
         <velocity joint="body_y_w" name="body_vy"/>
         <velocity joint="body_yaw_w" name="body_omega"/>
-
-        <!-- PID-controlled actuator for the hinge joint using the PID plugin -->
-<!--        <plugin joint="body_yaw_w" name="body_yaw_w" plugin="mujoco.pid" instance="pid" actdim="2"/>-->
     </actuator>
 
     <!-- Sensors: collect simulation data -->
     <sensor>
-        <!-- Sensor for measuring the position of the hinge between base and whisker -->
-        <jointpos joint="wr0_yaw_s" name="wr0_yaw_s"/>
-        <!-- Velocimeter for measuring linear velocity at the sensor site -->
-        <velocimeter site="vel_sensor" name="vel_sensor"/>
-        <!-- Joint position sensors for the whisker base joints -->
+        <!-- Whisker base sensors -->
         <jointpos joint="body_x_w" name="body_x_w"/>
         <jointpos joint="body_y_w" name="body_y_w"/>
         <jointpos joint="body_yaw_w" name="body_yaw_w"/>
-        <!-- Frame position sensor: tracks a site relative to 'vel_sensor' -->
-        <framepos objtype="site" objname="whiskerS_last" reftype="site" refname="vel_sensor" name="tip_pos"/>
-        <!-- Gyro sensor for measuring angular velocity at the sensor site -->
-        <gyro site="vel_sensor" name="gyro_sensor"/>
+
+        <!-- Whisker deflection sensor -->
+        <jointpos joint="wr0_yaw_s" name="wr0_yaw_s"/>
     </sensor>
 
 </mujoco>
