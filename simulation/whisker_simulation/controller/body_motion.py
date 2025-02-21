@@ -10,15 +10,14 @@ monitor = get_monitor()
 
 
 class BodyMotionController:
-    def __init__(self, *, control_rps: float, total_v: float, tilt: float):
-        self.initial_dt = 1 / control_rps
+    def __init__(self, *, total_v: float, tilt: float):
         self.total_v = total_v
         self.tilt = tilt
         self.yaw_pid = PID(
             kp=0.5,
             ki=0,
             kd=0,
-            dt=self.initial_dt,
+            dt=0, # will be set in the control method
             out_limits=(-np.pi / 2, np.pi / 2),
         )
 
@@ -33,15 +32,7 @@ class BodyMotionController:
         np.set_printoptions(precision=3, suppress=True)
 
         # 0. Update the time step of the PID controllers
-        dt = (
-            data.time - prev_data.time
-            if data.time != prev_data.time
-            else self.initial_dt
-        )
-        assert dt / self.initial_dt < 0.9, (
-            "Time step is smaller than the control period"
-        )
-        self.yaw_pid.dt = dt
+        self.yaw_pid.dt = data.time - prev_data.time
 
         # 1. Calculate the linear velocities
         vx, vy = tgt_body_dr_n_w * self.total_v

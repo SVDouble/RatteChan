@@ -20,7 +20,7 @@ class Controller:
         self.config = config
 
         # runtime
-        self.control_period = 1 / config.control_rps
+        self.control_dt = 1 / config.control_rps
         self.state = ControllerState.IDLE
         self.data = initial_data
         self.prev_data = initial_data
@@ -46,34 +46,30 @@ class Controller:
         # velocity and angle control
         self.total_v = 0.05
         self.body_motion_controller = BodyMotionController(
-            total_v=self.total_v,
-            tilt=self.tilt,
-            control_rps=config.control_rps,
+            total_v=self.total_v, tilt=self.tilt
         )
 
         # anomaly detector
-        self.anomaly_detector = AnomalyDetector(total_v=self.total_v)
+        self.anomaly_detector = AnomalyDetector(control_dt=self.control_dt, total_v=self.total_v)
 
-    def control(self, data: SensorData) -> ControlMessage | None:
+    def control(self, new_data: SensorData) -> ControlMessage | None:
         # rate limit the control
-        if data.time - self.prev_data.time < self.control_period:
+        if new_data.time - self.data.time < self.control_dt:
             return None
 
         # ATTENTION: time step might be variable due to rate limiting
 
-        # before the data got updated, previous data is accessible
-        tip_w_prev = self.tip_estimator.get_w(self.prev_data)
-
-        # update the controller data given the current world data
-        self.prev_data = self.data
-        self.data = data
-        self.tip_estimator.update_wr0_yaw_s(self.data)
+        # update the controller given the new sensor data
+        self.prev_data, self.data = self.data, new_data
 
         # detect anomalies (ignore them if state is IDLE)
+        tip_w_prev = self.tip_estimator.get_w(self.prev_data)
+        self.tip_estimator.update_wr0_yaw_s(self.data)
         tip_w = self.tip_estimator.get_w(self.data)
         anomaly = None
         if self.config.detect_anomalies:
             anomaly = self.anomaly_detector.run(
+                state=self.state,
                 data=self.data,
                 prev_data=self.prev_data,
                 tip_w=tip_w,

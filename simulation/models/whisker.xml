@@ -42,10 +42,11 @@
         <body>
             <geom type="mesh" mesh="object_complex_f1" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 .9"/>
             <geom type="mesh" mesh="object_complex_f2" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 .9"/>
+<!--            <geom type="box" size="0.3 0.3 0.05" pos="30.3 -0.24 0.05" euler="0 0 10" rgba="0.2 0.5 0.1 .9"/>-->
         </body>
 
         <!-- Whisker assembly: base with attached moving parts -->
-        <body name="whisker_base" pos="-0.1 0.1 0.001" axisangle="1 0 0 90">
+        <body name="whisker_base" pos="-0.1 0.1 0.015" axisangle="1 0 0 90">
             <!-- Slide joints for x and y movement -->
             <joint name="body_x_w" type="slide" axis="0 0 1" stiffness="0" armature="0.1"/>
             <joint name="body_y_w" type="slide" axis="1 0 0" stiffness="0" armature="0.1"/>

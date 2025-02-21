@@ -12,7 +12,7 @@ class Config(BaseSettings):
 
     # simulation setup
     model_path: Path = "models/whisker.xml"
-    control_rps: int = 100
+    control_rps: int = 30
 
     # recording setup
     recording_duration: float = 160
