@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from whisker_simulation.config import Config
 from whisker_simulation.controller import Controller
-from whisker_simulation.models import WorldState
+from whisker_simulation.models import SensorData
 
 
 class Simulation:
@@ -19,9 +19,9 @@ class Simulation:
         self.model = mujoco.MjModel.from_xml_path(self.model_path)
         self.data = mujoco.MjData(self.model)
         self.control_rps = config.control_rps
-        initial_world_state = self.get_world_state_from_mujoco_data()
+        initial_data = self.get_sensor_data_from_mujoco()
         self.controller = Controller(
-            initial_state=initial_world_state,
+            initial_data=initial_data,
             config=self.config,
         )
 
@@ -29,8 +29,8 @@ class Simulation:
         self.camera_fps = config.recording_camera_fps
 
     def control(self, _: mujoco.MjModel, __: mujoco.MjData):
-        world_state = self.get_world_state_from_mujoco_data()
-        control = self.controller.control(world_state)
+        sensor_data = self.get_sensor_data_from_mujoco()
+        control = self.controller.control(sensor_data)
         if control is not None:
             self.data.ctrl[0:3] = [
                 control.body_vx_w,
@@ -76,11 +76,11 @@ class Simulation:
         # launch the viewer
         mujoco.viewer.launch(self.model, self.data)
 
-    def get_world_state_from_mujoco_data(self) -> WorldState:
+    def get_sensor_data_from_mujoco(self) -> SensorData:
         # noinspection PyTypeChecker
-        fields: dict = WorldState.model_fields
+        fields: dict = SensorData.model_fields
         data = {
             sensor: self.data.sensor(sensor).data.item()
             for sensor in fields.keys() - {"time"}
         }
-        return WorldState(**data, time=self.data.time)
+        return SensorData(**data, time=self.data.time)

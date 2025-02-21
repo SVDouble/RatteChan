@@ -4,10 +4,10 @@ from functools import cached_property
 import numpy as np
 from pydantic import BaseModel, ConfigDict, computed_field
 
-__all__ = ["WorldState", "Control", "Mode"]
+__all__ = ["SensorData", "ControlMessage", "ControllerState"]
 
 
-class WorldState(BaseModel):
+class SensorData(BaseModel):
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     time: float
@@ -24,7 +24,7 @@ class WorldState(BaseModel):
         return np.array([self.body_x_w, self.body_y_w])
 
 
-class Control(BaseModel):
+class ControlMessage(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     body_vx_w: float
@@ -32,7 +32,7 @@ class Control(BaseModel):
     body_omega_w: float
 
 
-class Mode(int, Enum):
+class ControllerState(int, Enum):
     IDLE = auto()
     ENGAGED = auto()
     SLIPPING_BACKWARDS = auto()
