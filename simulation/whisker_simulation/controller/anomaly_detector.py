@@ -1,7 +1,7 @@
 import numpy as np
 
-from whisker_simulation.models import SensorData, ControllerState
-from whisker_simulation.utils import get_monitor, get_logger
+from whisker_simulation.models import ControllerState
+from whisker_simulation.utils import get_logger, get_monitor
 
 __all__ = ["AnomalyDetector"]
 
@@ -10,42 +10,45 @@ monitor = get_monitor()
 
 
 class AnomalyDetector:
-    def __init__(self, *, control_dt: float, total_v: float):
-        self.total_v = total_v
-        self.control_dt = control_dt
+    def __init__(self, *, controller):
+        from whisker_simulation.controller import Controller
+
+        self.ctrl: Controller = controller
+        self.total_v = controller.total_v
+        self.control_dt = controller.control_dt
+
+        self.has_abnormal_velocity = False
+        self.abnormal_velocity_start_time = None
+
+        self.is_slipping = False
+        self.slip_start_time = None
+
+        self.is_disengaged = False
+        self.disengaged_start_time = None
 
     def run(
-        self,
-        *,
-        state: ControllerState,
-        data: SensorData,
-        prev_data: SensorData,
-        tip_w: np.ndarray,
-        tip_w_prev: np.ndarray,
+        self, *, tip_w: np.ndarray, tip_w_prev: np.ndarray, is_deflected: bool
     ) -> tuple[ControllerState, str] | None:
+        data, prev_data, state = self.ctrl.data, self.ctrl.prev_data, self.ctrl.state
+
         # check whether the control period is respected
         time_step = data.time - prev_data.time
         assert time_step <= self.control_dt * 1.1, (
             f"Time step {time_step} is larger than the control period {self.control_dt}"
         )
 
-        # assume that when the system has exited idle, steady body velocity has been reached
+        # assume that when the system has exited exploring state
+        # and steady body velocity has been reached
         body_dr = data.body_r_w - prev_data.body_r_w
         body_v = np.linalg.norm(body_dr) / time_step
-        if (
-            state != ControllerState.IDLE
-            and (diff_p := abs(body_v / self.total_v - 1)) > 0.25
-        ):
-            msg = (
-                f"Expected body velocity ({self.total_v:.2f}) "
-                f"differs from actual ({body_v:.2f}) by {diff_p:.2%}"
-            )
-            logger.warning(msg)
-            # return (
-            #     ControllerState.FAILURE,
-            #     f"Expected body velocity ({self.total_v:.2f}) "
-            #     f"differs from actual ({body_v:.2f}) by {diff_p:.2%}",
-            # )
+        if abs(body_v / self.total_v - 1) > 0.25:
+            if not self.has_abnormal_velocity:
+                self.has_abnormal_velocity = True
+                self.abnormal_velocity_start_time = data.time
+        elif self.has_abnormal_velocity:
+            logger.info(f"Abnormal velocity duration: {data.time - self.abnormal_velocity_start_time:.3f}")
+            self.has_abnormal_velocity = False
+            self.abnormal_velocity_start_time = None
 
         # now we are sure that the body has covered some distance
         # check whether the whisker is slipping (sliding backwards)
@@ -63,14 +66,31 @@ class AnomalyDetector:
         # the whisker might be slipping forward, but that's alright
         # still, we want to detect this
         # the indicator is that the tip is moving faster than the body
-        if (dv_p := tip_v / self.total_v - 1) > 0.5:
-            logger.warning(
-                f"Whisker is slipping forwards: tip velocity ({tip_v:.2f}) "
-                f"is larger than total velocity ({self.total_v:.2f}) by {dv_p:.2%}"
-            )
+        if tip_v / self.total_v > 1.5:
+            if not self.is_slipping:
+                self.is_slipping = True
+                self.slip_start_time = data.time
+        elif self.is_slipping:
+            logger.info(f"Whisker slip duration: {data.time - self.slip_start_time:.3f}")
+            self.is_slipping = False
+            self.slip_start_time = None
 
-        # the whisker might become disengaged
-        # the indicator is that the tip is moving faster than the body
-        # and the deflection is vanishing
-        # TODO
+        if not is_deflected:
+            if not self.is_disengaged:
+                self.is_disengaged = True
+                self.disengaged_start_time = data.time
+
+            if (
+                state != ControllerState.EXPLORING
+                and data.time - self.disengaged_start_time > self.ctrl.disengaged_duration_threshold
+            ):
+                return (
+                    ControllerState.DISENGAGED,
+                    f"Whisker has not been deflected for {data.time - self.disengaged_start_time:.3f}s",
+                )
+        elif self.is_disengaged:
+            logger.info(f"Whisker disengaged duration: {data.time - self.disengaged_start_time:.3f}")
+            self.is_disengaged = False
+            self.disengaged_start_time = None
+
         return None

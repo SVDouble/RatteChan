@@ -17,17 +17,17 @@ class BodyMotionController:
             kp=0.5,
             ki=0,
             kd=0,
-            dt=0, # will be set in the control method
+            dt=0,  # will be set in the control method
             out_limits=(-np.pi / 2, np.pi / 2),
         )
 
-    def control(
+    def __call__(
         self,
         *,
         data: SensorData,
         prev_data: SensorData,
         tgt_body_dr_n_w: np.ndarray,
-        spline_angle: float,
+        tgt_body_yaw_w: float,
     ) -> ControlMessage:
         np.set_printoptions(precision=3, suppress=True)
 
@@ -39,7 +39,7 @@ class BodyMotionController:
 
         # 2. Calculate the yaw error so that the body is slightly tilted towards the spline
         nose_yaw_w = data.body_yaw_w + np.pi / 2
-        yaw_error = unwrap_pid_error(spline_angle - (nose_yaw_w + self.tilt))
+        yaw_error = unwrap_pid_error(tgt_body_yaw_w - nose_yaw_w)
 
         # 3. Calculate the angular velocity
         body_omega_w = self.yaw_pid(yaw_error)

@@ -33,7 +33,7 @@ class ControlMessage(BaseModel):
 
 
 class ControllerState(int, Enum):
-    IDLE = auto()
+    EXPLORING = auto()
     ENGAGED = auto()
     SLIPPING_BACKWARDS = auto()
     DISENGAGED = auto()

@@ -1,11 +1,12 @@
 from collections import deque
+from typing import Self
 
 import numpy as np
 import scipy.interpolate as interpolate
 from scipy.interpolate import BSpline
 
 from whisker_simulation.models import SensorData
-from whisker_simulation.utils import get_monitor, get_logger
+from whisker_simulation.utils import get_logger, get_monitor
 
 __all__ = ["Spline"]
 
@@ -14,9 +15,7 @@ monitor = get_monitor()
 
 
 class Spline:
-    def __init__(
-        self, *, keypoint_distance: float, n_keypoints: int, smoothness: float = 0.1
-    ):
+    def __init__(self, *, keypoint_distance: float, n_keypoints: int, smoothness: float = 0.1):
         # spline parameters
         self.keypoint_distance = keypoint_distance
         self.n_keypoints = n_keypoints
@@ -54,11 +53,16 @@ class Spline:
         self.spl, _ = interpolate.make_splprep(keypoints.T, s=self.smoothness)
         return True
 
-    def __call__(self, u) -> np.ndarray:
-        return self.spl(u)
+    def reset(self) -> None:
+        self.keypoints.clear()
+        self.spl = None
+        self.prev_body_r_w = None
 
     def end_kth_point_u(self, k: float) -> float:
         return 1 + k / (len(self.keypoints) - 1)
+
+    def __call__(self, u) -> np.ndarray:
+        return self.spl(u)
 
     def __bool__(self) -> bool:
         return self.spl is not None

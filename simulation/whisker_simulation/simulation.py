@@ -79,8 +79,5 @@ class Simulation:
     def get_sensor_data_from_mujoco(self) -> SensorData:
         # noinspection PyTypeChecker
         fields: dict = SensorData.model_fields
-        data = {
-            sensor: self.data.sensor(sensor).data.item()
-            for sensor in fields.keys() - {"time"}
-        }
+        data = {sensor: self.data.sensor(sensor).data.item() for sensor in fields.keys() - {"time"}}
         return SensorData(**data, time=self.data.time)

@@ -13,13 +13,13 @@ __all__ = ["TipEstimator"]
 class TipEstimator:
     def __init__(self, defl_model: DeflectionModel, initial_data: SensorData):
         self.defl_model = defl_model
+        self.initial_x = self.defl_model.get_position(initial_data.wr0_yaw_s).reshape(-1, 1)
+
         self.tip_s_filter = KalmanFilter(dim_x=2, dim_z=2)
         self.tip_s_filter.H = np.eye(2)
         self.tip_s_filter.P *= 10
         self.tip_s_filter.Q = np.eye(2) * 0.01
-        self.tip_s_filter.x = self.defl_model.get_position(
-            initial_data.wr0_yaw_s
-        ).reshape(-1, 1)
+        self.tip_s_filter.x = self.initial_x
         self.tip_s_deque = deque(maxlen=20)
 
     def update_wr0_yaw_s(self, data: SensorData) -> None:
@@ -39,3 +39,8 @@ class TipEstimator:
     def get_w(self, data: SensorData) -> np.ndarray:
         tip_s = self.tip_s_filter.x.flatten()
         return rotate_ccw(tip_s, data.body_yaw_w) + data.body_r_w
+
+    def reset(self) -> None:
+        self.tip_s_deque.clear()
+        self.tip_s_filter.x = self.initial_x
+        self.tip_s_filter.R = np.eye(2)
