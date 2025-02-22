@@ -22,7 +22,7 @@ class Controller:
         # runtime
         self.control_dt = 1 / config.control_rps
         self.__state = self.__prev_state = ControllerState.EXPLORING
-        self.desired_next_state = ControllerState.ENGAGED
+        self.desired_next_state = ControllerState.SWIPING
         self.data = self.prev_data = initial_data
 
         # tip position estimation using deflection model and kalman filter
@@ -96,7 +96,9 @@ class Controller:
         if self.state == ControllerState.EXPLORING:
             if self.is_deflected:
                 logger.debug("Whisker has come into contact with the surface")
+                assert self.desired_next_state is not None
                 self.state = self.desired_next_state
+                self.desired_next_state = None
             else:
                 return None
 
@@ -108,25 +110,25 @@ class Controller:
         if self.state == ControllerState.FAILURE:
             return ControlMessage(body_vx_w=0, body_vy_w=0, body_omega_w=0)
 
-        if self.state == ControllerState.ENGAGED:
-            # follow the surface
-            return self.policy_follow(tip_w)
-
         if self.state == ControllerState.SWIPING:
+            # follow the surface
+            return self.policy_swiping(tip_w)
+
+        if self.state == ControllerState.WHISKING:
             # swipe the whisker up to the edge
-            return self.policy_swipe()
+            return self.policy_whisking(tip_w)
 
         if self.state == ControllerState.DISENGAGED:
-            if self.prev_state == ControllerState.ENGAGED:
-                # the whisker has disengaged, needs to swipe back
-                return self.policy_swipe()
             if self.prev_state == ControllerState.SWIPING:
+                # the whisker has disengaged, needs to swipe back
+                return self.policy_initiate_whisking()
+            if self.prev_state == ControllerState.WHISKING:
                 # we swiped the other side of the edge, now we rotate and engage
-                return self.policy_reattach()
+                return self.policy_reattaching()
 
         raise NotImplementedError(f"State {self.state} is not implemented")
 
-    def policy_follow(self, tip_w: np.ndarray) -> ControlMessage | None:
+    def policy_swiping(self, tip_w: np.ndarray) -> ControlMessage | None:
         # 0. If the deflection is too small, keep the control values
         if not self.is_deflected:
             return None
@@ -178,17 +180,9 @@ class Controller:
 
         return control
 
-    def policy_swipe(self) -> ControlMessage | None:
-        # -1. If the whisker has reached the other side,
-        # lock the body position and keep swiping until the whisker is disengaged
-        if self.state == ControllerState.SWIPING:
-            # if the deflection is too small, keep the control values
-            if not self.is_deflected:
-                return None
-            return ControlMessage(body_vx_w=0, body_vy_w=0, body_omega_w=self.orientation * self.exploration_omega)
-
+    def policy_initiate_whisking(self) -> ControlMessage | None:
         # assume the whisker has disengaged just now
-        assert self.prev_state == ControllerState.ENGAGED
+        assert self.prev_state == ControllerState.SWIPING
 
         # 0. If the spline is not defined, keep the control values
         # There is no better strategy anyway
@@ -228,10 +222,22 @@ class Controller:
 
         # 3. Set the desired next state
         self.state = ControllerState.EXPLORING
-        self.desired_next_state = ControllerState.SWIPING
+        self.desired_next_state = ControllerState.WHISKING
 
         return control
 
-    def policy_reattach(self) -> ControlMessage | None:
+    def policy_whisking(self, tip_w: np.ndarray) -> ControlMessage | None:
+        # If the whisker has reached over the edge,
+        # lock the body position and keep swiping until the whisker is disengaged
+        if self.state == ControllerState.WHISKING:
+            # if the deflection is too small, keep the control values
+            if not self.is_deflected:
+                return None
+            self.spline.add_keypoint(keypoint=tip_w, data=self.data)
+            # TODO: improve whisking
+            return ControlMessage(body_vx_w=0, body_vy_w=0, body_omega_w=self.orientation * self.exploration_omega)
+
+    def policy_reattaching(self) -> ControlMessage | None:
         monitor.draw_spline(self.spline)
         raise RuntimeError(f"bool(self.spline) = {bool(self.spline)}")
+        # TODO: using the new spline, determine the approach and engage the whisker
