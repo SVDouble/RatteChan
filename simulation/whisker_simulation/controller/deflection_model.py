@@ -18,3 +18,6 @@ class DeflectionModel:
     def get_position(an):
         x, y = DeflectionModel.get_x(an), DeflectionModel.get_y(an)
         return np.array([x, y])
+
+    def __call__(self, an):
+        return self.get_position(an)

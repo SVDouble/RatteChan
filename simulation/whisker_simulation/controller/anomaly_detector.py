@@ -46,7 +46,7 @@ class AnomalyDetector:
                 self.has_abnormal_velocity = True
                 self.abnormal_velocity_start_time = data.time
         elif self.has_abnormal_velocity:
-            logger.info(f"Abnormal velocity duration: {data.time - self.abnormal_velocity_start_time:.3f}")
+            logger.debug(f"Abnormal velocity duration: {data.time - self.abnormal_velocity_start_time:.3f}")
             self.has_abnormal_velocity = False
             self.abnormal_velocity_start_time = None
 
@@ -59,8 +59,8 @@ class AnomalyDetector:
         if tip_v / self.total_v >= 0.2:
             if (angle := np.dot(body_dr, tip_dr)) < -1e3:
                 return (
-                    ControllerState.SLIPPING_BACKWARDS,
-                    f"Angle between body and tip is {angle:.2f}",
+                    ControllerState.FAILURE,
+                    f"Slipping backwards: angle between body and tip is {angle:.2f}",
                 )
 
         # the whisker might be slipping forward, but that's alright
@@ -71,7 +71,7 @@ class AnomalyDetector:
                 self.is_slipping = True
                 self.slip_start_time = data.time
         elif self.is_slipping:
-            logger.info(f"Whisker slip duration: {data.time - self.slip_start_time:.3f}")
+            logger.debug(f"Whisker slip duration: {data.time - self.slip_start_time:.3f}")
             self.is_slipping = False
             self.slip_start_time = None
 
@@ -86,10 +86,10 @@ class AnomalyDetector:
             ):
                 return (
                     ControllerState.DISENGAGED,
-                    f"Whisker has not been deflected for {data.time - self.disengaged_start_time:.3f}s",
+                    f"No deflection for {data.time - self.disengaged_start_time:.3f}s",
                 )
         elif self.is_disengaged:
-            logger.info(f"Whisker disengaged duration: {data.time - self.disengaged_start_time:.3f}")
+            logger.debug(f"Whisker disengaged duration: {data.time - self.disengaged_start_time:.3f}")
             self.is_disengaged = False
             self.disengaged_start_time = None
 

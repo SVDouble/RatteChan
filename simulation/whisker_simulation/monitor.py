@@ -45,7 +45,7 @@ class Monitor:
         keypoints = np.array(spline.keypoints)
         plt.scatter(keypoints[:, 0], keypoints[:, 1], c="b", label="Keypoints")
 
-        pred_tip = spline(spline.end_kth_point_u(1))
+        pred_tip = spline([spline.end_kth_point_u(0), spline.end_kth_point_u(1)])
         plt.scatter(pred_tip[0], pred_tip[1], c="g", marker="*", s=100, label="Predicted")
 
         for i, (key, p) in enumerate(kwargs.items()):

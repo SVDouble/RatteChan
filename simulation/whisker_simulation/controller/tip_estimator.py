@@ -13,7 +13,7 @@ __all__ = ["TipEstimator"]
 class TipEstimator:
     def __init__(self, defl_model: DeflectionModel, initial_data: SensorData):
         self.defl_model = defl_model
-        self.initial_x = self.defl_model.get_position(initial_data.wr0_yaw_s).reshape(-1, 1)
+        self.initial_x = self.defl_model(initial_data.wr0_yaw_s).reshape(-1, 1)
 
         self.tip_s_filter = KalmanFilter(dim_x=2, dim_z=2)
         self.tip_s_filter.H = np.eye(2)
@@ -24,7 +24,7 @@ class TipEstimator:
 
     def update_wr0_yaw_s(self, data: SensorData) -> None:
         # get local tip position from deflection
-        tip = self.defl_model.get_position(data.wr0_yaw_s)
+        tip = self.defl_model(data.wr0_yaw_s)
 
         # filter the tip position using the kalman filter
         self.tip_s_deque.append(tip)

@@ -35,6 +35,6 @@ class ControlMessage(BaseModel):
 class ControllerState(int, Enum):
     EXPLORING = auto()
     ENGAGED = auto()
-    SLIPPING_BACKWARDS = auto()
     DISENGAGED = auto()
+    SWIPING = auto()
     FAILURE = auto()
