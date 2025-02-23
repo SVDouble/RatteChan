@@ -27,9 +27,14 @@ class AnomalyDetector:
         self.disengaged_start_time = None
 
     def run(
-        self, *, tip_w: np.ndarray, tip_w_prev: np.ndarray, is_deflected: bool
+        self,
+        *,
+        tip_w: np.ndarray,
+        tip_w_prev: np.ndarray,
+        is_deflected: bool,
+        ignore_disengaged: bool = False,
     ) -> tuple[ControllerState, str] | None:
-        data, prev_data, state = self.ctrl.data, self.ctrl.prev_data, self.ctrl.state
+        data, prev_data = self.ctrl.data, self.ctrl.prev_data
 
         # check whether the control period is respected
         time_step = data.time - prev_data.time
@@ -53,11 +58,12 @@ class AnomalyDetector:
         # now we are sure that the body has covered some distance
         # check whether the whisker is slipping (sliding backwards)
         # control might not be respected, so rely on the previous world data
-        tip_dr = tip_w - tip_w_prev
-        tip_v = np.linalg.norm(tip_dr) / time_step
+        tip_dr_w = tip_w - tip_w_prev
+        tip_v_w = np.linalg.norm(tip_dr_w) / time_step
+        # TODO: use tip_v_s instead of tip_v_w (account for the body rotation)
         # the tip might be stuck, so ignore small movements
-        if tip_v / self.total_v >= 0.2:
-            if (angle := np.dot(body_dr, tip_dr)) < -1e3:
+        if tip_v_w / self.total_v >= 0.2:
+            if (angle := np.dot(body_dr, tip_dr_w)) < -1e3:
                 return (
                     ControllerState.FAILURE,
                     f"Slipping backwards: angle between body and tip is {angle:.2f}",
@@ -66,7 +72,7 @@ class AnomalyDetector:
         # the whisker might be slipping forward, but that's alright
         # still, we want to detect this
         # the indicator is that the tip is moving faster than the body
-        if tip_v / self.total_v > 1.5:
+        if tip_v_w / self.total_v > 1.5:
             if not self.is_slipping:
                 self.is_slipping = True
                 self.slip_start_time = data.time
@@ -81,7 +87,7 @@ class AnomalyDetector:
                 self.disengaged_start_time = data.time
 
             if (
-                state != ControllerState.EXPLORING
+                not ignore_disengaged
                 and data.time - self.disengaged_start_time > self.ctrl.disengaged_duration_threshold
             ):
                 return (

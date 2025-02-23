@@ -33,7 +33,7 @@ class Controller:
 
         # tip position prediction using spline
         self.keypoint_distance = 2e-3
-        self.n_keypoints = 7
+        self.n_keypoints = 9
         self.spline = Spline(
             keypoint_distance=self.keypoint_distance,
             n_keypoints=self.n_keypoints,
@@ -49,12 +49,16 @@ class Controller:
 
         # disengagement policy
         self.disengaged_duration_threshold = 0.1
-        self.exploration_omega = np.pi / 6
+        self.exploration_omega = np.pi / 8
         self.prev_spline: Spline | None = None
         self.orientation: int | None = None
 
         # anomaly detector
         self.anomaly_detector = AnomalyDetector(controller=self)
+
+        # exploration policy
+        self.default_exploration_policy = lambda: None
+        self.exploration_policy = self.default_exploration_policy
 
     @property
     def state(self) -> ControllerState:
@@ -87,7 +91,12 @@ class Controller:
         self.is_deflected = abs(self.data.wr0_yaw_s) > self.defl_detect_threshold
 
         # detect anomalies (ignore them if state is EXPLORING)
-        anomaly = self.anomaly_detector.run(tip_w=tip_w, tip_w_prev=tip_w_prev, is_deflected=self.is_deflected)
+        anomaly = self.anomaly_detector.run(
+            tip_w=tip_w,
+            tip_w_prev=tip_w_prev,
+            is_deflected=self.is_deflected,
+            ignore_disengaged=self.state == ControllerState.EXPLORING,
+        )
         if anomaly is not None:
             anomaly_state, anomaly_msg = anomaly
             logger.debug(f"Anomaly detected: {anomaly_state}: {anomaly_msg}")
@@ -99,8 +108,9 @@ class Controller:
                 assert self.desired_next_state is not None
                 self.state = self.desired_next_state
                 self.desired_next_state = None
+                self.exploration_policy = self.default_exploration_policy
             else:
-                return None
+                return self.exploration_policy()
 
         # handle anomalies
         if anomaly is not None and (anomaly_state := anomaly[0]) != self.state:
@@ -187,7 +197,8 @@ class Controller:
         # 0. If the spline is not defined, keep the control values
         # There is no better strategy anyway
         if not self.spline:
-            logger.warning("Spline is not defined, cannot reengage")
+            logger.warning("Spline is not defined, cannot initiate whisking")
+            self.state = ControllerState.FAILURE
             return None
 
         # 1. Calculate new control:
@@ -205,7 +216,7 @@ class Controller:
         orientation = np.sign(np.cross(spl_span_w, body_span_w))
         self.orientation = orientation
 
-        tgt_body_dr_n_w = rotate_ccw(-spl_dk_w_n, -orientation * np.pi / 4)
+        tgt_body_dr_n_w = rotate_ccw(-spl_dk_w_n, -orientation * np.pi / 2)
         tgt_body_yaw_w = self.exploration_omega * orientation
 
         control = self.motion_ctrl(
@@ -216,9 +227,11 @@ class Controller:
         )
 
         # 2. Reset the spline and the tip estimator
+        monitor.draw_spline(self.spline, body=self.data.body_r_w)
+
         self.tip_estimator.reset()
         self.prev_spline = self.spline
-        self.spline = Spline(keypoint_distance=self.keypoint_distance / 10, n_keypoints=self.n_keypoints)
+        self.spline = Spline(keypoint_distance=0, n_keypoints=self.n_keypoints)
 
         # 3. Set the desired next state
         self.state = ControllerState.EXPLORING
@@ -234,10 +247,53 @@ class Controller:
             if not self.is_deflected:
                 return None
             self.spline.add_keypoint(keypoint=tip_w, data=self.data)
-            # TODO: improve whisking
             return ControlMessage(body_vx_w=0, body_vy_w=0, body_omega_w=self.orientation * self.exploration_omega)
 
     def policy_reattaching(self) -> ControlMessage | None:
-        monitor.draw_spline(self.spline)
-        raise RuntimeError(f"bool(self.spline) = {bool(self.spline)}")
-        # TODO: using the new spline, determine the approach and engage the whisker
+        if not self.spline:
+            logger.warning("Spline is not defined, cannot reattach")
+            self.state = ControllerState.FAILURE
+            return None
+
+        # 1. Calculate the target body yaw
+        spline_start_w = self.spline(0)
+        spline_end_w = self.spline(1)
+        # obviously quite buggy now, it should be the other way around, i.e. spline_start_w - spline_end_w
+        # TODO: fix whisker deflection offset calculation - take the orientation into account
+        spl_dk_w_n = normalize(spline_end_w - spline_start_w)
+        spline_angle = np.arctan2(spl_dk_w_n[1], spl_dk_w_n[0])
+        tgt_body_yaw_w = spline_angle - self.tilt
+
+        # 2. Calculate the target body movement direction
+        tgt_defl_offset_l = self.defl_model(self.tgt_defl)
+        tgt_defl_offset_w = rotate_ccw(tgt_defl_offset_l, tgt_body_yaw_w - np.pi / 2)
+        tgt_body_r_w = spline_end_w - tgt_defl_offset_w
+
+        logger.debug(f"spline_angle={spline_angle:.3f}, tgt_body_yaw_w={tgt_body_yaw_w:.3f}")
+        monitor.draw_spline(
+            self.spline,
+            title="The other side of the edge",
+            tgt_body_r_w=tgt_body_r_w,
+            body=self.data.body_r_w,
+        )
+
+        # 3. Reset the spline and the tip estimator
+        self.tip_estimator.reset()
+        self.prev_spline = None
+        self.spline = Spline(keypoint_distance=self.keypoint_distance, n_keypoints=self.n_keypoints)
+
+        # 4. Set the exploration policy to reattach the whisker
+
+        def reattach_policy() -> ControlMessage:
+            tgt_body_dr_n_w = normalize(tgt_body_r_w - self.data.body_r_w)
+            return self.motion_ctrl(
+                data=self.data,
+                prev_data=self.prev_data,
+                tgt_body_dr_n_w=tgt_body_dr_n_w,
+                tgt_body_yaw_w=tgt_body_yaw_w,
+            )
+
+        self.exploration_policy = reattach_policy
+        self.state = ControllerState.EXPLORING
+        self.desired_next_state = ControllerState.SWIPING
+        return self.exploration_policy()

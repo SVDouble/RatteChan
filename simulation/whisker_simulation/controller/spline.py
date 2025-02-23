@@ -20,6 +20,7 @@ class Spline:
         self.keypoint_distance = keypoint_distance
         self.n_keypoints = n_keypoints
         self.smoothness = smoothness
+        self.keypoint_to_body_ratio = 5
 
         # stateful variables
         self.keypoints = deque(maxlen=self.n_keypoints)
@@ -33,7 +34,9 @@ class Spline:
             prev_keypoint = np.array(self.keypoints[-1])
             keypoint_d = np.linalg.norm(np.array(keypoint) - prev_keypoint)
             body_d = np.linalg.norm(data.body_r_w - self.prev_body_r_w)
-            if min(keypoint_d, body_d) >= self.keypoint_distance:
+            ratio_ok = 1 / self.keypoint_to_body_ratio < keypoint_d / body_d < self.keypoint_to_body_ratio
+            distance_ok = min(keypoint_d, body_d) >= self.keypoint_distance
+            if distance_ok and ratio_ok:
                 has_new_point = True
         if not self.keypoints:
             has_new_point = True
