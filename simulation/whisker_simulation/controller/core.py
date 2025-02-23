@@ -25,10 +25,12 @@ class Controller:
         self.data = self.prev_data = initial_data
         self.motion: MotionAnalyzer = MotionAnalyzer(data=self.data, prev_data=self.prev_data)
 
-        # tip position estimation using deflection model and kalman filter
+        # tip position estimation
         self.defl_model = DeflectionModel()
-        self.defl_detect_threshold = 5e-5
-        self.is_deflected = False
+        self.defl_threshold = 5e-5
+        self.wr0_defl_sign: int = 0
+        # is set once for every engagement
+        self.tgt_wr0_defl_sign: int = self.wr0_defl_sign
 
         # tip position prediction using spline
         self.keypoint_distance = 2e-3
@@ -39,7 +41,7 @@ class Controller:
         )
 
         # body yaw control
-        self.tgt_defl = -3e-4
+        self.tgt_defl_abs = 3e-4
         self.tilt = 0.2
 
         # velocity and angle control
@@ -48,16 +50,14 @@ class Controller:
 
         # disengagement policy
         self.disengaged_duration_threshold = 0.1
-        self.exploration_omega = np.pi / 8
-        self.prev_spline: Spline | None = None
-        self.orientation: int | None = None
+        self.exploration_omega = np.pi / 10
 
         # anomaly detector
         self.anomaly_detector = AnomalyDetector(controller=self)
+        self.anomaly_blacklist = [(ControllerState.EXPLORING, ControllerState.DISENGAGED)]
 
         # exploration policy
-        self.default_exploration_policy = lambda: None
-        self.exploration_policy = self.default_exploration_policy
+        self.exploration_instructions = None
 
     @property
     def state(self) -> ControllerState:
@@ -84,33 +84,23 @@ class Controller:
         self.prev_data, self.data = self.data, new_data
         self.motion = MotionAnalyzer(data=self.data, prev_data=self.prev_data)
 
-        # detect anomalies (ignore them if state is EXPLORING)
-        self.is_deflected = abs(self.data.wr0_defl) > self.defl_detect_threshold
-        anomaly = self.anomaly_detector.run(
-            is_deflected=self.is_deflected, ignore_disengaged=self.state == ControllerState.EXPLORING
-        )
-        if anomaly is not None:
-            anomaly_state, anomaly_msg = anomaly
-            logger.debug(f"Anomaly detected: {anomaly_state}: {anomaly_msg}")
-
-        # exit idle state if the whisker is deflected
-        if self.state == ControllerState.EXPLORING:
-            if self.is_deflected:
+        # update the spline
+        self.wr0_defl_sign = np.sign(self.data.wr0_defl) if abs(self.data.wr0_defl) > self.defl_threshold else 0
+        if self.wr0_defl_sign:
+            has_new_point = self.spline.add_keypoint(keypoint=self.data.tip_r_w, data=self.data)
+            if has_new_point and len(self.spline.keypoints) == 1:
                 logger.debug("Whisker has come into contact with the surface")
-                assert self.desired_next_state is not None
-                self.state = self.desired_next_state
-                self.desired_next_state = None
-                self.exploration_policy = self.default_exploration_policy
-            else:
-                return self.exploration_policy()
 
-        # handle anomalies
-        if anomaly is not None and (anomaly_state := anomaly[0]) != self.state:
-            self.state = anomaly_state
+        # detect anomalies (ignore them if state is EXPLORING)
+        if anomaly := self.anomaly_detector():
+            anomaly_state, anomaly_msg = anomaly
+            if (self.state, anomaly_state) not in self.anomaly_blacklist:
+                logger.warning(f"Anomaly detected: {anomaly_msg}")
+                self.state = anomaly_state
 
-        # if in failure state, send idle control
-        if self.state == ControllerState.FAILURE:
-            return ControlMessage(body_vx_w=0, body_vy_w=0, body_omega_w=0)
+        if self.state == ControllerState.EXPLORING:
+            # explore the map according to the exploration instructions
+            return self.exploration_policy()
 
         if self.state == ControllerState.SWIPING:
             # follow the surface
@@ -118,7 +108,6 @@ class Controller:
 
         if self.state == ControllerState.WHISKING:
             # swipe the whisker up to the edge
-            # return self.policy_swiping()
             return self.policy_whisking()
 
         if self.state == ControllerState.DISENGAGED:
@@ -129,16 +118,40 @@ class Controller:
                 # we swiped the other side of the edge, now we rotate and engage
                 return self.policy_reattaching()
 
+        # if in failure state, send idle control
+        if self.state == ControllerState.FAILURE:
+            return ControlMessage(body_vx_w=0, body_vy_w=0, body_omega_w=0)
+
         raise NotImplementedError(f"State {self.state} is not implemented")
 
-    def policy_swiping(self) -> ControlMessage | None:
-        # 0. If the deflection is too small, keep the control values
-        if not self.is_deflected:
-            return None
+    def exploration_policy(self) -> ControlMessage | None:
+        def apply_instructions() -> ControlMessage | None:
+            if self.exploration_instructions is None:
+                return None
+            return self.exploration_instructions()
 
-        # 1. Update the spline and predict the next tip position
-        is_new_keypoint = self.spline.add_keypoint(keypoint=self.data.tip_r_w, data=self.data)
-        if not self.spline:
+        if not self.wr0_defl_sign or not self.spline:
+            self.tgt_wr0_defl_sign = 0
+            return apply_instructions()
+
+        # At this point we have a spline to work with
+        # This means that exploration has ended and the state should be updated
+        logger.debug("The spline has been defined")
+        monitor.draw_spline(self.spline, title="Exploration End", body=self.data.body_r_w)
+        assert self.desired_next_state is not None
+        self.state = self.desired_next_state
+        self.desired_next_state = None
+        assert self.tgt_wr0_defl_sign == 0
+        self.tgt_wr0_defl_sign = self.wr0_defl_sign
+
+        # Use the exploration instructions one last time to let it prepare for the engaged state
+        control = apply_instructions()
+        self.exploration_instructions = None
+        return control
+
+    def policy_swiping(self) -> ControlMessage | None:
+        # 1. If the deflection is too small, keep the control values
+        if not self.wr0_defl_sign:
             return None
 
         # 2. Calculate spline curvature
@@ -151,7 +164,7 @@ class Controller:
         # 3. Calculate the delta offset between the target and current deflection
         zero_defl_offset_l = self.defl_model(0)
         cur_defl_offset_l = self.defl_model(self.data.wr0_defl)
-        tgt_defl_offset_l = self.defl_model(self.tgt_defl)
+        tgt_defl_offset_l = self.defl_model(self.tgt_defl_abs * self.wr0_defl_sign)
         defl_doffset_w = rotate_ccw(tgt_defl_offset_l - cur_defl_offset_l, self.data.wr0_yaw_w)
         defl_doffset_w_n = normalize(-defl_doffset_w)
         defl_offset_weight = np.linalg.norm(defl_doffset_w) / np.linalg.norm(tgt_defl_offset_l - zero_defl_offset_l)
@@ -169,7 +182,7 @@ class Controller:
             tgt_body_yaw_w=spline_angle - self.tilt,
         )
 
-        if self.config.debug and is_new_keypoint:
+        if self.config.debug and np.array_equiv(self.spline.keypoints[-1], self.data.tip_r_w):
             ds = self.spline.keypoint_distance * self.spline.n_keypoints
             poi = {
                 "body": self.data.body_r_w,
@@ -180,7 +193,7 @@ class Controller:
             if k < 0.05:
                 del poi["d_defl"]
             if k > 0.5:
-                monitor.draw_spline(self.spline, **poi)
+                monitor.draw_spline(self.spline, title="Swiping", **poi)
 
         return control
 
@@ -199,20 +212,13 @@ class Controller:
         # The goal is to swipe the whisker along the other side of the edge
         # The linear velocity follows the spline backwards,
         # while the rotation brings the whisker tip to the new plane
-        spl_start_w, spl_end_w = self.spline(0), self.spline(1)
-        spl_k1_w = self.spline(self.spline.end_kth_point_u(1))
-        spl_dk_w_n = normalize(spl_k1_w - spl_end_w)
+        spl_k0_w, spl_k1_w = self.spline(self.spline.end_kth_point_u(0)), self.spline(self.spline.end_kth_point_u(1))
+        spl_dk_w_n = normalize(spl_k1_w - spl_k0_w)
 
-        spl_span_w = spl_end_w - spl_start_w
-        body_span_w = np.array([np.cos(self.data.body_yaw_w), np.sin(self.data.body_yaw_w)])
-        # orientation > 0 means that the body is on the left side of the spline
-        orientation = np.sign(np.cross(spl_span_w, body_span_w))
-        self.orientation = orientation
+        tgt_body_dr_n_w = rotate_ccw(-spl_dk_w_n, -self.tgt_wr0_defl_sign * np.pi / 2)
+        tgt_body_yaw_w = self.exploration_omega * self.tgt_wr0_defl_sign
 
-        tgt_body_dr_n_w = rotate_ccw(-spl_dk_w_n, -orientation * np.pi / 2)
-        tgt_body_yaw_w = self.exploration_omega * orientation
-
-        control = self.motion_ctrl(
+        control_reach_over_the_edge = self.motion_ctrl(
             data=self.data,
             prev_data=self.prev_data,
             tgt_body_dr_n_w=tgt_body_dr_n_w,
@@ -220,25 +226,57 @@ class Controller:
         )
 
         # 2. Reset the spline
-        monitor.draw_spline(self.spline, body=self.data.body_r_w)
-
-        self.prev_spline = self.spline
+        prev_spline = self.spline
+        monitor.draw_spline(self.spline, title="Swiping End", body=self.data.body_r_w)
         self.spline = Spline(keypoint_distance=self.keypoint_distance, n_keypoints=self.n_keypoints)
 
         # 3. Set the desired next state
+        has_reached_surface = False
+
+        def initial_whisking_instructions() -> ControlMessage | None:
+            nonlocal has_reached_surface
+            if self.wr0_defl_sign:
+                if has_reached_surface:
+                    return None
+                has_reached_surface = True
+
+                # we've got the first estimate on the other side,
+                # use it to construct a reasonable spline and give control to the swiping policy
+                tip_r_w = self.data.tip_r_w
+                side_tangent_n_w = normalize(tip_r_w - spl_k0_w)
+                side_tangent_yaw_w = np.arctan2(side_tangent_n_w[1], side_tangent_n_w[0])
+                tgt_wr0_yaw_w = side_tangent_yaw_w + self.data.body_wr0_angle_s
+                tgt_defl_offset_w = rotate_ccw(self.defl_model(self.tgt_defl_abs * self.wr0_defl_sign), tgt_wr0_yaw_w)
+                tgt_body_dr_w = spl_k0_w - tgt_defl_offset_w
+
+                monitor.draw_spline(
+                    prev_spline,
+                    title="Whisking Start",
+                    body=self.data.body_r_w,
+                    tip=tip_r_w,
+                    edge=spl_k0_w,
+                    body_tgt=tgt_body_dr_w,
+                )
+
+                return self.motion_ctrl(
+                    data=self.data,
+                    prev_data=self.prev_data,
+                    tgt_body_dr_n_w=normalize(tgt_body_dr_w),
+                    tgt_body_yaw_w=side_tangent_yaw_w,
+                )
+
+            return control_reach_over_the_edge
+
         self.state = ControllerState.EXPLORING
         self.desired_next_state = ControllerState.WHISKING
+        self.exploration_instructions = initial_whisking_instructions
 
+        return control_reach_over_the_edge
+
+    def policy_whisking(self):
+        control = self.policy_swiping()
+        monitor.draw_spline(self.spline, title="Whisking", body=self.data.body_r_w)
         return control
-
-    def policy_whisking(self) -> ControlMessage | None:
-        # If the whisker has reached over the edge,
-        # lock the body position and keep swiping until the whisker is disengaged
-        # if the deflection is too small, keep the control values
-        if not self.is_deflected:
-            return None
-        self.spline.add_keypoint(keypoint=self.data.tip_r_w, data=self.data)
-        return ControlMessage(body_vx_w=0, body_vy_w=0, body_omega_w=self.orientation * self.exploration_omega)
 
     def policy_reattaching(self) -> ControlMessage | None:
         if not self.spline:
@@ -254,11 +292,10 @@ class Controller:
         tgt_body_yaw_w = spline_angle - self.tilt
 
         # 2. Calculate the target body movement direction
-        tgt_defl_offset_l = self.defl_model(self.tgt_defl)
+        tgt_defl_offset_l = self.defl_model(self.tgt_defl_abs * self.wr0_defl_sign)
         tgt_defl_offset_w = rotate_ccw(tgt_defl_offset_l, tgt_body_yaw_w + self.data.body_wr0_angle_s)
         tgt_body_r_w = spline_end_w - tgt_defl_offset_w
 
-        logger.debug(f"spline_angle={spline_angle:.3f}, tgt_body_yaw_w={tgt_body_yaw_w:.3f}")
         monitor.draw_spline(
             self.spline,
             title="The other side of the edge",
@@ -267,12 +304,11 @@ class Controller:
         )
 
         # 3. Reset the spline and the tip estimator
-        self.prev_spline = None
         self.spline = Spline(keypoint_distance=self.keypoint_distance, n_keypoints=self.n_keypoints)
 
         # 4. Set the exploration policy to reattach the whisker
 
-        def reattach_policy() -> ControlMessage:
+        def reattach_instructions() -> ControlMessage | None:
             tgt_body_dr_n_w = normalize(tgt_body_r_w - self.data.body_r_w)
             return self.motion_ctrl(
                 data=self.data,
@@ -281,7 +317,7 @@ class Controller:
                 tgt_body_yaw_w=tgt_body_yaw_w,
             )
 
-        self.exploration_policy = reattach_policy
+        self.exploration_instructions = reattach_instructions
         self.state = ControllerState.EXPLORING
         self.desired_next_state = ControllerState.SWIPING
-        return self.exploration_policy()
+        return self.exploration_instructions()

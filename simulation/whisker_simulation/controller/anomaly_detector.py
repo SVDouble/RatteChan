@@ -26,29 +26,47 @@ class AnomalyDetector:
         self.is_disengaged = False
         self.disengaged_start_time = None
 
-    def run(self, *, is_deflected: bool, ignore_disengaged: bool = False) -> tuple[ControllerState, str] | None:
-        data = self.ctrl.data
+    def __call__(self) -> tuple[ControllerState, str] | None:
         m = self.ctrl.motion
 
         # check whether the control period is respected
         assert m.dt <= self.control_dt * 1.1, f"Time step {m.dt} is larger than the control period {self.control_dt}"
 
+        checks = [
+            self.detect_abnormal_deflection,
+            self.detect_abnormal_velocity,
+            self.detect_slippage,
+            self.detect_detached_tip,
+        ]
+        for check in checks:
+            if result := check():
+                return result
+        return None
+
+    def detect_abnormal_deflection(self) -> tuple[ControllerState, str] | None:
+        if self.ctrl.wr0_defl_sign * self.ctrl.tgt_wr0_defl_sign == -1:
+            return ControllerState.FAILURE, "Deflection sign changed"
+
+    def detect_abnormal_velocity(self) -> tuple[ControllerState, str] | None:
         # assume that when the system has exited exploring state
         # and steady body velocity has been reached
+        time, m = self.ctrl.data.time, self.ctrl.motion
         if abs(m.body_v / self.total_v - 1) > 0.25:
             if not self.has_abnormal_velocity:
                 self.has_abnormal_velocity = True
-                self.abnormal_velocity_start_time = data.time
+                self.abnormal_velocity_start_time = time
         elif self.has_abnormal_velocity:
-            logger.debug(f"Abnormal velocity duration: {data.time - self.abnormal_velocity_start_time:.3f}")
+            logger.debug(f"Abnormal velocity duration: {time - self.abnormal_velocity_start_time:.3f}")
             self.has_abnormal_velocity = False
             self.abnormal_velocity_start_time = None
 
+    def detect_slippage(self) -> tuple[ControllerState, str] | None:
         # now we are sure that the body has covered some distance
         # check whether the whisker is slipping (sliding backwards)
         # control might not be respected, so rely on the previous world data
         # the tip might be stuck, so ignore small movements
-        if m.tip_drift_v / m.body_v > 0.2 and (angle := np.dot(m.tip_drift_v_w, m.body_v_w)) < -1e3:
+        time, m = self.ctrl.data.time, self.ctrl.motion
+        if m.tip_drift_v / m.body_v > 0.5 and (angle := np.dot(m.tip_drift_v_w, m.body_v_w)) < -1e3:
             return (
                 ControllerState.FAILURE,
                 f"Slipping backwards: angle between body and tip is {angle:.2f}",
@@ -59,28 +77,27 @@ class AnomalyDetector:
         if m.tip_drift_v / self.total_v > 0.5:
             if not self.is_slipping:
                 self.is_slipping = True
-                self.slip_start_time = data.time
+                self.slip_start_time = time
         elif self.is_slipping:
-            logger.debug(f"Whisker slip duration: {data.time - self.slip_start_time:.3f}")
+            if time - self.slip_start_time > m.dt * 1.5:
+                logger.debug(f"Whisker slip duration: {time - self.slip_start_time:.3f}")
             self.is_slipping = False
             self.slip_start_time = None
 
-        if not is_deflected:
+    def detect_detached_tip(self) -> tuple[ControllerState, str] | None:
+        # check whether the tip is detached from the body
+        time = self.ctrl.data.time
+        if not self.ctrl.wr0_defl_sign:
             if not self.is_disengaged:
                 self.is_disengaged = True
-                self.disengaged_start_time = data.time
+                self.disengaged_start_time = time
 
-            if (
-                not ignore_disengaged
-                and data.time - self.disengaged_start_time > self.ctrl.disengaged_duration_threshold
-            ):
+            if time - self.disengaged_start_time > self.ctrl.disengaged_duration_threshold:
                 return (
                     ControllerState.DISENGAGED,
-                    f"No deflection for {data.time - self.disengaged_start_time:.3f}s",
+                    f"No deflection for {time - self.disengaged_start_time:.3f}s",
                 )
         elif self.is_disengaged:
-            logger.debug(f"Whisker disengaged duration: {data.time - self.disengaged_start_time:.3f}")
+            logger.debug(f"Whisker disengaged duration: {time - self.disengaged_start_time:.3f}")
             self.is_disengaged = False
             self.disengaged_start_time = None
-
-        return None

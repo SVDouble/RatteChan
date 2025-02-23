@@ -28,7 +28,7 @@ class Monitor:
         plt.axis("equal")
         plt.show()
 
-    def draw_spline(self, spline, title: str = "Map", **kwargs: np.ndarray):
+    def draw_spline(self, spline, *, title: str, **kwargs: np.ndarray):
         import matplotlib.pyplot as plt
 
         from whisker_simulation.controller.spline import Spline

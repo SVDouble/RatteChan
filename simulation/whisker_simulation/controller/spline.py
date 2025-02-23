@@ -1,5 +1,4 @@
 from collections import deque
-from typing import Self
 
 import numpy as np
 import scipy.interpolate as interpolate
@@ -44,8 +43,7 @@ class Spline:
             self.keypoints.append(keypoint)
             self.prev_body_r_w = data.body_r_w
             monitor.add_keypoint(data.time, keypoint)
-        # for a cubic spline, we need at least 4 keypoints
-        if len(self.keypoints) < 4:
+        if len(self.keypoints) < self.n_keypoints:
             return has_new_point
         if not has_new_point:
             return False
