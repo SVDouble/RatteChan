@@ -5,8 +5,7 @@ from whisker_simulation.controller.anomaly_detector import AnomalyDetector
 from whisker_simulation.controller.body_motion import BodyMotionController
 from whisker_simulation.controller.deflection_model import DeflectionModel
 from whisker_simulation.controller.spline import Spline
-from whisker_simulation.controller.tip_estimator import TipEstimator
-from whisker_simulation.models import ControllerState, ControlMessage, SensorData
+from whisker_simulation.models import ControllerState, ControlMessage, MotionAnalyzer, SensorData
 from whisker_simulation.utils import get_logger, get_monitor, normalize, rotate_ccw
 
 __all__ = ["Controller"]
@@ -24,16 +23,16 @@ class Controller:
         self.__state = self.__prev_state = ControllerState.EXPLORING
         self.desired_next_state = ControllerState.SWIPING
         self.data = self.prev_data = initial_data
+        self.motion: MotionAnalyzer = MotionAnalyzer(data=self.data, prev_data=self.prev_data)
 
         # tip position estimation using deflection model and kalman filter
         self.defl_model = DeflectionModel()
-        self.tip_estimator = TipEstimator(self.defl_model, initial_data)
         self.defl_detect_threshold = 5e-5
         self.is_deflected = False
 
         # tip position prediction using spline
         self.keypoint_distance = 2e-3
-        self.n_keypoints = 9
+        self.n_keypoints = 7
         self.spline = Spline(
             keypoint_distance=self.keypoint_distance,
             n_keypoints=self.n_keypoints,
@@ -83,19 +82,12 @@ class Controller:
 
         # update the controller given the new sensor data
         self.prev_data, self.data = self.data, new_data
-
-        # update the tip position
-        tip_w_prev = self.tip_estimator.get_w(self.prev_data)
-        self.tip_estimator.update_wr0_yaw_s(self.data)
-        tip_w = self.tip_estimator.get_w(self.data)
-        self.is_deflected = abs(self.data.wr0_yaw_s) > self.defl_detect_threshold
+        self.motion = MotionAnalyzer(data=self.data, prev_data=self.prev_data)
 
         # detect anomalies (ignore them if state is EXPLORING)
+        self.is_deflected = abs(self.data.wr0_defl) > self.defl_detect_threshold
         anomaly = self.anomaly_detector.run(
-            tip_w=tip_w,
-            tip_w_prev=tip_w_prev,
-            is_deflected=self.is_deflected,
-            ignore_disengaged=self.state == ControllerState.EXPLORING,
+            is_deflected=self.is_deflected, ignore_disengaged=self.state == ControllerState.EXPLORING
         )
         if anomaly is not None:
             anomaly_state, anomaly_msg = anomaly
@@ -122,11 +114,12 @@ class Controller:
 
         if self.state == ControllerState.SWIPING:
             # follow the surface
-            return self.policy_swiping(tip_w)
+            return self.policy_swiping()
 
         if self.state == ControllerState.WHISKING:
             # swipe the whisker up to the edge
-            return self.policy_whisking(tip_w)
+            # return self.policy_swiping()
+            return self.policy_whisking()
 
         if self.state == ControllerState.DISENGAGED:
             if self.prev_state == ControllerState.SWIPING:
@@ -138,27 +131,28 @@ class Controller:
 
         raise NotImplementedError(f"State {self.state} is not implemented")
 
-    def policy_swiping(self, tip_w: np.ndarray) -> ControlMessage | None:
+    def policy_swiping(self) -> ControlMessage | None:
         # 0. If the deflection is too small, keep the control values
         if not self.is_deflected:
             return None
 
         # 1. Update the spline and predict the next tip position
-        is_new_keypoint = self.spline.add_keypoint(keypoint=tip_w, data=self.data)
+        is_new_keypoint = self.spline.add_keypoint(keypoint=self.data.tip_r_w, data=self.data)
         if not self.spline:
             return None
 
         # 2. Calculate spline curvature
-        spl_k0_w = self.spline(self.spline.end_kth_point_u(0))
-        spl_k1_w = self.spline(self.spline.end_kth_point_u(1))
+        # be quite conservative with the angle as the most recent points might be unstable
+        spl_k0_w = self.spline(self.spline.end_kth_point_u(-2))
+        spl_k1_w = self.spline(self.spline.end_kth_point_u(-1))
         spl_dk_w_n = normalize(spl_k1_w - spl_k0_w)
         spline_angle = np.arctan2(spl_dk_w_n[1], spl_dk_w_n[0])
 
         # 3. Calculate the delta offset between the target and current deflection
         zero_defl_offset_l = self.defl_model(0)
-        cur_defl_offset_l = self.defl_model(self.data.wr0_yaw_s)
+        cur_defl_offset_l = self.defl_model(self.data.wr0_defl)
         tgt_defl_offset_l = self.defl_model(self.tgt_defl)
-        defl_doffset_w = rotate_ccw(tgt_defl_offset_l - cur_defl_offset_l, self.data.body_yaw_w)
+        defl_doffset_w = rotate_ccw(tgt_defl_offset_l - cur_defl_offset_l, self.data.wr0_yaw_w)
         defl_doffset_w_n = normalize(-defl_doffset_w)
         defl_offset_weight = np.linalg.norm(defl_doffset_w) / np.linalg.norm(tgt_defl_offset_l - zero_defl_offset_l)
 
@@ -210,8 +204,7 @@ class Controller:
         spl_dk_w_n = normalize(spl_k1_w - spl_end_w)
 
         spl_span_w = spl_end_w - spl_start_w
-        nose_yaw_w = self.data.body_yaw_w + np.pi / 2
-        body_span_w = np.array([np.cos(nose_yaw_w), np.sin(nose_yaw_w)])
+        body_span_w = np.array([np.cos(self.data.body_yaw_w), np.sin(self.data.body_yaw_w)])
         # orientation > 0 means that the body is on the left side of the spline
         orientation = np.sign(np.cross(spl_span_w, body_span_w))
         self.orientation = orientation
@@ -226,10 +219,9 @@ class Controller:
             tgt_body_yaw_w=tgt_body_yaw_w,
         )
 
-        # 2. Reset the spline and the tip estimator
+        # 2. Reset the spline
         monitor.draw_spline(self.spline, body=self.data.body_r_w)
 
-        self.tip_estimator.reset()
         self.prev_spline = self.spline
         self.spline = Spline(keypoint_distance=self.keypoint_distance, n_keypoints=self.n_keypoints)
 
@@ -239,15 +231,14 @@ class Controller:
 
         return control
 
-    def policy_whisking(self, tip_w: np.ndarray) -> ControlMessage | None:
+    def policy_whisking(self) -> ControlMessage | None:
         # If the whisker has reached over the edge,
         # lock the body position and keep swiping until the whisker is disengaged
-        if self.state == ControllerState.WHISKING:
-            # if the deflection is too small, keep the control values
-            if not self.is_deflected:
-                return None
-            self.spline.add_keypoint(keypoint=tip_w, data=self.data)
-            return ControlMessage(body_vx_w=0, body_vy_w=0, body_omega_w=self.orientation * self.exploration_omega)
+        # if the deflection is too small, keep the control values
+        if not self.is_deflected:
+            return None
+        self.spline.add_keypoint(keypoint=self.data.tip_r_w, data=self.data)
+        return ControlMessage(body_vx_w=0, body_vy_w=0, body_omega_w=self.orientation * self.exploration_omega)
 
     def policy_reattaching(self) -> ControlMessage | None:
         if not self.spline:
@@ -264,7 +255,7 @@ class Controller:
 
         # 2. Calculate the target body movement direction
         tgt_defl_offset_l = self.defl_model(self.tgt_defl)
-        tgt_defl_offset_w = rotate_ccw(tgt_defl_offset_l, tgt_body_yaw_w - np.pi / 2)
+        tgt_defl_offset_w = rotate_ccw(tgt_defl_offset_l, tgt_body_yaw_w + self.data.body_wr0_angle_s)
         tgt_body_r_w = spline_end_w - tgt_defl_offset_w
 
         logger.debug(f"spline_angle={spline_angle:.3f}, tgt_body_yaw_w={tgt_body_yaw_w:.3f}")
@@ -276,7 +267,6 @@ class Controller:
         )
 
         # 3. Reset the spline and the tip estimator
-        self.tip_estimator.reset()
         self.prev_spline = None
         self.spline = Spline(keypoint_distance=self.keypoint_distance, n_keypoints=self.n_keypoints)
 

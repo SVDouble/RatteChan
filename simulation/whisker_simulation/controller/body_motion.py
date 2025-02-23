@@ -38,8 +38,7 @@ class BodyMotionController:
         vx, vy = tgt_body_dr_n_w * self.total_v
 
         # 2. Calculate the yaw error so that the body is slightly tilted towards the spline
-        nose_yaw_w = data.body_yaw_w + np.pi / 2
-        yaw_error = unwrap_pid_error(tgt_body_yaw_w - nose_yaw_w)
+        yaw_error = unwrap_pid_error(tgt_body_yaw_w - data.body_yaw_w)
 
         # 3. Calculate the angular velocity
         body_omega_w = self.yaw_pid(yaw_error)

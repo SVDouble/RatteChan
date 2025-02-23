@@ -26,27 +26,16 @@ class AnomalyDetector:
         self.is_disengaged = False
         self.disengaged_start_time = None
 
-    def run(
-        self,
-        *,
-        tip_w: np.ndarray,
-        tip_w_prev: np.ndarray,
-        is_deflected: bool,
-        ignore_disengaged: bool = False,
-    ) -> tuple[ControllerState, str] | None:
-        data, prev_data = self.ctrl.data, self.ctrl.prev_data
+    def run(self, *, is_deflected: bool, ignore_disengaged: bool = False) -> tuple[ControllerState, str] | None:
+        data = self.ctrl.data
+        m = self.ctrl.motion
 
         # check whether the control period is respected
-        time_step = data.time - prev_data.time
-        assert time_step <= self.control_dt * 1.1, (
-            f"Time step {time_step} is larger than the control period {self.control_dt}"
-        )
+        assert m.dt <= self.control_dt * 1.1, f"Time step {m.dt} is larger than the control period {self.control_dt}"
 
         # assume that when the system has exited exploring state
         # and steady body velocity has been reached
-        body_dr = data.body_r_w - prev_data.body_r_w
-        body_v = np.linalg.norm(body_dr) / time_step
-        if abs(body_v / self.total_v - 1) > 0.25:
+        if abs(m.body_v / self.total_v - 1) > 0.25:
             if not self.has_abnormal_velocity:
                 self.has_abnormal_velocity = True
                 self.abnormal_velocity_start_time = data.time
@@ -58,21 +47,16 @@ class AnomalyDetector:
         # now we are sure that the body has covered some distance
         # check whether the whisker is slipping (sliding backwards)
         # control might not be respected, so rely on the previous world data
-        tip_dr_w = tip_w - tip_w_prev
-        tip_v_w = np.linalg.norm(tip_dr_w) / time_step
-        # TODO: use tip_v_s instead of tip_v_w (account for the body rotation)
         # the tip might be stuck, so ignore small movements
-        if tip_v_w / self.total_v >= 0.2:
-            if (angle := np.dot(body_dr, tip_dr_w)) < -1e3:
-                return (
-                    ControllerState.FAILURE,
-                    f"Slipping backwards: angle between body and tip is {angle:.2f}",
-                )
+        if m.tip_drift_v / m.body_v > 0.2 and (angle := np.dot(m.tip_drift_v_w, m.body_v_w)) < -1e3:
+            return (
+                ControllerState.FAILURE,
+                f"Slipping backwards: angle between body and tip is {angle:.2f}",
+            )
 
-        # the whisker might be slipping forward, but that's alright
-        # still, we want to detect this
-        # the indicator is that the tip is moving faster than the body
-        if tip_v_w / self.total_v > 2:
+        # the whisker might be slipping forward and that's alright -- still, we want to detect this
+        # the indicator is that the tip is drifting
+        if m.tip_drift_v / self.total_v > 0.5:
             if not self.is_slipping:
                 self.is_slipping = True
                 self.slip_start_time = data.time

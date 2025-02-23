@@ -3,7 +3,7 @@ import math
 
 import mediapy as media
 import mujoco
-from mujoco import viewer
+import mujoco.viewer
 from tqdm import tqdm
 
 from whisker_simulation.config import Config
@@ -79,5 +79,5 @@ class Simulation:
     def get_sensor_data_from_mujoco(self) -> SensorData:
         # noinspection PyTypeChecker
         fields: dict = SensorData.model_fields
-        data = {sensor: self.data.sensor(sensor).data.item() for sensor in fields.keys() - {"time"}}
+        data = {sensor: self.data.sensor(sensor).data.item() for sensor in fields.keys() - {"time", "body_wr0_angle_s"}}
         return SensorData(**data, time=self.data.time)
