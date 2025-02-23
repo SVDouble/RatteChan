@@ -58,3 +58,15 @@ class Monitor:
         plt.ylabel("Y")
         plt.axis("equal")
         plt.show()
+
+    def plot_defl_profile(self, defl_model):
+        import matplotlib.pyplot as plt
+
+        deflections = np.linspace(-6e-4, 6e-4, 100)
+        points = defl_model(deflections)
+        plt.scatter(points[:, 0], points[:, 1], c=deflections, cmap="viridis")
+        plt.xlabel("X")
+        plt.ylabel("Y")
+        plt.title("Deflection Model")
+        plt.colorbar(label="Deflection")  # shows which color corresponds to which deflection
+        plt.show()

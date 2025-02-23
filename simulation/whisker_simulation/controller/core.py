@@ -231,7 +231,7 @@ class Controller:
 
         self.tip_estimator.reset()
         self.prev_spline = self.spline
-        self.spline = Spline(keypoint_distance=0, n_keypoints=self.n_keypoints)
+        self.spline = Spline(keypoint_distance=self.keypoint_distance, n_keypoints=self.n_keypoints)
 
         # 3. Set the desired next state
         self.state = ControllerState.EXPLORING
@@ -258,9 +258,7 @@ class Controller:
         # 1. Calculate the target body yaw
         spline_start_w = self.spline(0)
         spline_end_w = self.spline(1)
-        # obviously quite buggy now, it should be the other way around, i.e. spline_start_w - spline_end_w
-        # TODO: fix whisker deflection offset calculation - take the orientation into account
-        spl_dk_w_n = normalize(spline_end_w - spline_start_w)
+        spl_dk_w_n = normalize(spline_start_w - spline_end_w)
         spline_angle = np.arctan2(spl_dk_w_n[1], spl_dk_w_n[0])
         tgt_body_yaw_w = spline_angle - self.tilt
 
