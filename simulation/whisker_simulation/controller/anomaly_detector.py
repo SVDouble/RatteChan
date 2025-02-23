@@ -72,7 +72,7 @@ class AnomalyDetector:
         # the whisker might be slipping forward, but that's alright
         # still, we want to detect this
         # the indicator is that the tip is moving faster than the body
-        if tip_v_w / self.total_v > 1.5:
+        if tip_v_w / self.total_v > 2:
             if not self.is_slipping:
                 self.is_slipping = True
                 self.slip_start_time = data.time

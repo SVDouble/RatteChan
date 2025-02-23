@@ -1,10 +1,14 @@
 <mujoco>
     <compiler angle="degree"/>
     <asset>
-        <texture type="skybox" builtin="gradient" rgb1="1 1 1" rgb2=".6 .8 1" width="256" height="256"/>
-        <texture name="texplane" type="2d" builtin="checker" rgb1=".2 .3 .4" rgb2=".1 0.15 0.2" width="512" height="512"
-                 mark="cross" markrgb=".8 .8 .8"/>
-        <material name="matplane" reflectance="1" texture="texplane" texrepeat="2 2" texuniform="true"/>
+        <texture type="skybox" builtin="gradient" rgb1="0.7 0.85 1" rgb2="0.2 0.4 0.8" width="256" height="256"/>
+        <texture name="texplane" type="2d" builtin="checker" rgb1="0.4 0.4 0.4" rgb2="0.2 0.2 0.2" width="256"
+                 height="256"
+                 mark="cross" markrgb="0.8 0.8 0.8"/>
+        <material name="matplane" reflectance="0" texture="texplane" texrepeat="20 20" texuniform="true"/>
+
+        <mesh name="object_complex_f1" file="../assets/object_complex_f1.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="object_complex_f2" file="../assets/object_complex_f2.stl" scale="0.001 0.001 0.001"/>
     </asset>
 
     <extension>
@@ -21,16 +25,10 @@
     <!-- Global simulation options -->
     <option gravity="0 0 0" integrator="implicitfast"/>
 
-    <!-- Assets: external mesh files -->
-    <asset>
-        <mesh name="object_complex_f1" file="../assets/object_complex_f1.stl" scale="0.001 0.001 0.001"/>
-        <mesh name="object_complex_f2" file="../assets/object_complex_f2.stl" scale="0.001 0.001 0.001"/>
-    </asset>
-
     <!-- World definition -->
     <worldbody>
         <!-- Light source: positioned above, shining downward -->
-        <light diffuse=".8 .8 .8" pos="0 0 5" dir="0 0 -1"/>
+        <light ambient=".8 .8 .8" pos="0 0 10" dir="0 0 -1" castshadow="false"/>
         <!-- Visible ground plane -->
         <geom type="plane" size="0 0 0.03" material="matplane" rgba="1 1 1 1"/>
 
