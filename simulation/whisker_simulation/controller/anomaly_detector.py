@@ -44,7 +44,7 @@ class AnomalyDetector:
         return None
 
     def detect_abnormal_deflection(self) -> tuple[ControllerState, str] | None:
-        if self.ctrl.wr0_defl_sign * self.ctrl.tgt_wr0_defl_sign == -1:
+        if self.ctrl.orient * self.ctrl.tgt_orient == -1:
             return ControllerState.FAILURE, "Deflection sign changed"
 
     def detect_abnormal_velocity(self) -> tuple[ControllerState, str] | None:
@@ -87,7 +87,7 @@ class AnomalyDetector:
     def detect_detached_tip(self) -> tuple[ControllerState, str] | None:
         # check whether the tip is detached from the body
         time = self.ctrl.data.time
-        if not self.ctrl.wr0_defl_sign:
+        if not self.ctrl.orient:
             if not self.is_disengaged:
                 self.is_disengaged = True
                 self.disengaged_start_time = time

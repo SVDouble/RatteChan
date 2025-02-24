@@ -2,7 +2,7 @@ import numpy as np
 
 from whisker_simulation.models import ControlMessage, SensorData
 from whisker_simulation.pid import PID
-from whisker_simulation.utils import get_monitor, unwrap_pid_error
+from whisker_simulation.utils import get_monitor, unwrap_pid_error, normalize
 
 __all__ = ["BodyMotionController"]
 
@@ -10,9 +10,8 @@ monitor = get_monitor()
 
 
 class BodyMotionController:
-    def __init__(self, *, total_v: float, tilt: float):
+    def __init__(self, *, total_v: float):
         self.total_v = total_v
-        self.tilt = tilt
         self.yaw_pid = PID(
             kp=0.5,
             ki=0,
@@ -26,21 +25,29 @@ class BodyMotionController:
         *,
         data: SensorData,
         prev_data: SensorData,
-        tgt_body_dr_n_w: np.ndarray,
+        tgt_body_dr_w: np.ndarray,
         tgt_body_yaw_w: float,
+        orient: int,
     ) -> ControlMessage:
         np.set_printoptions(precision=3, suppress=True)
+        assert orient != 0, "The orientation cannot not be zero"
 
         # 0. Update the time step of the PID controllers
         self.yaw_pid.dt = data.time - prev_data.time
 
         # 1. Calculate the linear velocities
-        vx, vy = tgt_body_dr_n_w * self.total_v
+        vx, vy = normalize(tgt_body_dr_w) * self.total_v
 
-        # 2. Calculate the yaw error so that the body is slightly tilted towards the spline
-        yaw_error = unwrap_pid_error(tgt_body_yaw_w - data.body_yaw_w)
+        # 2. Calculate the yaw error
+        # noinspection PyProtectedMember
+        body_yaw_w = data.wr0_yaw_w + orient * data._body_wr0_angle_s
+        yaw_error = unwrap_pid_error(tgt_body_yaw_w - body_yaw_w)
 
         # 3. Calculate the angular velocity
         body_omega_w = self.yaw_pid(yaw_error)
 
         return ControlMessage(body_vx_w=vx, body_vy_w=vy, body_omega_w=body_omega_w)
+
+    @classmethod
+    def idle(cls) -> ControlMessage:
+        return ControlMessage(body_vx_w=0, body_vy_w=0, body_omega_w=0)

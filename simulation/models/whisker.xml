@@ -38,9 +38,10 @@
 
         <!-- Meshes to swipe the whisker against -->
         <body>
-            <geom type="mesh" mesh="object_complex_f1" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>
-            <geom type="mesh" mesh="object_complex_f2" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>
-            <!--                                    <geom type="box" size="0.3 0.3 0.05" pos="0.3 -0.24 0.05" euler="0 0 10" rgba="0.2 0.5 0.1 1"/>-->
+            <!--<geom type="mesh" mesh="object_complex_f1" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>-->
+            <!--<geom type="mesh" mesh="object_complex_f2" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>-->
+            <geom type="box" size="0.2 0.2 0.03" pos="0.3 -0.18 0.03" euler="0 0 10" rgba="0.2 0.5 0.1 1"/>
+            <geom type="box" size="0.2 0.2 0.03" pos="-0.3 -0.18 0.03" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>
         </body>
 
         <!-- Whisker assembly: base with attached moving parts -->

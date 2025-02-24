@@ -21,7 +21,10 @@ class SensorData(BaseModel):
     wr0_yaw_w: float
     wr0_defl: float
 
-    body_wr0_angle_s: float = -np.pi / 2
+    # protected so that it is not used unintentionally
+    # generally speaking, the body angle depends on the deflection sign - cw or ccw rotation
+    # use body motion controller to avoid confusion
+    _body_wr0_angle_s: float = -np.pi / 2
 
     @computed_field(repr=False)
     @cached_property
@@ -34,11 +37,6 @@ class SensorData(BaseModel):
     @cached_property
     def body_r_w(self) -> np.ndarray:
         return np.array([self.body_x_w, self.body_y_w])
-
-    @computed_field(repr=False)
-    @cached_property
-    def body_yaw_w(self) -> float:
-        return self.wr0_yaw_w - self.body_wr0_angle_s
 
     @computed_field(repr=False)
     @cached_property
