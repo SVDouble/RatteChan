@@ -206,15 +206,16 @@ class Controller:
         # The goal is to swipe the whisker along the other side of the edge
         # The linear velocity follows the spline backwards,
         # while the rotation brings the whisker tip to the new plane
-        spl_k0_w, spl_k1_w = self.spline(self.spline.end_kth_point_u(0)), self.spline(self.spline.end_kth_point_u(1))
-        spl_backwards_n = normalize(spl_k0_w - spl_k1_w)
+        # TODO: figure out a way to get a reliable spline, e.g. by removing the last few keypoints
+        spl_a_w, spl_b_w = self.spline(0.3), self.spline(0.7)
+        spl_backwards_n = normalize(spl_a_w - spl_b_w)
         tgt_body_yaw_w = np.arctan2(spl_backwards_n[1], spl_backwards_n[0])
 
         control_reach_over_the_edge = self.motion_ctrl(
             data=self.data,
             prev_data=self.prev_data,
             tgt_body_dr_w=rotate_ccw(spl_backwards_n, -self.tgt_orient * np.pi / 2),
-            tgt_body_yaw_w=tgt_body_yaw_w - self.tgt_orient * np.pi / 2,
+            tgt_body_yaw_w=tgt_body_yaw_w - self.tgt_orient * 2 * np.pi / 3,
             orient=self.tgt_orient,
         )
 
@@ -239,12 +240,12 @@ class Controller:
                 title="Whisking Start",
                 body=self.data.body_r_w,
                 tip=self.data.tip_r_w,
-                edge=spl_k0_w,
+                edge=spl_a_w,
             )
             return self.motion_ctrl(
                 data=self.data,
                 prev_data=self.prev_data,
-                tgt_body_dr_w=spl_k0_w - self.data.tip_r_w,
+                tgt_body_dr_w=spl_a_w - self.data.tip_r_w,
                 tgt_body_yaw_w=tgt_body_yaw_w + np.pi,
                 orient=self.orient,
             )
