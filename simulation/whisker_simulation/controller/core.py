@@ -34,7 +34,7 @@ class Controller:
 
         # tip position prediction using spline
         self.keypoint_distance = 1e-3
-        self.n_keypoints = 7
+        self.n_keypoints = 11
         self.spline = Spline(keypoint_distance=self.keypoint_distance, n_keypoints=self.n_keypoints)
 
         # body yaw control
@@ -108,7 +108,10 @@ class Controller:
 
         if self.state == ControllerState.WHISKING:
             # swipe the whisker up to the edge
-            return self.policy_swiping(tilt=-self.tilt)
+            # reduce the deflection, as close alignment is not needed
+            # tilt the whisker to increase the chance of proper detachment
+            # TODO: stop swiping when the previous spline end has been reached
+            return self.policy_swiping(tgt_defl_abs=self.tgt_defl_abs * 0.7, tilt=-self.tilt)
 
         if self.state == ControllerState.DISENGAGED:
             if self.prev_state == ControllerState.SWIPING:
@@ -145,7 +148,8 @@ class Controller:
         self.exploration_instructions = None
         return control
 
-    def policy_swiping(self, tilt: float | None = None) -> ControlMessage | None:
+    def policy_swiping(self, tgt_defl_abs: float | None = None, tilt: float | None = None) -> ControlMessage | None:
+        tgt_defl_abs = tgt_defl_abs if tgt_defl_abs is not None else self.tgt_defl_abs
         tilt = tilt if tilt is not None else self.tilt
 
         # 1. If the deflection is too small, keep the control values
@@ -162,7 +166,7 @@ class Controller:
         # 3. Calculate the delta offset between the target and current deflection
         zero_defl_offset_l = self.defl_model(0)
         cur_defl_offset_l = self.defl_model(self.data.wr0_defl)
-        tgt_defl_offset_l = self.defl_model(self.tgt_defl_abs * self.orient)
+        tgt_defl_offset_l = self.defl_model(tgt_defl_abs * self.orient)
         defl_doffset_w = rotate_ccw(tgt_defl_offset_l - cur_defl_offset_l, self.data.wr0_yaw_w)
         defl_doffset_w_n = normalize(-defl_doffset_w)
         defl_offset_weight = np.linalg.norm(defl_doffset_w) / np.linalg.norm(tgt_defl_offset_l - zero_defl_offset_l)
@@ -271,16 +275,18 @@ class Controller:
         spl_start_w, spl_end_w = self.spline(0.5), self.spline(0)
         spl_tangent_n = normalize(spl_end_w - spl_start_w)
         spl_normal_n = rotate_ccw(spl_tangent_n, -orient * np.pi / 2)
-        spl_angle = np.arctan2(spl_tangent_n[1], spl_tangent_n[0])
+        spl_tangent_angle = np.arctan2(spl_tangent_n[1], spl_tangent_n[0])
 
-        # 1. Calculate the target body yaw
-        tgt_body_yaw_w = spl_angle + (self.tilt * 2) * orient
+        # 1. Calculate the target body yaw (tilt a bit more for better edge engagement)
+        tgt_body_yaw_w = spl_tangent_angle + (self.tilt * 2) * orient
+        tgt_wr_yaw_w = spl_tangent_angle + orient * np.pi / 2  # without the tilt
 
         # 2. Calculate the target body position
         tip_spl_normal_d = np.dot(spl_start_w - self.data.tip_r_w, spl_normal_n)
         base_spl_tangent_d = np.dot(spl_start_w - self.data.body_r_w, spl_tangent_n)
-        tip_spl_normal_d /= 2  # as not to overshoot
         tgt_body_dr_w = base_spl_tangent_d * spl_tangent_n + tip_spl_normal_d * spl_normal_n
+        corrected_tip_r_w = self.data.body_r_w + rotate_ccw(self.defl_model(self.tgt_defl_abs * orient), tgt_wr_yaw_w)
+        tgt_body_dr_w = spl_end_w - corrected_tip_r_w
 
         monitor.draw_spline(
             self.spline,
@@ -288,6 +294,7 @@ class Controller:
             body=self.data.body_r_w,
             tip=self.data.tip_r_w,
             tgt_body_r_w=self.data.body_r_w + tgt_body_dr_w,
+            corrected_tip_r_w=corrected_tip_r_w,
             spl_tangent=spl_end_w + spl_tangent_n * np.linalg.norm(spl_end_w - spl_start_w) * 2,
             spl_normal=spl_end_w + spl_normal_n * np.linalg.norm(spl_end_w - spl_start_w) * 2,
         )
