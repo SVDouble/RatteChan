@@ -71,7 +71,7 @@ class Simulation:
         mujoco.set_mjcb_control(self.control)
 
         # set the initial control values
-        self.data.ctrl[1] = self.controller.total_v
+        self.data.ctrl[0:2] = self.controller.total_v * 0, self.controller.total_v * 1
 
         # launch the viewer
         mujoco.viewer.launch(self.model, self.data)

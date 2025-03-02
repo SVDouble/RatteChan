@@ -9,6 +9,7 @@
 
         <mesh name="object_complex_f1" file="../assets/object_complex_f1.stl" scale="0.001 0.001 0.001"/>
         <mesh name="object_complex_f2" file="../assets/object_complex_f2.stl" scale="0.001 0.001 0.001"/>
+        <model name="cog" file="../assets/cog/cog.xml"/>
     </asset>
 
     <extension>
@@ -21,7 +22,6 @@
         <quality offsamples="8"/>                  <!-- Anti-aliasing sample count -->
     </visual>
 
-
     <!-- Global simulation options -->
     <option gravity="0 0 0" integrator="implicitfast"/>
 
@@ -32,20 +32,20 @@
         <!-- Visible ground plane -->
         <geom type="plane" size="0 0 0.03" material="matplane" rgba="1 1 1 1"/>
 
-        <!-- Additional cameras for alternative viewpoints -->
-        <camera name="whisker_cam_3" pos="0.5 -0.1 1.1"/>
-        <camera name="whisker_cam_4" pos="-0.1 0.2 0.3" xyaxes="1 0 1 1 1 0"/>
-
         <!-- Meshes to swipe the whisker against -->
         <body>
-            <!--<geom type="mesh" mesh="object_complex_f1" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>-->
-            <!--<geom type="mesh" mesh="object_complex_f2" pos="0.8 -0.19 -0.175" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>-->
+<!--            <geom type="mesh" mesh="object_complex_f1" pos="0.8 -0.19 -0.125" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>-->
+<!--            <geom type="mesh" mesh="object_complex_f2" pos="0.8 -0.19 -0.125" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>-->
             <geom type="box" size="0.2 0.2 0.03" pos="0.3 -0.18 0.03" euler="0 0 10" rgba="0.2 0.5 0.1 1"/>
             <geom type="box" size="0.2 0.2 0.03" pos="-0.3 -0.18 0.03" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>
+<!--            <body pos="0 -0.6 0.01" euler="0 0 120">-->
+<!--                <attach model="cog" body="cog" prefix="cog_"/>-->
+<!--            </body>-->
+
         </body>
 
         <!-- Whisker assembly: base with attached moving parts -->
-        <body name="whisker_base" pos="-0.1 0.1 0.015" axisangle="1 0 0 90">
+        <body name="whisker_base" pos="-0.1 0.1 0.05" axisangle="1 0 0 90">
             <!-- Slide joints for x and y movement -->
             <joint name="body_x_w" type="slide" axis="0 0 1" stiffness="0" armature="0.1"/>
             <joint name="body_y_w" type="slide" axis="1 0 0" stiffness="0" armature="0.1"/>

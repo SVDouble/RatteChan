@@ -44,7 +44,10 @@ class AnomalyDetector:
         return None
 
     def detect_abnormal_deflection(self) -> tuple[ControllerState, str] | None:
-        if self.ctrl.orient * self.ctrl.tgt_orient == -1:
+        if (
+            self.ctrl.orient * self.ctrl.tgt_orient == -1
+            and abs(self.ctrl.data.wr0_defl) > self.ctrl.defl_threshold * 2
+        ):
             return ControllerState.FAILURE, "Deflection sign changed"
 
     def detect_abnormal_velocity(self) -> tuple[ControllerState, str] | None:

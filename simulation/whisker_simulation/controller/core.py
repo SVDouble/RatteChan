@@ -27,13 +27,13 @@ class Controller:
 
         # tip position estimation
         self.defl_model = DeflectionModel()
-        self.defl_threshold = 5e-5
+        self.defl_threshold = 2e-5
         self.orient: int = 0
         # target orientation is reset at exploration start and set at exploration end
         self.tgt_orient: int = self.orient
 
         # tip position prediction using spline
-        self.keypoint_distance = 2e-3
+        self.keypoint_distance = 1e-3
         self.n_keypoints = 7
         self.spline = Spline(keypoint_distance=self.keypoint_distance, n_keypoints=self.n_keypoints)
 
@@ -76,6 +76,10 @@ class Controller:
 
         # ATTENTION: time step might be variable due to rate limiting
 
+        # if in failure state, send idle control
+        if self.state == ControllerState.FAILURE:
+            return self.motion_ctrl.idle()
+
         # update the controller given the new sensor data
         self.prev_data, self.data = self.data, new_data
         self.motion = MotionAnalyzer(data=self.data, prev_data=self.prev_data)
@@ -104,7 +108,7 @@ class Controller:
 
         if self.state == ControllerState.WHISKING:
             # swipe the whisker up to the edge
-            return self.policy_swiping()
+            return self.policy_swiping(tilt=-self.tilt)
 
         if self.state == ControllerState.DISENGAGED:
             if self.prev_state == ControllerState.SWIPING:
@@ -113,10 +117,6 @@ class Controller:
             if self.prev_state == ControllerState.WHISKING:
                 # we swiped the other side of the edge, now we rotate and engage
                 return self.policy_reattaching()
-
-        # if in failure state, send idle control
-        if self.state == ControllerState.FAILURE:
-            return self.motion_ctrl.idle()
 
         raise NotImplementedError(f"State {self.state} is not implemented")
 
@@ -145,7 +145,9 @@ class Controller:
         self.exploration_instructions = None
         return control
 
-    def policy_swiping(self) -> ControlMessage | None:
+    def policy_swiping(self, tilt: float | None = None) -> ControlMessage | None:
+        tilt = tilt if tilt is not None else self.tilt
+
         # 1. If the deflection is too small, keep the control values
         if not self.orient:
             return None
@@ -175,7 +177,7 @@ class Controller:
             data=self.data,
             prev_data=self.prev_data,
             tgt_body_dr_w=tgt_body_dr_n_w,
-            tgt_body_yaw_w=spline_angle + self.tilt * self.orient,
+            tgt_body_yaw_w=spline_angle + tilt * self.orient,
             orient=self.orient,
         )
 
@@ -207,7 +209,7 @@ class Controller:
         # The linear velocity follows the spline backwards,
         # while the rotation brings the whisker tip to the new plane
         # TODO: figure out a way to get a reliable spline, e.g. by removing the last few keypoints
-        spl_a_w, spl_b_w = self.spline(0.3), self.spline(0.7)
+        spl_a_w, spl_b_w = self.spline(0), self.spline(0.5)
         spl_backwards_n = normalize(spl_a_w - spl_b_w)
         tgt_body_yaw_w = np.arctan2(spl_backwards_n[1], spl_backwards_n[0])
 
@@ -235,18 +237,20 @@ class Controller:
             # we've got the first estimate on the other side,
             # use it to construct a reasonable spline and give control to the swiping policy
             has_reached_surface = True
+            # the actual edge is continuous, we use the middle point for stability
+            edge = prev_spline(0.5)
             monitor.draw_spline(
                 prev_spline,
                 title="Whisking Start",
                 body=self.data.body_r_w,
                 tip=self.data.tip_r_w,
-                edge=spl_a_w,
+                edge=edge,
             )
             return self.motion_ctrl(
                 data=self.data,
                 prev_data=self.prev_data,
-                tgt_body_dr_w=spl_a_w - self.data.tip_r_w,
-                tgt_body_yaw_w=tgt_body_yaw_w + np.pi,
+                tgt_body_dr_w=edge - self.data.tip_r_w,
+                tgt_body_yaw_w=None,
                 orient=self.orient,
             )
 
@@ -262,17 +266,30 @@ class Controller:
             self.state = ControllerState.FAILURE
             return None
 
-        # 1. Calculate the target body yaw
+        # 0. Calculate the spline orientation (flip the direction, as we were moving backwards)
         orient = -self.tgt_orient
-        spl_backwards_r_s = self.spline(0) - self.spline(1)
-        spline_angle = np.arctan2(spl_backwards_r_s[1], spl_backwards_r_s[0])
-        tgt_body_yaw_w = spline_angle + self.tilt * orient
+        spl_start_w, spl_end_w = self.spline(0.5), self.spline(0)
+        spl_tangent_n = normalize(spl_end_w - spl_start_w)
+        spl_normal_n = rotate_ccw(spl_tangent_n, -orient * np.pi / 2)
+        spl_angle = np.arctan2(spl_tangent_n[1], spl_tangent_n[0])
+
+        # 1. Calculate the target body yaw
+        tgt_body_yaw_w = spl_angle + (self.tilt * 2) * orient
+
+        # 2. Calculate the target body position
+        tip_spl_normal_d = np.dot(spl_start_w - self.data.tip_r_w, spl_normal_n)
+        base_spl_tangent_d = np.dot(spl_start_w - self.data.body_r_w, spl_tangent_n)
+        tip_spl_normal_d /= 2  # as not to overshoot
+        tgt_body_dr_w = base_spl_tangent_d * spl_tangent_n + tip_spl_normal_d * spl_normal_n
 
         monitor.draw_spline(
             self.spline,
             title="The other side of the edge",
-            tgt_body_r_w=self.data.body_r_w + spl_backwards_r_s,
             body=self.data.body_r_w,
+            tip=self.data.tip_r_w,
+            tgt_body_r_w=self.data.body_r_w + tgt_body_dr_w,
+            spl_tangent=spl_end_w + spl_tangent_n * np.linalg.norm(spl_end_w - spl_start_w) * 2,
+            spl_normal=spl_end_w + spl_normal_n * np.linalg.norm(spl_end_w - spl_start_w) * 2,
         )
 
         # 3. Reset the spline and the tip estimator
@@ -285,7 +302,7 @@ class Controller:
             return self.motion_ctrl(
                 data=self.data,
                 prev_data=self.prev_data,
-                tgt_body_dr_w=spl_backwards_r_s,
+                tgt_body_dr_w=tgt_body_dr_w,
                 tgt_body_yaw_w=tgt_body_yaw_w,
                 orient=orient,
             )
