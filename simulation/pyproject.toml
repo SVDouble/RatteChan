@@ -28,3 +28,8 @@ dev = [
     "pre-commit>=4.1.0",
     "ruff>=0.9.6",
 ]
+mesh-generation = [
+    "obj2mjcf>=0.0.25",
+    "shapely>=2.0.7",
+    "trimesh[easy]>=4.6.4",
+]
