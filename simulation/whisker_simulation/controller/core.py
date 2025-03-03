@@ -224,7 +224,8 @@ class Controller:
         tgt_tip_r_w = self.data.body_r_w + rotate_ccw(body_tip_offset_s, self.data.wr0_yaw_w)
         radius = np.linalg.norm(tgt_tip_r_w - edge)
         # total velocity is fixed for the body, so account for its wider radius
-        omega = self.total_v / np.linalg.norm(body_tip_offset_s) * tgt_orient
+        weighted_radius = (np.linalg.norm(body_tip_offset_s) + radius) / 2
+        omega = self.total_v / weighted_radius * tgt_orient
 
         def control_reach_over_the_edge():
             nonlocal tgt_tip_r_w
@@ -234,8 +235,9 @@ class Controller:
             normal = normalize(tgt_tip_r_w - edge)
             tangent = rotate_ccw(normal, tgt_orient * np.pi / 2)
             # get the new body rotation and position
-            tgt_body_yaw_w = np.arctan2(normal[1], normal[0])
-            tgt_body_r_w = tgt_tip_r_w - rotate_ccw(body_tip_offset_s, np.arctan2(tangent[1], tangent[0]))
+            tgt_body_yaw_w = np.arctan2(normal[1], normal[0]) - tgt_orient * self.tilt
+            tgt_wr0_yaw_w = tgt_body_yaw_w - tgt_orient * self.data._body_wr0_angle_s
+            tgt_body_r_w = tgt_tip_r_w - rotate_ccw(body_tip_offset_s, tgt_wr0_yaw_w)
 
             if self.config.debug:
                 space = np.linspace(0, 2 * np.pi, 100)
@@ -306,10 +308,11 @@ class Controller:
         tgt_wr_yaw_w = spl_tangent_angle + orient * np.pi / 2  # without the tilt
 
         # 2. Calculate the target body position
-        tip_spl_normal_d = np.dot(spl_start_w - self.data.tip_r_w, spl_normal_n)
-        base_spl_tangent_d = np.dot(spl_start_w - self.data.body_r_w, spl_tangent_n)
-        tgt_body_dr_w = base_spl_tangent_d * spl_tangent_n + tip_spl_normal_d * spl_normal_n
         corrected_tip_r_w = self.data.body_r_w + rotate_ccw(self.defl_model(self.tgt_defl_abs * orient), tgt_wr_yaw_w)
+        # make sure that the tip is behind the spline tangent, as it might pass the edge otherwise
+        # tip_spl_normal_d = np.dot(spl_start_w - corrected_tip_r_w, spl_normal_n)
+        # optimal_normal_overshoot_d = np.linalg.norm(self.defl_model(0)) / 10
+        # corrected_tip_r_w += spl_normal_n * (optimal_normal_overshoot_d - tip_spl_normal_d)
         tgt_body_dr_w = spl_end_w - corrected_tip_r_w
 
         monitor.draw_spline(

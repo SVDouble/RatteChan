@@ -13,8 +13,8 @@ class BodyMotionController:
     def __init__(self, *, total_v: float):
         self.total_v = total_v
         self.yaw_pid = PID(
-            kp=0.5,
-            ki=0.001,
+            kp=0.6,
+            ki=0,
             kd=0,
             dt=0,  # will be set in the control method
             out_limits=(-np.pi, np.pi),
