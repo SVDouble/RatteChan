@@ -34,7 +34,7 @@ class Controller:
 
         # tip position prediction using spline
         self.keypoint_distance = 1e-3
-        self.n_keypoints = 11
+        self.n_keypoints = 7
         self.spline = Spline(keypoint_distance=self.keypoint_distance, n_keypoints=self.n_keypoints)
 
         # body yaw control
@@ -129,7 +129,7 @@ class Controller:
                 return None
             return self.exploration_instructions()
 
-        if not self.orient or not self.spline:
+        if not self.spline:
             self.tgt_orient = 0
             return apply_instructions()
 
@@ -141,8 +141,9 @@ class Controller:
         assert self.desired_next_state is not None
         self.state = self.desired_next_state
         self.desired_next_state = None
-        assert self.tgt_orient == 0
-        self.tgt_orient = self.orient
+        if self.tgt_orient == 0:
+            self.tgt_orient = self.orient
+        assert self.tgt_orient != 0
 
         # Use the exploration instructions one last time to let it prepare for the engaged state
         control = apply_instructions()
@@ -213,24 +214,31 @@ class Controller:
         # The goal is to swipe the whisker along the other side of the edge
         # Rotate the whisker tip around the edge to guarantee sufficient swipe distance after reattachment
 
+        # stabilize the spline
+        self.spline.stabilize()
+
         # keep the old swiping orientation
         tgt_orient = self.tgt_orient
         prev_spline = self.spline
         # the actual edge is continuous, we use the spline middle point for stability
-        edge = self.spline(0.5)
+        spl_start = self.spline(0)
+        edge = self.spline(1)
+        spl_tangent = normalize(edge - spl_start)
+        spl_normal = rotate_ccw(spl_tangent, -tgt_orient * np.pi / 2)
         # the whisker is detached, so the deflection is zero
         body_tip_offset_s = self.defl_model(0)
+        body_tip_offset_l = np.linalg.norm(body_tip_offset_s)
         # the tip might be oscillating, so use its neutral position
-        tgt_tip_r_w = self.data.body_r_w + rotate_ccw(body_tip_offset_s, self.data.wr0_yaw_w)
-        radius = np.linalg.norm(tgt_tip_r_w - edge)
+        radius = body_tip_offset_l / 4
+        tgt_tip_r_w = edge + rotate_ccw(radius * spl_tangent, tgt_orient * np.pi / 8)
         # total velocity is fixed for the body, so account for its wider radius
-        weighted_radius = (np.linalg.norm(body_tip_offset_s) + radius) / 2
-        omega = self.total_v / weighted_radius * tgt_orient
+        omega = self.total_v / radius * tgt_orient
 
         def control_reach_over_the_edge():
             nonlocal tgt_tip_r_w
-            # rotate the tip around the center by expected angle at dt
-            tgt_tip_r_w = edge + rotate_ccw(tgt_tip_r_w - edge, omega * self.motion.dt)
+            if abs(np.linalg.norm(tgt_tip_r_w - self.data.tip_r_w)) < radius / 2:
+                # rotate the tip around the center by expected angle at dt
+                tgt_tip_r_w = edge + rotate_ccw(tgt_tip_r_w - edge, omega * self.motion.dt)
             # get the normal and tangent to the circle at the tip
             normal = normalize(tgt_tip_r_w - edge)
             tangent = rotate_ccw(normal, tgt_orient * np.pi / 2)
@@ -252,7 +260,6 @@ class Controller:
                     normal=tgt_tip_r_w + normal * radius / 4,
                     tangent=tgt_tip_r_w + tangent * radius / 4,
                 )
-
             return self.motion_ctrl(
                 data=self.data,
                 prev_data=self.prev_data,
@@ -276,10 +283,38 @@ class Controller:
             # we've got the first estimate on the other side,
             # use it to construct a reasonable spline and give control to the swiping policy
             has_reached_surface = True
+            tgt_tip_outside_w = edge + (radius / 4) * spl_normal
+            tgt_tip_dr_w = tgt_tip_outside_w - self.data.tip_r_w
+            if abs(np.linalg.norm(tgt_tip_dr_w)) < self.keypoint_distance * 2 and self.orient == 0:
+                # the length was not enough to reconstruct the full spline
+                # and we have already reached the edge and even went beyond
+                # fake the spline and start swiping
+                if not self.spline.keypoints:
+                    self.state = ControllerState.FAILURE
+                    return None
+                fake_keypoint = self.spline.keypoints[0].copy()
+                while not self.spline:
+                    fake_keypoint -= spl_normal * self.keypoint_distance * 5
+                    self.spline.prepend_fake_keypoint(keypoint=fake_keypoint)
+                # we have faked the swipe back
+                self.tgt_orient = -tgt_orient
+                return None
+
+            if self.config.debug:
+                monitor.draw_spline(
+                    prev_spline,
+                    title="Reaching Over The Edge",
+                    body=self.data.body_r_w,
+                    tip=self.data.tip_r_w,
+                    tgt_tip_r_w=tgt_tip_outside_w,
+                    normal=tgt_tip_outside_w + spl_normal * radius / 4,
+                    tangent=tgt_tip_outside_w + spl_tangent * radius / 4,
+                )
+
             return self.motion_ctrl(
                 data=self.data,
                 prev_data=self.prev_data,
-                tgt_body_dr_w=edge - self.data.tip_r_w,
+                tgt_body_dr_w=tgt_tip_dr_w,
                 tgt_body_yaw_w=None,
                 orient=-tgt_orient,
             )
@@ -310,9 +345,9 @@ class Controller:
         # 2. Calculate the target body position
         corrected_tip_r_w = self.data.body_r_w + rotate_ccw(self.defl_model(self.tgt_defl_abs * orient), tgt_wr_yaw_w)
         # make sure that the tip is behind the spline tangent, as it might pass the edge otherwise
-        # tip_spl_normal_d = np.dot(spl_start_w - corrected_tip_r_w, spl_normal_n)
-        # optimal_normal_overshoot_d = np.linalg.norm(self.defl_model(0)) / 10
-        # corrected_tip_r_w += spl_normal_n * (optimal_normal_overshoot_d - tip_spl_normal_d)
+        tip_spl_normal_d = np.dot(spl_start_w - corrected_tip_r_w, spl_normal_n)
+        optimal_normal_overshoot_d = np.linalg.norm(self.defl_model(0)) / 10
+        corrected_tip_r_w += spl_normal_n * (optimal_normal_overshoot_d - tip_spl_normal_d)
         tgt_body_dr_w = spl_end_w - corrected_tip_r_w
 
         monitor.draw_spline(
