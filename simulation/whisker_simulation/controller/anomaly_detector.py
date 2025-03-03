@@ -14,6 +14,7 @@ class AnomalyDetector:
         from whisker_simulation.controller import Controller
 
         self.ctrl: Controller = controller
+        self.log_anomalies = controller.config.detect_anomalies
         self.total_v = controller.total_v
         self.control_dt = controller.control_dt
 
@@ -59,7 +60,8 @@ class AnomalyDetector:
                 self.has_abnormal_velocity = True
                 self.abnormal_velocity_start_time = time
         elif self.has_abnormal_velocity:
-            logger.debug(f"Abnormal velocity duration: {time - self.abnormal_velocity_start_time:.3f}")
+            if self.log_anomalies:
+                logger.debug(f"Abnormal velocity duration: {time - self.abnormal_velocity_start_time:.3f}")
             self.has_abnormal_velocity = False
             self.abnormal_velocity_start_time = None
 
@@ -83,7 +85,8 @@ class AnomalyDetector:
                 self.slip_start_time = time
         elif self.is_slipping:
             if time - self.slip_start_time > m.dt * 1.5:
-                logger.debug(f"Whisker slip duration: {time - self.slip_start_time:.3f}")
+                if self.log_anomalies:
+                    logger.debug(f"Whisker slip duration: {time - self.slip_start_time:.3f}")
             self.is_slipping = False
             self.slip_start_time = None
 
@@ -101,6 +104,7 @@ class AnomalyDetector:
                     f"No deflection for {time - self.disengaged_start_time:.3f}s",
                 )
         elif self.is_disengaged:
-            logger.debug(f"Whisker disengaged duration: {time - self.disengaged_start_time:.3f}")
+            if self.log_anomalies:
+                logger.debug(f"Whisker disengaged duration: {time - self.disengaged_start_time:.3f}")
             self.is_disengaged = False
             self.disengaged_start_time = None

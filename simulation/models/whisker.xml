@@ -7,6 +7,7 @@
                  mark="cross" markrgb="0.8 0.8 0.8"/>
         <material name="matplane" reflectance="0" texture="texplane" texrepeat="20 20" texuniform="true"/>
 
+        <mesh name="cube" vertex="0 0 0  1 0 0  1 1 0  0 1 0  0 0 1  1 0 1  1 1 1  0 1 1" scale="0.3 0.01 0.1"/>
         <mesh name="object_complex_f1" file="../assets/object_complex_f1.stl" scale="0.001 0.001 0.001"/>
         <mesh name="object_complex_f2" file="../assets/object_complex_f2.stl" scale="0.001 0.001 0.001"/>
         <model name="cog" file="../assets/cog/cog.xml"/>
@@ -34,13 +35,14 @@
 
         <!-- Meshes to swipe the whisker against -->
         <body>
-<!--            <geom type="mesh" mesh="object_complex_f1" pos="0.8 -0.19 -0.125" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>-->
-<!--            <geom type="mesh" mesh="object_complex_f2" pos="0.8 -0.19 -0.125" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>-->
-            <geom type="box" size="0.2 0.2 0.03" pos="0.3 -0.18 0.03" euler="0 0 10" rgba="0.2 0.5 0.1 1"/>
-            <geom type="box" size="0.2 0.2 0.03" pos="-0.3 -0.18 0.03" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>
-<!--            <body pos="0 -0.6 0.01" euler="0 0 120">-->
-<!--                <attach model="cog" body="cog" prefix="cog_"/>-->
-<!--            </body>-->
+            <!--            <geom type="mesh" mesh="object_complex_f1" pos="0.8 -0.19 -0.125" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>-->
+            <!--            <geom type="mesh" mesh="object_complex_f2" pos="0.8 -0.19 -0.125" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>-->
+            <!--            <geom type="box" size="0.2 0.2 0.03" pos="0.3 -0.18 0.03" euler="0 0 10" rgba="0.2 0.5 0.1 1"/>-->
+            <!--            <geom type="box" size="0.2 0.2 0.03" pos="-0.3 -0.18 0.03" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>-->
+            <!--            <body pos="0 -0.5 0.01" euler="0 0 130">-->
+            <!--                <attach model="cog" body="cog" prefix="cog_"/>-->
+            <!--            </body>-->
+            <geom type="mesh" mesh="cube" pos="0 -0.02 0" euler="0 0 10" rgba="0.2 0.5 0.1 1"/>
 
         </body>
 

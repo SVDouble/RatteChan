@@ -14,10 +14,10 @@ class BodyMotionController:
         self.total_v = total_v
         self.yaw_pid = PID(
             kp=0.5,
-            ki=0,
+            ki=0.001,
             kd=0,
             dt=0,  # will be set in the control method
-            out_limits=(-np.pi / 2, np.pi / 2),
+            out_limits=(-np.pi, np.pi),
         )
 
     def __call__(

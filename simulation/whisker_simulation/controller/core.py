@@ -16,7 +16,7 @@ monitor = get_monitor()
 
 class Controller:
     def __init__(self, *, initial_data: SensorData, config: Config):
-        self.config = config
+        self.config: Config = config
 
         # runtime
         self.control_dt = 1 / config.control_rps
@@ -136,7 +136,8 @@ class Controller:
         # At this point we have a spline to work with
         # This means that exploration has ended and the state should be updated
         logger.debug("The spline has been defined")
-        monitor.draw_spline(self.spline, title="Exploration End", body=self.data.body_r_w)
+        if self.config.debug:
+            monitor.draw_spline(self.spline, title="Exploration End", body=self.data.body_r_w)
         assert self.desired_next_state is not None
         self.state = self.desired_next_state
         self.desired_next_state = None
@@ -210,59 +211,82 @@ class Controller:
 
         # 1. Calculate new control:
         # The goal is to swipe the whisker along the other side of the edge
-        # The linear velocity follows the spline backwards,
-        # while the rotation brings the whisker tip to the new plane
-        # TODO: figure out a way to get a reliable spline, e.g. by removing the last few keypoints
-        spl_a_w, spl_b_w = self.spline(0), self.spline(0.5)
-        spl_backwards_n = normalize(spl_a_w - spl_b_w)
-        tgt_body_yaw_w = np.arctan2(spl_backwards_n[1], spl_backwards_n[0])
+        # Rotate the whisker tip around the edge to guarantee sufficient swipe distance after reattachment
 
-        control_reach_over_the_edge = self.motion_ctrl(
-            data=self.data,
-            prev_data=self.prev_data,
-            tgt_body_dr_w=rotate_ccw(spl_backwards_n, -self.tgt_orient * np.pi / 2),
-            tgt_body_yaw_w=tgt_body_yaw_w - self.tgt_orient * 2 * np.pi / 3,
-            orient=self.tgt_orient,
-        )
+        # keep the old swiping orientation
+        tgt_orient = self.tgt_orient
+        prev_spline = self.spline
+        # the actual edge is continuous, we use the spline middle point for stability
+        edge = self.spline(0.5)
+        # the whisker is detached, so the deflection is zero
+        body_tip_offset_s = self.defl_model(0)
+        # the tip might be oscillating, so use its neutral position
+        tgt_tip_r_w = self.data.body_r_w + rotate_ccw(body_tip_offset_s, self.data.wr0_yaw_w)
+        radius = np.linalg.norm(tgt_tip_r_w - edge)
+        # total velocity is fixed for the body, so account for its wider radius
+        omega = self.total_v / np.linalg.norm(body_tip_offset_s) * tgt_orient
+
+        def control_reach_over_the_edge():
+            nonlocal tgt_tip_r_w
+            # rotate the tip around the center by expected angle at dt
+            tgt_tip_r_w = edge + rotate_ccw(tgt_tip_r_w - edge, omega * self.motion.dt)
+            # get the normal and tangent to the circle at the tip
+            normal = normalize(tgt_tip_r_w - edge)
+            tangent = rotate_ccw(normal, tgt_orient * np.pi / 2)
+            # get the new body rotation and position
+            tgt_body_yaw_w = np.arctan2(normal[1], normal[0])
+            tgt_body_r_w = tgt_tip_r_w - rotate_ccw(body_tip_offset_s, np.arctan2(tangent[1], tangent[0]))
+
+            if self.config.debug:
+                space = np.linspace(0, 2 * np.pi, 100)
+                monitor.draw_spline(
+                    prev_spline,
+                    title="Reaching Over The Edge",
+                    body=self.data.body_r_w,
+                    tgt_body_r_w=tgt_body_r_w,
+                    tip=self.data.tip_r_w,
+                    tgt_tip_r_w=tgt_tip_r_w,
+                    circle=edge + radius * np.array([np.cos(space), np.sin(space)]).T,
+                    normal=tgt_tip_r_w + normal * radius / 4,
+                    tangent=tgt_tip_r_w + tangent * radius / 4,
+                )
+
+            return self.motion_ctrl(
+                data=self.data,
+                prev_data=self.prev_data,
+                tgt_body_dr_w=tgt_body_r_w - self.data.body_r_w,
+                tgt_body_yaw_w=tgt_body_yaw_w,
+                orient=tgt_orient,
+            )
 
         # 2. Reset the spline
-        prev_spline = self.spline
-        monitor.draw_spline(self.spline, title="Swiping End", body=self.data.body_r_w)
         self.spline = Spline(keypoint_distance=self.keypoint_distance, n_keypoints=self.n_keypoints)
 
-        # 3. Set the desired next state
+        # 3. Set the desired next state and the exploration instructions
         has_reached_surface = False
 
         def initial_whisking_instructions() -> ControlMessage | None:
             nonlocal has_reached_surface
-            if has_reached_surface or not self.orient:
-                return None
+            if not has_reached_surface and not self.orient:
+                # while we haven't reached the surface, keep steering the whisker around the edge
+                return control_reach_over_the_edge()
 
             # we've got the first estimate on the other side,
             # use it to construct a reasonable spline and give control to the swiping policy
             has_reached_surface = True
-            # the actual edge is continuous, we use the middle point for stability
-            edge = prev_spline(0.5)
-            monitor.draw_spline(
-                prev_spline,
-                title="Whisking Start",
-                body=self.data.body_r_w,
-                tip=self.data.tip_r_w,
-                edge=edge,
-            )
             return self.motion_ctrl(
                 data=self.data,
                 prev_data=self.prev_data,
                 tgt_body_dr_w=edge - self.data.tip_r_w,
                 tgt_body_yaw_w=None,
-                orient=self.orient,
+                orient=-tgt_orient,
             )
 
         self.state = ControllerState.EXPLORING
         self.desired_next_state = ControllerState.WHISKING
         self.exploration_instructions = initial_whisking_instructions
 
-        return control_reach_over_the_edge
+        return self.exploration_instructions()
 
     def policy_reattaching(self) -> ControlMessage | None:
         if not self.spline:

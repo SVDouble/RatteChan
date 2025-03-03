@@ -38,25 +38,32 @@ class Monitor:
         if spline.spl is None:
             return
 
+        cmap = plt.get_cmap("Set1")
+        plt.rcParams["axes.prop_cycle"] = plt.cycler(color=[cmap(i) for i in range(cmap.N)])
         plt.figure()
 
         spline_points = spline(np.linspace(0, 1, 100))
-        plt.plot(spline_points[0], spline_points[1], "r-", label="Spline")
+        plt.plot(spline_points[0], spline_points[1], linestyle="-", label="Spline")
 
         keypoints = np.array(spline.keypoints)
-        plt.scatter(keypoints[:, 0], keypoints[:, 1], c="b", label="Keypoints")
+        plt.scatter(keypoints[:, 0], keypoints[:, 1], label="Keypoints")
 
         pred_tip = spline([spline.end_kth_point_u(0), spline.end_kth_point_u(1)])
-        plt.scatter(pred_tip[0], pred_tip[1], c="g", marker="*", s=100, label="Predicted")
-
+        plt.scatter(pred_tip[0], pred_tip[1], marker="*", s=100, label="Predicted")
         for i, (key, p) in enumerate(kwargs.items()):
-            plt.scatter(p[0], p[1], c="cmykrbg"[i], marker="x", s=100, label=key.title())
+            if p.shape == (2,):
+                plt.scatter(p[0], p[1], marker="x", s=100, label=key.title())
+            elif p.shape[1] == 2:
+                plt.plot(p[:, 0], p[:, 1], linestyle="-", label=key.title())
+            else:
+                raise ValueError("Invalid shape for keypoint")
 
-        plt.legend()
+        plt.legend(loc="upper left", bbox_to_anchor=(1, 1))
         plt.title(title)
         plt.xlabel("X")
         plt.ylabel("Y")
         plt.axis("equal")
+        plt.tight_layout()
         plt.show()
 
     def plot_defl_profile(self, defl_model):
