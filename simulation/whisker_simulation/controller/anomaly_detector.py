@@ -47,7 +47,7 @@ class AnomalyDetector:
     def detect_abnormal_deflection(self) -> tuple[ControllerState, str] | None:
         if (
             self.ctrl.orient * self.ctrl.tgt_orient == -1
-            and abs(self.ctrl.data.wr0_defl) > self.ctrl.defl_threshold * 2
+            and abs(self.ctrl.data("r0").defl) > self.ctrl.defl_threshold * 2
         ):
             return ControllerState.FAILURE, "Deflection sign changed"
 
@@ -55,7 +55,7 @@ class AnomalyDetector:
         # assume that when the system has exited exploring state
         # and steady body velocity has been reached
         time, m = self.ctrl.data.time, self.ctrl.motion
-        if abs(m.body_v / self.total_v - 1) > 0.25:
+        if abs(m.body.v / self.total_v - 1) > 0.25:
             if not self.has_abnormal_velocity:
                 self.has_abnormal_velocity = True
                 self.abnormal_velocity_start_time = time
@@ -71,7 +71,8 @@ class AnomalyDetector:
         # control might not be respected, so rely on the previous world data
         # the tip might be stuck, so ignore small movements
         time, m = self.ctrl.data.time, self.ctrl.motion
-        if m.tip_drift_v / m.body_v > 0.5 and (angle := np.dot(m.tip_drift_v_w, m.body_v_w)) < -1e3:
+        body, wsk = m.body, m.wsk("r0")
+        if wsk.tip_drift_v / body.v > 0.5 and (angle := np.dot(wsk.tip_drift_v_w, body.v_w)) < -1e3:
             return (
                 ControllerState.FAILURE,
                 f"Slipping backwards: angle between body and tip is {angle:.2f}",
@@ -79,7 +80,7 @@ class AnomalyDetector:
 
         # the whisker might be slipping forward and that's alright -- still, we want to detect this
         # the indicator is that the tip is drifting
-        if m.tip_drift_v / self.total_v > 0.5:
+        if wsk.tip_drift_v / self.total_v > 0.5:
             if not self.is_slipping:
                 self.is_slipping = True
                 self.slip_start_time = time

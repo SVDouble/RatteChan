@@ -19,9 +19,8 @@ class Simulation:
         self.model = mujoco.MjModel.from_xml_path(self.model_path)
         self.data = mujoco.MjData(self.model)
         self.control_rps = config.control_rps
-        initial_data = self.get_sensor_data_from_mujoco()
         self.controller = Controller(
-            initial_data=initial_data,
+            initial_data=SensorData.from_mujoco_data(self.data, self.config),
             config=self.config,
         )
 
@@ -29,7 +28,7 @@ class Simulation:
         self.camera_fps = config.recording_camera_fps
 
     def control(self, _: mujoco.MjModel, __: mujoco.MjData):
-        sensor_data = self.get_sensor_data_from_mujoco()
+        sensor_data = SensorData.from_mujoco_data(self.data, self.config)
         control = self.controller.control(sensor_data)
         if control is not None:
             self.data.ctrl[0:3] = [
@@ -75,9 +74,3 @@ class Simulation:
 
         # launch the viewer
         mujoco.viewer.launch(self.model, self.data)
-
-    def get_sensor_data_from_mujoco(self) -> SensorData:
-        # noinspection PyTypeChecker
-        fields: dict = SensorData.model_fields
-        data = {sensor: self.data.sensor(sensor).data.item() for sensor in fields.keys() - {"time", "body_wr0_angle_s"}}
-        return SensorData(**data, time=self.data.time)

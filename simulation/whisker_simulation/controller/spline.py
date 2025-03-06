@@ -25,7 +25,7 @@ class Spline:
         # stateful variables
         self.keypoints = deque(maxlen=self.n_keypoints + self.n_history)
         self.spl: BSpline | None = None
-        self.prev_body_r_w = None
+        self.prev_data: SensorData | None = None
 
         # monitor parameters
         self.track = track
@@ -36,7 +36,7 @@ class Spline:
         if self.keypoints:
             prev_keypoint = np.array(self.keypoints[-1])
             keypoint_d = np.linalg.norm(keypoint - prev_keypoint)
-            body_d = np.linalg.norm(data.body_r_w - self.prev_body_r_w)
+            body_d = np.linalg.norm(data.body.r_w - self.prev_data.body.r_w)
             ratio_ok = 1 / self.keypoint_to_body_ratio < keypoint_d / body_d < self.keypoint_to_body_ratio
             distance_ok = min(keypoint_d, body_d) >= self.keypoint_distance
             if distance_ok and ratio_ok:
@@ -45,7 +45,7 @@ class Spline:
             has_new_point = True
         if has_new_point:
             self.keypoints.append(keypoint.copy())
-            self.prev_body_r_w = data.body_r_w
+            self.prev_data = data
             if self.track and len(self) > 2:
                 monitor.add_keypoint(data.time, keypoint.copy())
         if len(self) < self.n_keypoints:
@@ -77,7 +77,7 @@ class Spline:
     def reset(self) -> None:
         self.keypoints.clear()
         self.spl = None
-        self.prev_body_r_w = None
+        self.prev_data = None
 
     def end_kth_point_u(self, k: float) -> float:
         return 1 + k / (len(self) - 1)

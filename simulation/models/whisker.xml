@@ -8,6 +8,8 @@
         <material name="matplane" reflectance="0" texture="texplane" texrepeat="20 20" texuniform="true"/>
 
         <mesh name="cube" vertex="0 0 0  1 0 0  1 1 0  0 1 0  0 0 1  1 0 1  1 1 1  0 1 1" scale="0.3 0.01 0.1"/>
+        <mesh name="platform" vertex="-6 0 0  6 0 0  1.5 18 0  -1.5 18 0  -6 0 1  6 0 1  1.5 18 1  -1.5 18 1"
+              scale="0.01 0.01 0.02"/>
         <mesh name="object_complex_f1" file="../assets/object_complex_f1.stl" scale="0.001 0.001 0.001"/>
         <mesh name="object_complex_f2" file="../assets/object_complex_f2.stl" scale="0.001 0.001 0.001"/>
         <model name="cog" file="../assets/cog/cog.xml"/>
@@ -35,38 +37,56 @@
 
         <!-- Meshes to swipe the whisker against -->
         <body>
-            <!--            <geom type="mesh" mesh="object_complex_f1" pos="0.8 -0.19 -0.125" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>-->
-            <!--            <geom type="mesh" mesh="object_complex_f2" pos="0.8 -0.19 -0.125" euler="0 0 180" rgba="0.5 0.2 0.1 1"/>-->
+            <geom type="mesh" mesh="object_complex_f1" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>
+            <geom type="mesh" mesh="object_complex_f2" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>
             <!--            <geom type="box" size="0.2 0.2 0.03" pos="0.3 -0.18 0.03" euler="0 0 10" rgba="0.2 0.5 0.1 1"/>-->
             <!--            <geom type="box" size="0.2 0.2 0.03" pos="-0.3 -0.18 0.03" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>-->
             <!--            <body pos="0 -0.5 0.01" euler="0 0 130">-->
             <!--                <attach model="cog" body="cog" prefix="cog_"/>-->
             <!--            </body>-->
-            <geom type="mesh" mesh="cube" pos="0 -0.02 0" euler="0 0 10" rgba="0.2 0.5 0.1 1"/>
+            <!--            <geom type="mesh" mesh="cube" pos="0 -0.02 0" euler="0 0 10" rgba="0.2 0.5 0.1 1"/>-->
 
         </body>
 
         <!-- Whisker assembly: base with attached moving parts -->
-        <body name="whisker_base" pos="-0.1 0.1 0.05" axisangle="1 0 0 90">
+        <body name="platform" pos="0 0 0.05">
             <!-- Slide joints for x and y movement -->
-            <joint name="body_x_w" type="slide" axis="0 0 1" stiffness="0" armature="0.1"/>
-            <joint name="body_y_w" type="slide" axis="1 0 0" stiffness="0" armature="0.1"/>
+            <joint name="body_x_w" type="slide" axis="1 0 0" stiffness="0" armature="0.1"/>
+            <joint name="body_y_w" type="slide" axis="0 1 0" stiffness="0" armature="0.1"/>
             <!-- Hinge joint for rotation -->
-            <joint name="wr0_yaw_w" type="hinge" axis="0 1 0" armature="0.01"/>
+            <joint name="body_yaw_w" type="hinge" axis="0 0 1" armature="0.01" pos="0.03 0.125 0.01"/>
             <!-- Cylinder geom representing the physical base (collision disabled to avoid unwanted vibrations) -->
-            <geom type="cylinder" size="0.005 0.005" rgba=".8 .3 .1 .5" mass="0.1" contype="0" conaffinity="0"/>
-            <!-- Cameras attached to the whisker base -->
-            <camera name="whisker_cam" pos="0 0.25 0.05" xyaxes="1 0 0 0 0 -1"/>
-            <camera name="whisker_cam_2" pos="-0.15 0 0.05" xyaxes="0 0 1 0 1 0"/>
+            <geom type="mesh" mesh="platform" rgba=".2 .8 .6 .5" mass="0.1" contype="0" conaffinity="0"/>
 
             <!-- Whisker attached to the base -->
-            <body name="whisker_body">
+            <body name="wsk_r0" pos="0.03 0.125 0.01">
                 <!-- Hinge joint connecting base to whisker body -->
-                <joint name="wr0_defl" type="hinge" axis="0 1 0" damping="0.01" stiffness="1" armature="0.00001"/>
+                <joint name="wsk_r0_defl" type="hinge" axis="0 0 1" damping="0.01" stiffness="1" armature="0.00001"/>
                 <!-- Thin cylinder geom for the whisker body -->
-                <geom type="cylinder" size="0.000125 0.01" rgba=".8 .3 .7 1" mass="0.005" contype="0" conaffinity="0"/>
+                <geom type="cylinder" size="0.000125 0.01" axisangle="0 1 0 90" rgba=".8 .3 .7 1" mass="0.005"
+                      contype="0" conaffinity="0"/>
                 <!-- Flexible cable representing the whisker -->
-                <composite prefix="whisker" type="cable" curve="0 0 s" count="40 1 1" size="0.1 0 0" initial="none">
+                <composite prefix="wsk_r0_cable" type="cable" curve="s 0 0" count="40 1 1" size="0.1 0 0" initial="none">
+                    <plugin plugin="mujoco.elasticity.cable">
+                        <config key="twist" value="40e9"/>
+                        <config key="bend" value="100e9"/>
+                        <config key="vmax" value="0.001"/>
+                    </plugin>
+                    <!-- Main joint for the cable composite -->
+                    <joint kind="main" damping="0.0001" armature="0.00001"/>
+                    <!-- Capsule geom for the cable element -->
+                    <geom type="capsule" size=".000125" rgba=".8 0 0 1" condim="1" density="6450"/>
+                </composite>
+            </body>
+
+            <body name="wsk_l0" pos="-0.03 0.125 0.01" axisangle="0 0 1 180">
+                <!-- Hinge joint connecting base to whisker body -->
+                <joint name="wsk_l0_defl" type="hinge" axis="0 0 1" damping="0.01" stiffness="1" armature="0.00001"/>
+                <!-- Thin cylinder geom for the whisker body -->
+                <geom type="cylinder" size="0.000125 0.01" axisangle="0 1 0 90" rgba=".8 .3 .7 1" mass="0.005"
+                      contype="0" conaffinity="0"/>
+                <!-- Flexible cable representing the whisker -->
+                <composite prefix="wsk_l0_cable" type="cable" curve="s 0 0" count="40 1 1" size="0.1 0 0" initial="none">
                     <plugin plugin="mujoco.elasticity.cable">
                         <config key="twist" value="40e9"/>
                         <config key="bend" value="100e9"/>
@@ -85,7 +105,7 @@
     <actuator>
         <velocity joint="body_x_w" name="body_vx"/>
         <velocity joint="body_y_w" name="body_vy"/>
-        <velocity joint="wr0_yaw_w" name="body_omega"/>
+        <velocity joint="body_yaw_w" name="body_omega"/>
     </actuator>
 
     <!-- Sensors: collect simulation data -->
@@ -93,10 +113,11 @@
         <!-- Whisker base sensors -->
         <jointpos joint="body_x_w" name="body_x_w"/>
         <jointpos joint="body_y_w" name="body_y_w"/>
-        <jointpos joint="wr0_yaw_w" name="wr0_yaw_w"/>
+        <jointpos joint="body_yaw_w" name="body_yaw_w"/>
 
         <!-- Whisker deflection sensor -->
-        <jointpos joint="wr0_defl" name="wr0_defl"/>
+        <jointpos joint="wsk_r0_defl" name="wsk_r0_defl"/>
+        <jointpos joint="wsk_l0_defl" name="wsk_l0_defl"/>
     </sensor>
 
 </mujoco>

@@ -12,8 +12,9 @@ monitor = get_monitor()
 class BodyMotionController:
     def __init__(self, *, total_v: float):
         self.total_v = total_v
+        # TODO: revert kp back to 1 to allow rapid yaw changes for the retrieval policy
         self.yaw_pid = PID(
-            kp=1,
+            kp=0.5,
             ki=0.001,
             kd=0.001,
             dt=0,  # will be set in the control method
@@ -32,6 +33,9 @@ class BodyMotionController:
         np.set_printoptions(precision=3, suppress=True)
         assert orient != 0, "The orientation cannot not be zero"
 
+        # TODO: move the pivot point to the center of the body
+        # and adjust the rotation accordingly
+
         # 0. Update the time step of the PID controllers
         self.yaw_pid.dt = data.time - prev_data.time
 
@@ -39,8 +43,9 @@ class BodyMotionController:
         vx, vy = normalize(tgt_body_dr_w) * self.total_v
 
         # 2. Calculate the yaw error
+        wsk = data("r0")
         # noinspection PyProtectedMember
-        body_yaw_w = data.wr0_yaw_w + orient * data._wr0_angle_s
+        body_yaw_w = wsk.yaw_w + orient * wsk.body_angle
         if tgt_body_yaw_w is None:
             tgt_body_yaw_w = body_yaw_w
         yaw_error = unwrap_pid_error(tgt_body_yaw_w - body_yaw_w)

@@ -1,16 +1,18 @@
+import importlib
 import logging
 from functools import lru_cache
 
 import numpy as np
-from rich.logging import RichHandler, Console
+from rich.logging import Console, RichHandler
 
 __all__ = [
     "get_config",
     "get_logger",
     "get_monitor",
-    "rotate_ccw",
+    "rotate",
     "normalize",
     "unwrap_pid_error",
+    "import_class",
 ]
 
 
@@ -51,7 +53,7 @@ def get_monitor():
     return Dummy()
 
 
-def rotate_ccw(v: np.ndarray, theta: float) -> np.ndarray:
+def rotate(v: np.ndarray, theta: float) -> np.ndarray:
     # noinspection PyPep8Naming
     R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
     return R @ v
@@ -66,3 +68,9 @@ def normalize(v: np.ndarray) -> np.ndarray:
 
 def unwrap_pid_error(theta: float) -> float:
     return (theta + np.pi) % (2 * np.pi) - np.pi
+
+
+def import_class(class_str: str):
+    module_name, class_name = class_str.rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    return getattr(module, class_name)
