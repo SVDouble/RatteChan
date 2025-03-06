@@ -40,7 +40,7 @@ class BodyMotionController:
 
         # 2. Calculate the yaw error
         # noinspection PyProtectedMember
-        body_yaw_w = data.wr0_yaw_w + orient * data._body_wr0_angle_s
+        body_yaw_w = data.wr0_yaw_w + orient * data._wr0_angle_s
         if tgt_body_yaw_w is None:
             tgt_body_yaw_w = body_yaw_w
         yaw_error = unwrap_pid_error(tgt_body_yaw_w - body_yaw_w)

@@ -244,7 +244,7 @@ class Controller:
             tangent = rotate_ccw(normal, tgt_orient * np.pi / 2)
             # get the new body rotation and position
             tgt_body_yaw_w = np.arctan2(normal[1], normal[0]) - tgt_orient * self.tilt
-            tgt_wr0_yaw_w = tgt_body_yaw_w - tgt_orient * self.data._body_wr0_angle_s
+            tgt_wr0_yaw_w = tgt_body_yaw_w - tgt_orient * self.data._wr0_angle_s
             tgt_body_r_w = tgt_tip_r_w - rotate_ccw(body_tip_offset_s, tgt_wr0_yaw_w)
 
             if self.config.debug:
@@ -269,7 +269,7 @@ class Controller:
             )
 
         # 2. Reset the spline
-        self.spline = Spline(keypoint_distance=self.keypoint_distance, n_keypoints=self.n_keypoints)
+        self.spline = Spline(keypoint_distance=self.keypoint_distance, n_keypoints=self.n_keypoints, track=False)
 
         # 3. Set the desired next state and the exploration instructions
         has_reached_surface = False
@@ -333,30 +333,29 @@ class Controller:
 
         # 0. Calculate the spline orientation (flip the direction, as we were moving backwards)
         orient = -self.tgt_orient
-        spl_start_w, spl_end_w = self.spline(0.5), self.spline(0)
+        self.spline.stabilize()
+        spl_start_w, spl_end_w = self.spline(1), self.spline(0)
         spl_tangent_n = normalize(spl_end_w - spl_start_w)
         spl_normal_n = rotate_ccw(spl_tangent_n, -orient * np.pi / 2)
         spl_tangent_angle = np.arctan2(spl_tangent_n[1], spl_tangent_n[0])
 
         # 1. Calculate the target body yaw (tilt a bit more for better edge engagement)
         tgt_body_yaw_w = spl_tangent_angle + (self.tilt * 2) * orient
-        tgt_wr_yaw_w = spl_tangent_angle + orient * np.pi / 2  # without the tilt
+        tgt_wr_yaw_w = tgt_body_yaw_w - orient * self.data._wr0_angle_s
 
         # 2. Calculate the target body position
-        corrected_tip_r_w = self.data.body_r_w + rotate_ccw(self.defl_model(self.tgt_defl_abs * orient), tgt_wr_yaw_w)
-        # make sure that the tip is behind the spline tangent, as it might pass the edge otherwise
-        tip_spl_normal_d = np.dot(spl_start_w - corrected_tip_r_w, spl_normal_n)
-        optimal_normal_overshoot_d = np.linalg.norm(self.defl_model(0)) / 10
-        corrected_tip_r_w += spl_normal_n * (optimal_normal_overshoot_d - tip_spl_normal_d)
-        tgt_body_dr_w = spl_end_w - corrected_tip_r_w
+        # Keep in mind that the current deflection is zero
+        optimal_tip_overshoot_d = np.linalg.norm(self.defl_model(0)) / 24
+        tgt_tip_r_w = spl_start_w - spl_normal_n * optimal_tip_overshoot_d
+        tgt_body_r_w = tgt_tip_r_w - rotate_ccw(self.defl_model(0), tgt_wr_yaw_w)
 
         monitor.draw_spline(
             self.spline,
             title="The other side of the edge",
             body=self.data.body_r_w,
             tip=self.data.tip_r_w,
-            tgt_body_r_w=self.data.body_r_w + tgt_body_dr_w,
-            corrected_tip_r_w=corrected_tip_r_w,
+            tgt_body_r_w=tgt_body_r_w,
+            tgt_tip_r_w=tgt_tip_r_w,
             spl_tangent=spl_end_w + spl_tangent_n * np.linalg.norm(spl_end_w - spl_start_w) * 2,
             spl_normal=spl_end_w + spl_normal_n * np.linalg.norm(spl_end_w - spl_start_w) * 2,
         )
@@ -371,7 +370,7 @@ class Controller:
             return self.motion_ctrl(
                 data=self.data,
                 prev_data=self.prev_data,
-                tgt_body_dr_w=tgt_body_dr_w,
+                tgt_body_dr_w=tgt_body_r_w - self.data.body_r_w,
                 tgt_body_yaw_w=tgt_body_yaw_w,
                 orient=orient,
             )

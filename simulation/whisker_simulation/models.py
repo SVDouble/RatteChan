@@ -24,7 +24,7 @@ class SensorData(BaseModel):
     # protected so that it is not used unintentionally
     # generally speaking, the body angle depends on the deflection sign - cw or ccw rotation
     # use body motion controller to avoid confusion
-    _body_wr0_angle_s: float = -np.pi / 2
+    _wr0_angle_s: float = -np.pi / 2
 
     @computed_field(repr=False)
     @cached_property

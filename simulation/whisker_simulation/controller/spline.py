@@ -14,7 +14,7 @@ monitor = get_monitor()
 
 
 class Spline:
-    def __init__(self, *, keypoint_distance: float, n_keypoints: int, smoothness: float = 0.1):
+    def __init__(self, *, keypoint_distance: float, n_keypoints: int, smoothness: float = 0.1, track: bool = True):
         # spline parameters
         self.keypoint_distance = keypoint_distance
         self.n_history = n_keypoints // 2
@@ -26,6 +26,9 @@ class Spline:
         self.keypoints = deque(maxlen=self.n_keypoints + self.n_history)
         self.spl: BSpline | None = None
         self.prev_body_r_w = None
+
+        # monitor parameters
+        self.track = track
 
     def add_keypoint(self, *, keypoint: np.ndarray, data: SensorData) -> bool:
         has_new_point = False
@@ -43,7 +46,8 @@ class Spline:
         if has_new_point:
             self.keypoints.append(keypoint.copy())
             self.prev_body_r_w = data.body_r_w
-            monitor.add_keypoint(data.time, keypoint.copy())
+            if self.track and len(self) > 2:
+                monitor.add_keypoint(data.time, keypoint.copy())
         if len(self) < self.n_keypoints:
             return has_new_point
         if not has_new_point:
