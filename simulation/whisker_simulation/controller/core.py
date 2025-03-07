@@ -5,7 +5,7 @@ from whisker_simulation.controller.anomaly_detector import AnomalyDetector
 from whisker_simulation.controller.body_motion import BodyMotionController
 from whisker_simulation.controller.deflection_model import DeflectionModel
 from whisker_simulation.controller.spline import Spline
-from whisker_simulation.models import ControllerState, ControlMessage, Motion, SensorData, WhiskerId
+from whisker_simulation.models import ControllerState, ControlMessage, Motion, SensorData, WhiskerData, WhiskerId
 from whisker_simulation.utils import get_logger, get_monitor, normalize, rotate
 
 __all__ = ["Controller"]
@@ -25,6 +25,8 @@ class Controller:
         self.desired_next_state = ControllerState.SWIPING
         self.data = self.prev_data = initial_data
         self.motion: Motion = Motion(data=self.data, prev_data=self.prev_data)
+        # all the policies use a single whisker at the moment
+        self.wsk: WhiskerData = self.data(self.wsk_id)
 
         # tip position estimation
         self.defl_model = DeflectionModel()
@@ -84,12 +86,12 @@ class Controller:
         # update the controller given the new sensor data
         self.prev_data, self.data = self.data, new_data
         self.motion = Motion(data=self.data, prev_data=self.prev_data)
+        self.wsk = self.data(self.wsk_id)
 
         # update the spline
-        wsk = self.data(self.wsk_id)
-        self.orient = np.sign(wsk.defl) if abs(wsk.defl) > self.defl_threshold else 0
+        self.orient = np.sign(self.wsk.defl) if abs(self.wsk.defl) > self.defl_threshold else 0
         if self.orient:
-            has_new_point = self.spline.add_keypoint(keypoint=wsk.tip_r_w, data=self.data)
+            has_new_point = self.spline.add_keypoint(keypoint=self.wsk.tip_r_w, data=self.data)
             if has_new_point and len(self.spline.keypoints) == 1:
                 logger.debug("Whisker has come into contact with the surface")
 
@@ -112,7 +114,6 @@ class Controller:
             # swipe the whisker up to the edge
             # reduce the deflection, as close alignment is not needed
             # tilt the whisker to increase the chance of proper detachment
-            # TODO: stop swiping when the previous spline end has been reached
             return self.policy_swiping(tgt_defl_abs=self.tgt_defl_abs * 0.7, tilt=-self.tilt)
 
         if self.state == ControllerState.DISENGAGED:
@@ -139,7 +140,7 @@ class Controller:
         # This means that exploration has ended and the state should be updated
         logger.debug("The spline has been defined")
         if self.config.debug:
-            monitor.draw_spline(self.spline, title="Exploration End", body=self.data.body.r_w)
+            monitor.draw_spline(self.spline, title="Exploration End", wsk=self.wsk.r_w)
         assert self.desired_next_state is not None
         self.state = self.desired_next_state
         self.desired_next_state = None
@@ -168,35 +169,34 @@ class Controller:
         spline_angle = np.arctan2(spl_dk_w_n[1], spl_dk_w_n[0])
 
         # 3. Calculate the delta offset between the target and current deflection
-        wsk = self.data(self.wsk_id)
         zero_defl_offset_l = self.defl_model(0)
-        cur_defl_offset_l = self.defl_model(wsk.defl)
+        cur_defl_offset_l = self.defl_model(self.wsk.defl)
         tgt_defl_offset_l = self.defl_model(tgt_defl_abs * self.orient)
-        defl_doffset_w = rotate(tgt_defl_offset_l - cur_defl_offset_l, wsk.yaw_w)
+        defl_doffset_w = rotate(tgt_defl_offset_l - cur_defl_offset_l, self.wsk.yaw_w)
         defl_doffset_w_n = normalize(-defl_doffset_w)
         defl_offset_weight = np.linalg.norm(defl_doffset_w) / np.linalg.norm(tgt_defl_offset_l - zero_defl_offset_l)
 
         # 4. Choose the target direction as weighted average of the spline and deflection offset
         k = np.clip(defl_offset_weight * 1.5, 0, 1)
-        tgt_body_dr_n_w = normalize(defl_doffset_w_n * k + spl_dk_w_n * (1 - k))
+        tgt_wsk_dr_n_w = normalize(defl_doffset_w_n * k + spl_dk_w_n * (1 - k))
 
         # 5. Calculate the control values
-        # for v to follow tgt_body_dr_w and for omega to follow the spline slightly tilted
+        # for v to follow tgt_wsk_dr_w and for omega to follow the spline slightly tilted
         control = self.motion_ctrl(
             data=self.data,
             prev_data=self.prev_data,
-            tgt_body_dr_w=tgt_body_dr_n_w,
+            tgt_wsk_dr_w=tgt_wsk_dr_n_w,
             tgt_body_yaw_w=spline_angle + tilt * self.orient,
             orient=self.orient,
         )
 
-        if self.config.debug and np.array_equiv(self.spline.keypoints[-1], wsk.tip_r_w):
+        if self.config.debug and np.array_equiv(self.spline.keypoints[-1], self.wsk.tip_r_w):
             ds = self.spline.keypoint_distance * self.spline.n_keypoints
             poi = {
-                "body": self.data.body.r_w,
-                "d_defl": self.data.body.r_w + defl_doffset_w_n * ds,
-                "d_spl": self.data.body.r_w + spl_dk_w_n * ds,
-                "d_tgt": self.data.body.r_w + tgt_body_dr_n_w * ds,
+                "wsk": self.wsk.r_w,
+                "d_defl": self.wsk.r_w + defl_doffset_w_n * ds,
+                "d_spl": self.wsk.r_w + spl_dk_w_n * ds,
+                "d_tgt": self.wsk.r_w + tgt_wsk_dr_n_w * ds,
             }
             monitor.draw_spline(self.spline, title="Swiping", **poi)
 
@@ -228,37 +228,34 @@ class Controller:
         edge = self.spline(1)
         spl_tangent = normalize(edge - spl_start)
         spl_normal = rotate(spl_tangent, -tgt_orient * np.pi / 2)
-        # the whisker is detached, so the deflection is zero
-        body_tip_offset_s = self.defl_model(0)
-        body_tip_offset_l = np.linalg.norm(body_tip_offset_s)
         # the tip might be oscillating, so use its neutral position
-        radius = body_tip_offset_l / 4
+        radius = self.wsk.length / 4
         tgt_tip_r_w = edge + rotate(radius * spl_tangent, tgt_orient * np.pi / 8)
         # total velocity is fixed for the body, so account for its wider radius
         omega = self.total_v / radius * tgt_orient
 
         def control_reach_over_the_edge():
             nonlocal tgt_tip_r_w
-            if abs(np.linalg.norm(tgt_tip_r_w - self.data(self.wsk_id).tip_r_w)) < radius / 2:
+            if abs(np.linalg.norm(tgt_tip_r_w - self.wsk.tip_r_w)) < radius / 2:
                 # rotate the tip around the center by expected angle at dt
                 tgt_tip_r_w = edge + rotate(tgt_tip_r_w - edge, omega * self.motion.dt)
             # get the normal and tangent to the circle at the tip
             normal = normalize(tgt_tip_r_w - edge)
             tangent = rotate(normal, tgt_orient * np.pi / 2)
-            # get the new body rotation and position
+            # get the new whisker rotation and position
             tgt_body_yaw_w = np.arctan2(normal[1], normal[0]) - tgt_orient * self.tilt
-            tgt_wr0_yaw_w = tgt_body_yaw_w - tgt_orient * self.data(self.wsk_id).body_angle
-            tgt_body_r_w = tgt_tip_r_w - rotate(body_tip_offset_s, tgt_wr0_yaw_w)
+            tgt_wsk_yaw_w = tgt_body_yaw_w - tgt_orient * self.wsk.body_angle
+            tgt_wsk_r_w = tgt_tip_r_w - rotate(self.wsk.neutral_defl_offset, tgt_wsk_yaw_w)
 
             if self.config.debug:
                 space = np.linspace(0, 2 * np.pi, 100)
                 monitor.draw_spline(
                     prev_spline,
                     title="Reaching Over The Edge",
-                    body=self.data.body.r_w,
-                    tgt_body_r_w=tgt_body_r_w,
-                    tip=self.data(self.wsk_id).tip_r_w,
-                    tgt_tip_r_w=tgt_tip_r_w,
+                    wsk=self.wsk.r_w,
+                    tgt_wsk=tgt_wsk_r_w,
+                    tip=self.wsk.tip_r_w,
+                    tgt_tip=tgt_tip_r_w,
                     circle=edge + radius * np.array([np.cos(space), np.sin(space)]).T,
                     normal=tgt_tip_r_w + normal * radius / 4,
                     tangent=tgt_tip_r_w + tangent * radius / 4,
@@ -266,7 +263,7 @@ class Controller:
             return self.motion_ctrl(
                 data=self.data,
                 prev_data=self.prev_data,
-                tgt_body_dr_w=tgt_body_r_w - self.data.body.r_w,
+                tgt_wsk_dr_w=tgt_wsk_r_w - self.wsk.r_w,
                 tgt_body_yaw_w=tgt_body_yaw_w,
                 orient=tgt_orient,
             )
@@ -287,7 +284,7 @@ class Controller:
             # use it to construct a reasonable spline and give control to the swiping policy
             has_reached_surface = True
             tgt_tip_outside_w = edge + (radius / 4) * spl_normal
-            tgt_tip_dr_w = tgt_tip_outside_w - self.data(self.wsk_id).tip_r_w
+            tgt_tip_dr_w = tgt_tip_outside_w - self.wsk.tip_r_w
             if abs(np.linalg.norm(tgt_tip_dr_w)) < self.keypoint_distance * 2 and self.orient == 0:
                 # the length was not enough to reconstruct the full spline
                 # and we have already reached the edge and even went beyond
@@ -307,8 +304,8 @@ class Controller:
                 monitor.draw_spline(
                     prev_spline,
                     title="Reaching Over The Edge",
-                    body=self.data.body.r_w,
-                    tip=self.data(self.wsk_id).tip_r_w,
+                    wsk=self.wsk.r_w,
+                    tip=self.wsk.tip_r_w,
                     tgt_tip_r_w=tgt_tip_outside_w,
                     normal=tgt_tip_outside_w + spl_normal * radius / 4,
                     tangent=tgt_tip_outside_w + spl_tangent * radius / 4,
@@ -317,7 +314,7 @@ class Controller:
             return self.motion_ctrl(
                 data=self.data,
                 prev_data=self.prev_data,
-                tgt_body_dr_w=tgt_tip_dr_w,
+                tgt_wsk_dr_w=tgt_tip_dr_w,
                 tgt_body_yaw_w=None,
                 orient=-tgt_orient,
             )
@@ -343,21 +340,23 @@ class Controller:
         spl_tangent_angle = np.arctan2(spl_tangent_n[1], spl_tangent_n[0])
 
         # 1. Calculate the target body yaw (tilt a bit more for better edge engagement)
-        tgt_body_yaw_w = spl_tangent_angle + (self.tilt * 2) * orient
-        tgt_wr_yaw_w = tgt_body_yaw_w - orient * self.data(self.wsk_id).body_angle
+        tgt_body_yaw_w = spl_tangent_angle + self.tilt * orient
+        tgt_wsk_yaw_w = tgt_body_yaw_w - orient * self.wsk.body_angle
 
-        # 2. Calculate the target body position
+        # 2. Calculate the target whisker position
         # Keep in mind that the current deflection is zero
-        optimal_tip_overshoot_d = np.linalg.norm(self.defl_model(0)) / 24
+        optimal_tip_overshoot_d = self.wsk.length / 16
         tgt_tip_r_w = spl_start_w - spl_normal_n * optimal_tip_overshoot_d
-        tgt_body_r_w = tgt_tip_r_w - rotate(self.defl_model(0), tgt_wr_yaw_w)
+        tgt_wsk_r_w = tgt_tip_r_w - rotate(self.defl_model(0), tgt_wsk_yaw_w)
+        # Push the target base position further along the spline so that the tip always reaches the edge
+        # tgt_wsk_r_w += self.wsk.length * spl_tangent_n
 
         monitor.draw_spline(
             self.spline,
             title="The other side of the edge",
-            body=self.data.body.r_w,
-            tip=self.data(self.wsk_id).tip_r_w,
-            tgt_body_r_w=tgt_body_r_w,
+            wsk=self.wsk.r_w,
+            tip=self.wsk.tip_r_w,
+            tgt_wsk_r_w=tgt_wsk_r_w,
             tgt_tip_r_w=tgt_tip_r_w,
             spl_tangent=spl_end_w + spl_tangent_n * np.linalg.norm(spl_end_w - spl_start_w) * 2,
             spl_normal=spl_end_w + spl_normal_n * np.linalg.norm(spl_end_w - spl_start_w) * 2,
@@ -373,7 +372,7 @@ class Controller:
             return self.motion_ctrl(
                 data=self.data,
                 prev_data=self.prev_data,
-                tgt_body_dr_w=tgt_body_r_w - self.data.body.r_w,
+                tgt_wsk_dr_w=tgt_wsk_r_w - self.wsk.r_w,
                 tgt_body_yaw_w=tgt_body_yaw_w,
                 orient=orient,
             )

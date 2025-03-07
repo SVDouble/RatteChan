@@ -17,9 +17,9 @@ class Config(BaseSettings):
 
     # simulation model setup
     body_wr0_angle: float = -np.pi / 2
-    body_wr0_offset_s: np.ndarray = np.array([0, 0])
+    body_wr0_offset_s: np.ndarray = np.array([0.035, 0.025])
     body_wl0_angle: float = np.pi / 2
-    body_wl0_offset_s: np.ndarray = np.array([0, 0])
+    body_wl0_offset_s: np.ndarray = np.array([-0.035, 0.025])
 
     # recording setup
     recording_duration: float = 160

@@ -12,9 +12,8 @@ monitor = get_monitor()
 class BodyMotionController:
     def __init__(self, *, total_v: float):
         self.total_v = total_v
-        # TODO: revert kp back to 1 to allow rapid yaw changes for the retrieval policy
         self.yaw_pid = PID(
-            kp=0.5,
+            kp=1,
             ki=0.001,
             kd=0.001,
             dt=0,  # will be set in the control method
@@ -26,7 +25,7 @@ class BodyMotionController:
         *,
         data: SensorData,
         prev_data: SensorData,
-        tgt_body_dr_w: np.ndarray,
+        tgt_wsk_dr_w: np.ndarray,
         tgt_body_yaw_w: float | None,
         orient: int,
     ) -> ControlMessage:
@@ -39,19 +38,20 @@ class BodyMotionController:
         # 0. Update the time step of the PID controllers
         self.yaw_pid.dt = data.time - prev_data.time
 
-        # 1. Calculate the linear velocities
-        vx, vy = normalize(tgt_body_dr_w) * self.total_v
-
-        # 2. Calculate the yaw error
-        wsk = data("r0")
-        # noinspection PyProtectedMember
-        body_yaw_w = wsk.yaw_w + orient * wsk.body_angle
+        # 1. Calculate the yaw error
         if tgt_body_yaw_w is None:
-            tgt_body_yaw_w = body_yaw_w
-        yaw_error = unwrap_pid_error(tgt_body_yaw_w - body_yaw_w)
+            tgt_body_yaw_w = data.body.yaw_w
+        yaw_error = unwrap_pid_error(tgt_body_yaw_w - data.body.yaw_w)
 
-        # 3. Calculate the angular velocity
+        # 2. Calculate the angular velocity
         body_omega_w = self.yaw_pid(yaw_error)
+
+        # 3. Account for the shift in the pivot point, as the body rotates around its center and not whisker base
+        # Compute the correction term from the pivot shift: ω × (A - B)
+        wsk = data("r0")
+        pivot_shift_w = wsk.body_offset_w  # TODO: shouldn't it be -wsk.body_offset_w?
+        corr = body_omega_w * np.array([pivot_shift_w[1], -pivot_shift_w[0]])
+        vx, vy = self.total_v * normalize(self.total_v * normalize(tgt_wsk_dr_w) + corr)
 
         return ControlMessage(body_vx_w=vx, body_vy_w=vy, body_omega_w=body_omega_w)
 

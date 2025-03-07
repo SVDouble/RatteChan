@@ -65,6 +65,18 @@ class WhiskerData(BaseModel):
     def tip_r_w(self) -> np.ndarray:
         return self.r_w + self.defl_offset_w
 
+    @computed_field(repr=False)
+    @cached_property
+    def neutral_defl_offset(self) -> np.ndarray:
+        return self._defl_model(0)
+
+    @computed_field(repr=False)
+    @cached_property
+    def length(self) -> np.floating:
+        # assume that the whisker is straight if the deflection is 0
+        # this might not be the case in the future
+        return np.linalg.norm(self.neutral_defl_offset)
+
 
 class SensorData(BaseModel):
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
