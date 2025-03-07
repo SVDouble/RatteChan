@@ -54,7 +54,7 @@
             <joint name="body_x_w" type="slide" axis="1 0 0" stiffness="0" armature="0.1"/>
             <joint name="body_y_w" type="slide" axis="0 1 0" stiffness="0" armature="0.1"/>
             <!-- Hinge joint for rotation -->
-            <joint name="body_yaw_w" type="hinge" axis="0 0 1" armature="0.01" pos="0.03 0.125 0.01"/>
+            <joint name="body_yaw_w" type="hinge" axis="0 0 1" armature="0.01" pos="0.03 0.125 0.01" ref="90"/>
             <!-- Cylinder geom representing the physical base (collision disabled to avoid unwanted vibrations) -->
             <geom type="mesh" mesh="platform" rgba=".2 .8 .6 .5" mass="0.1" contype="0" conaffinity="0"/>
 
