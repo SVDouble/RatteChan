@@ -1,5 +1,6 @@
 import datetime
 import math
+import time
 
 import mediapy as media
 import mujoco
@@ -9,6 +10,7 @@ from tqdm import tqdm
 from whisker_simulation.config import Config
 from whisker_simulation.controller import Controller
 from whisker_simulation.models import SensorData
+from whisker_simulation.utils import get_monitor
 
 
 class Simulation:
@@ -26,6 +28,8 @@ class Simulation:
 
         self.duration = config.recording_duration
         self.camera_fps = config.recording_camera_fps
+        self.monitor = get_monitor()
+        self.is_paused: bool = False
 
     def control(self, _: mujoco.MjModel, __: mujoco.MjData):
         sensor_data = SensorData.from_mujoco_data(self.data, self.config)
@@ -65,6 +69,10 @@ class Simulation:
         media.write_video(f"outputs/{timestamp}.mp4", frames, fps=self.camera_fps)
         print("Done!")
 
+    def key_callback(self, keycode):
+        if chr(keycode) == " ":
+            self.is_paused = not self.is_paused
+
     def run(self):
         # set the control function
         mujoco.set_mjcb_control(self.control)
@@ -73,4 +81,28 @@ class Simulation:
         self.data.ctrl[0:2] = self.controller.total_v * 0, self.controller.total_v * 1
 
         # launch the viewer
-        mujoco.viewer.launch(self.model, self.data)
+        with mujoco.viewer.launch_passive(
+            self.model,
+            self.data,
+            key_callback=self.key_callback,
+            show_left_ui=False,
+        ) as viewer:
+            while viewer.is_running():
+                if self.is_paused:
+                    time.sleep(self.model.opt.timestep)
+                    continue
+
+                # step the physics
+                step_start = time.time()
+                mujoco.mj_step(self.model, self.data)
+
+                # call the monitor to draw the trajectories
+                self.monitor.on_simulation_step(viewer, SensorData.from_mujoco_data(self.data, self.config))
+
+                # update the display
+                viewer.sync()
+
+                # Rudimentary time keeping, will drift relative to wall clock.
+                time_until_next_step = self.model.opt.timestep - (time.time() - step_start)
+                if time_until_next_step > 0:
+                    time.sleep(time_until_next_step)

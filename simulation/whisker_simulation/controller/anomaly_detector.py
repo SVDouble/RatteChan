@@ -1,12 +1,11 @@
 import numpy as np
 
 from whisker_simulation.models import ControllerState
-from whisker_simulation.utils import get_logger, get_monitor
+from whisker_simulation.utils import get_logger
 
 __all__ = ["AnomalyDetector"]
 
 logger = get_logger(__file__)
-monitor = get_monitor()
 
 
 class AnomalyDetector:

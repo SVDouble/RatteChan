@@ -7,13 +7,24 @@ from pydantic import BaseModel, ConfigDict, computed_field
 
 from whisker_simulation.utils import import_class, rotate
 
-__all__ = ["SensorData", "ControlMessage", "ControllerState", "Motion", "WhiskerId"]
+__all__ = [
+    "SensorData",
+    "ControlMessage",
+    "ControllerState",
+    "Motion",
+    "WhiskerId",
+    "WhiskerData",
+    "BodyData",
+    "BodyMotion",
+    "WhiskerMotion",
+]
 
 
 class BodyData(BaseModel):
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
-    r_w: np.ndarray
+    r_w: np.ndarray  # 2D
+    z_w: float
     yaw_w: float
 
 
@@ -102,8 +113,8 @@ class SensorData(BaseModel):
 
     @classmethod
     def from_mujoco_data(cls, data, config) -> "SensorData":
-        sensors = ["body_x_w", "body_y_w", "body_yaw_w", "wsk_r0_defl", "wsk_l0_defl"]
-        sensor_data = {sensor: data.sensor(sensor).data.item() for sensor in sensors}
+        sensors = ["body_x_w", "body_y_w", "body_z_w", "body_yaw_w", "wsk_r0_defl", "wsk_l0_defl"]
+        sensor_data: dict[str, float] = {sensor: data.sensor(sensor).data.item() for sensor in sensors}
         # the coordinate system of the body should be such that the tip of the mouse points at 90 degrees
         # otherwise a correction factor for yaw_w might be required to compensate for the rotational offset
         # between the deflection model and the body coordinate systems respectively
@@ -111,6 +122,7 @@ class SensorData(BaseModel):
         # so sticking to the current setup for now
         body_data = BodyData(
             r_w=np.array([sensor_data["body_x_w"], sensor_data["body_y_w"]]),
+            z_w=sensor_data["body_z_w"],
             yaw_w=sensor_data["body_yaw_w"],
         )
         defl_model = import_class(config.defl_model)()

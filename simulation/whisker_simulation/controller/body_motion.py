@@ -2,11 +2,9 @@ import numpy as np
 
 from whisker_simulation.models import ControlMessage, SensorData
 from whisker_simulation.pid import PID
-from whisker_simulation.utils import get_monitor, unwrap_pid_error, normalize
+from whisker_simulation.utils import normalize, unwrap_pid_error
 
 __all__ = ["BodyMotionController"]
-
-monitor = get_monitor()
 
 
 class BodyMotionController:

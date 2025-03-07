@@ -53,13 +53,14 @@
             <!-- Slide joints for x and y movement -->
             <joint name="body_x_w" type="slide" axis="1 0 0" stiffness="0" armature="0.1"/>
             <joint name="body_y_w" type="slide" axis="0 1 0" stiffness="0" armature="0.1"/>
+            <joint name="body_z_w" type="slide" axis="0 0 1" stiffness="0" armature="0.1" ref="0.05"/>
             <!-- Hinge joint for rotation -->
-            <joint name="body_yaw_w" type="hinge" axis="0 0 1" armature="0.1" pos="0 0.1 0" ref="90"/>
+            <joint name="body_yaw_w" type="hinge" axis="0 0 1" armature="0.5" damping="0.01" pos="0 0.1 0" ref="90"/>
             <!-- Cylinder geom representing the physical base (collision disabled to avoid unwanted vibrations) -->
             <geom type="mesh" mesh="platform" rgba=".2 .8 .6 .5" mass="0.1"/>
 
             <!-- Whisker attached to the base -->
-            <body name="wsk_r0" pos="0.035 0.125 0.01">
+            <body name="wsk_r0" pos="0.030 0.125 0.01">
                 <!-- Hinge joint connecting base to whisker body -->
                 <joint name="wsk_r0_defl" type="hinge" axis="0 0 1" damping="0.01" stiffness="1" armature="0.00001"/>
                 <!-- Thin cylinder geom for the whisker body -->
@@ -79,7 +80,7 @@
                 </composite>
             </body>
 
-            <body name="wsk_l0" pos="-0.035 0.125 0.01" axisangle="0 0 1 180">
+            <body name="wsk_l0" pos="-0.030 0.125 0.01" axisangle="0 0 1 180">
                 <!-- Hinge joint connecting base to whisker body -->
                 <joint name="wsk_l0_defl" type="hinge" axis="0 0 1" damping="0.01" stiffness="1" armature="0.00001"/>
                 <!-- Thin cylinder geom for the whisker body -->
@@ -113,6 +114,7 @@
         <!-- Whisker base sensors -->
         <jointpos joint="body_x_w" name="body_x_w"/>
         <jointpos joint="body_y_w" name="body_y_w"/>
+        <jointpos joint="body_z_w" name="body_z_w"/>
         <jointpos joint="body_yaw_w" name="body_yaw_w"/>
 
         <!-- Whisker deflection sensor -->
