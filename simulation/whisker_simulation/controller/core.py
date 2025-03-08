@@ -58,6 +58,9 @@ class Controller:
         # exploration policy
         self.exploration_instructions = None
 
+        # whisking policy
+        self.whisking_instructions = None
+
     @property
     def state(self) -> ControllerState:
         return self.__state
@@ -111,10 +114,8 @@ class Controller:
             return self.policy_swiping()
 
         if self.state == ControllerState.WHISKING:
-            # swipe the whisker up to the edge
-            # reduce the deflection, as close alignment is not needed
-            # tilt the whisker to increase the chance of proper detachment
-            return self.policy_swiping(tgt_defl_abs=self.tgt_defl_abs * 0.7, tilt=-self.tilt)
+            # pull the whisker back to the edge (simple linear movement)
+            return self.whisking_instructions()
 
         if self.state == ControllerState.DISENGAGED:
             if self.prev_state == ControllerState.SWIPING:
@@ -321,7 +322,7 @@ class Controller:
 
         self.state = ControllerState.EXPLORING
         self.desired_next_state = ControllerState.WHISKING
-        self.exploration_instructions = initial_whisking_instructions
+        self.exploration_instructions = self.whisking_instructions = initial_whisking_instructions
 
         return self.exploration_instructions()
 
@@ -345,11 +346,11 @@ class Controller:
 
         # 2. Calculate the target whisker position
         # Keep in mind that the current deflection is zero
-        optimal_tip_overshoot_d = self.wsk.length / 24
+        optimal_tip_overshoot_d = self.wsk.length / 16
         tgt_tip_r_w = spl_start_w - spl_normal_n * optimal_tip_overshoot_d
         tgt_wsk_r_w = tgt_tip_r_w - rotate(self.wsk.neutral_defl_offset, tgt_wsk_yaw_w)
         # Push the target base position further along the spline so that the tip always reaches the edge
-        # tgt_wsk_r_w += self.wsk.length * spl_tangent_n
+        tgt_wsk_r_w += (self.wsk.length / 8) * spl_tangent_n
 
         monitor.draw_spline(
             self.spline,
