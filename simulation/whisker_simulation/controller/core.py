@@ -169,12 +169,12 @@ class Controller:
         spline_angle = np.arctan2(spl_dk_w_n[1], spl_dk_w_n[0])
 
         # 3. Calculate the delta offset between the target and current deflection
-        zero_defl_offset_l = self.defl_model(0)
-        cur_defl_offset_l = self.defl_model(self.wsk.defl)
-        tgt_defl_offset_l = self.defl_model(tgt_defl_abs * self.orient)
-        defl_doffset_w = rotate(tgt_defl_offset_l - cur_defl_offset_l, self.wsk.yaw_w)
+        tgt_defl_offset_s = self.defl_model(tgt_defl_abs * self.orient)
+        defl_doffset_w = rotate(tgt_defl_offset_s - self.wsk.defl_offset_s, self.wsk.yaw_w)
         defl_doffset_w_n = normalize(-defl_doffset_w)
-        defl_offset_weight = np.linalg.norm(defl_doffset_w) / np.linalg.norm(tgt_defl_offset_l - zero_defl_offset_l)
+        defl_offset_weight = np.linalg.norm(defl_doffset_w) / np.linalg.norm(
+            tgt_defl_offset_s - self.wsk.neutral_defl_offset
+        )
 
         # 4. Choose the target direction as weighted average of the spline and deflection offset
         k = np.clip(defl_offset_weight * 1.5, 0, 1)
@@ -340,14 +340,14 @@ class Controller:
         spl_tangent_angle = np.arctan2(spl_tangent_n[1], spl_tangent_n[0])
 
         # 1. Calculate the target body yaw (tilt a bit more for better edge engagement)
-        tgt_body_yaw_w = spl_tangent_angle + self.tilt * orient
+        tgt_body_yaw_w = spl_tangent_angle + (self.tilt * 2) * orient
         tgt_wsk_yaw_w = tgt_body_yaw_w - orient * self.wsk.body_angle
 
         # 2. Calculate the target whisker position
         # Keep in mind that the current deflection is zero
-        optimal_tip_overshoot_d = self.wsk.length / 16
+        optimal_tip_overshoot_d = self.wsk.length / 24
         tgt_tip_r_w = spl_start_w - spl_normal_n * optimal_tip_overshoot_d
-        tgt_wsk_r_w = tgt_tip_r_w - rotate(self.defl_model(0), tgt_wsk_yaw_w)
+        tgt_wsk_r_w = tgt_tip_r_w - rotate(self.wsk.neutral_defl_offset, tgt_wsk_yaw_w)
         # Push the target base position further along the spline so that the tip always reaches the edge
         # tgt_wsk_r_w += self.wsk.length * spl_tangent_n
 

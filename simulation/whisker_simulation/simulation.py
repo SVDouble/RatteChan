@@ -10,7 +10,9 @@ from tqdm import tqdm
 from whisker_simulation.config import Config
 from whisker_simulation.controller import Controller
 from whisker_simulation.models import SensorData
-from whisker_simulation.utils import get_monitor
+from whisker_simulation.utils import get_logger, get_monitor
+
+logger = get_logger(__file__)
 
 
 class Simulation:
@@ -30,10 +32,19 @@ class Simulation:
         self.camera_fps = config.recording_camera_fps
         self.monitor = get_monitor()
         self.is_paused: bool = False
+        self.is_controlled: bool = True
 
     def control(self, _: mujoco.MjModel, __: mujoco.MjData):
+        if not self.is_controlled:
+            return
         sensor_data = SensorData.from_mujoco_data(self.data, self.config)
-        control = self.controller.control(sensor_data)
+        try:
+            control = self.controller.control(sensor_data)
+        except Exception as e:
+            logger.error(f"Error in control: {e}")
+            self.is_controlled = False
+            self.is_paused = True
+            return
         if control is not None:
             self.data.ctrl[0:3] = [
                 control.body_vx_w,
@@ -78,7 +89,7 @@ class Simulation:
         mujoco.set_mjcb_control(self.control)
 
         # set the initial control values
-        self.data.ctrl[0:2] = self.controller.total_v * 0, self.controller.total_v * 1
+        self.data.ctrl[0:3] = self.controller.total_v * 0, self.controller.total_v * 1, 0
 
         # launch the viewer
         with mujoco.viewer.launch_passive(

@@ -128,15 +128,15 @@ class SensorData(BaseModel):
         defl_model = import_class(config.defl_model)()
         wsk_r0 = WhiskerData(
             defl=sensor_data["wsk_r0_defl"],
-            body_angle=config.body_wr0_angle,
-            body_offset_s=config.body_wr0_offset_s,
+            body_angle=config.body_wsk_r0_angle,
+            body_offset_s=config.body_wsk_r0_offset,
             _body=body_data,
             _defl_model=defl_model,
         )
         wsk_l0 = WhiskerData(
             defl=sensor_data["wsk_l0_defl"],
-            body_angle=config.body_wl0_angle,
-            body_offset_s=config.body_wl0_offset_s,
+            body_angle=config.body_wsk_l0_angle,
+            body_offset_s=config.body_wsk_l0_offset,
             _body=body_data,
             _defl_model=defl_model,
         )

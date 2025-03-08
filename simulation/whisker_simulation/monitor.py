@@ -80,7 +80,9 @@ class Monitor:
         self.distance_eps = 1e-2
         self.rendering_distance = 1e-2
 
-        self.body_trajectory = Trajectory(color=np.array([0, 0, 1, 1]), kp_d=0.01)
+        self.body_trajectory = Trajectory(color=np.array([1, 1, 0, 1]), kp_d=0.005)
+        self.wsk_r0_tip_trajectory = Trajectory(color=np.array([0, 1, 0, 1]), kp_d=0.005)
+        self.wsk_l0_tip_trajectory = Trajectory(color=np.array([1, 0, 0, 1]), kp_d=0.005)
 
     def add_keypoint(self, time: float, keypoint: np.ndarray):
         if self.first_keypoint is None:
@@ -140,7 +142,12 @@ class Monitor:
 
     def on_simulation_step(self, viewer: mujoco.viewer.Handle, data: SensorData):
         self.body_trajectory.add_keypoint(np.array([*data.body.r_w, data.body.z_w]))
+        self.wsk_r0_tip_trajectory.add_keypoint(np.array([*data.wsk("r0").tip_r_w, data.body.z_w]))
+        self.wsk_l0_tip_trajectory.add_keypoint(np.array([*data.wsk("l0").tip_r_w, data.body.z_w]))
+
         self.body_trajectory.render(viewer)
+        self.wsk_r0_tip_trajectory.render(viewer)
+        self.wsk_l0_tip_trajectory.render(viewer)
 
     def plot_defl_profile(self, defl_model):
         import matplotlib.pyplot as plt
