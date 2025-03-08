@@ -50,16 +50,16 @@
 
         <!-- Whisker assembly: base with attached moving parts -->
         <body name="platform" pos="0 0 0.05">
-            <geom type="mesh" mesh="platform" rgba=".4 .8 .6 .5" mass="1"/>
+            <geom type="mesh" mesh="platform" rgba=".4 .8 .6 .5" mass="0.5"/>
 
             <!-- Slide joints for x and y movement -->
             <!-- Make sure the joint are positioned at the COM, so the coordinates mae sense -->
             <!-- To get the COM print the model data (in simulation) and look at the body_ipos variable of the body -->
-            <joint name="body_x_w" type="slide" pos="0 0.072 0" axis="1 0 0" stiffness="0" armature="0.1"/>
-            <joint name="body_y_w" type="slide" pos="0 0.072 0" axis="0 1 0" stiffness="0" armature="0.1" ref="0.072"/>
-            <joint name="body_z_w" type="slide" pos="0 0.072 0" axis="0 0 1" stiffness="0" armature="0.1" ref="0.06"/>
+            <joint name="body_x_w" type="slide" pos="0 0.072 0" axis="1 0 0" armature="0.1"/>
+            <joint name="body_y_w" type="slide" pos="0 0.072 0" axis="0 1 0" armature="0.1" ref="0.072"/>
+            <joint name="body_z_w" type="slide" pos="0 0.072 0" axis="0 0 1" armature="0.1" ref="0.06"/>
             <!-- Hinge joint for rotation -->
-            <joint name="body_yaw_w" type="hinge" pos="0 0.072 0" axis="0 0 1" armature="0.1" damping="0.01" ref="90"/>
+            <joint name="body_yaw_w" type="hinge" pos="0 0.072 0" axis="0 0 1" armature="0.2" ref="90"/>
 
             <!-- Whisker attached to the base -->
             <body name="wsk_r0" pos="0.030 0.125 0.01">
