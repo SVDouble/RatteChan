@@ -39,9 +39,12 @@ class Trajectory:
             self.draw_connector(viewer, self.prev_kp, self.kp)
 
     def new_geom_id(self, viewer: mujoco.viewer.Handle):
-        new_id = min(len(viewer.user_scn.geoms) - 1, viewer.user_scn.ngeom)
-        viewer.user_scn.ngeom += 1
-        return new_id
+        if not hasattr(viewer, "next_geom_id"):
+            viewer.next_geom_id = viewer.user_scn.ngeom
+        new_geom_id = viewer.next_geom_id % len(viewer.user_scn.geoms)
+        viewer.next_geom_id += 1
+        viewer.user_scn.ngeom = min(viewer.next_geom_id, len(viewer.user_scn.geoms))
+        return new_geom_id
 
     def draw_point(self, viewer: mujoco.viewer.Handle, keypoint: np.ndarray):
         mujoco.mjv_initGeom(
