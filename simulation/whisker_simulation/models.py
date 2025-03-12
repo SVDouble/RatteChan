@@ -5,6 +5,7 @@ from typing import Any, Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict, computed_field
 
+from whisker_simulation.config import Config
 from whisker_simulation.utils import import_class, rotate
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "ControllerState",
     "Motion",
     "WhiskerId",
+    "WhiskerOrientation",
     "WhiskerData",
     "BodyData",
     "BodyMotion",
@@ -29,12 +31,14 @@ class BodyData(BaseModel):
 
 
 type WhiskerId = Literal["r0", "l0"]
+type WhiskerOrientation = Literal[-1, 0, 1]
 
 
 class WhiskerData(BaseModel):
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     defl: float
+    defl_threshold: float
     body_angle: float
     body_offset_s: np.ndarray
 
@@ -45,6 +49,11 @@ class WhiskerData(BaseModel):
         super().__init__(**data)
         self._body = _body
         self._defl_model = _defl_model
+
+    @computed_field(repr=False)
+    @cached_property
+    def defl_model(self) -> Any:
+        return self._defl_model
 
     @computed_field(repr=False)
     @cached_property
@@ -88,6 +97,16 @@ class WhiskerData(BaseModel):
         # this might not be the case in the future
         return np.linalg.norm(self.neutral_defl_offset)
 
+    @computed_field(repr=False)
+    @cached_property
+    def is_deflected(self) -> bool:
+        return abs(self.defl) > self.defl_threshold
+
+    @computed_field(repr=False)
+    @cached_property
+    def orientation(self) -> WhiskerOrientation:
+        return np.sign(self.defl) if self.is_deflected else 0
+
 
 class SensorData(BaseModel):
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
@@ -112,7 +131,7 @@ class SensorData(BaseModel):
         return self.wsk(wsk_id)
 
     @classmethod
-    def from_mujoco_data(cls, data, config) -> "SensorData":
+    def from_mujoco_data(cls, data, config: Config) -> "SensorData":
         sensors = ["body_x_w", "body_y_w", "body_z_w", "body_yaw_w", "wsk_r0_defl", "wsk_l0_defl"]
         sensor_data: dict[str, float] = {sensor: data.sensor(sensor).data.item() for sensor in sensors}
         # the coordinate system of the body should be such that the tip of the mouse points at 90 degrees
@@ -128,6 +147,7 @@ class SensorData(BaseModel):
         defl_model = import_class(config.defl_model)()
         wsk_r0 = WhiskerData(
             defl=sensor_data["wsk_r0_defl"],
+            defl_threshold=config.wsk_defl_threshold,
             body_angle=config.body_wsk_r0_angle,
             body_offset_s=config.body_wsk_r0_offset,
             _body=body_data,
@@ -135,6 +155,7 @@ class SensorData(BaseModel):
         )
         wsk_l0 = WhiskerData(
             defl=sensor_data["wsk_l0_defl"],
+            defl_threshold=config.wsk_defl_threshold,
             body_angle=config.body_wsk_l0_angle,
             body_offset_s=config.body_wsk_l0_offset,
             _body=body_data,

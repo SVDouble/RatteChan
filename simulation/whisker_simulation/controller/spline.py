@@ -4,22 +4,25 @@ import numpy as np
 import scipy.interpolate as interpolate
 from scipy.interpolate import BSpline
 
+from whisker_simulation.config import SplineConfig
 from whisker_simulation.models import SensorData
-from whisker_simulation.utils import get_logger, get_monitor
+from whisker_simulation.monitor import Monitor
+from whisker_simulation.utils import get_logger
 
 __all__ = ["Spline"]
 
-logger = get_logger(__file__)
-monitor = get_monitor()
-
 
 class Spline:
-    def __init__(self, *, keypoint_distance: float, n_keypoints: int, smoothness: float = 0.1, track: bool = True):
+    def __init__(self, *, config: SplineConfig, monitor: Monitor, track: bool = True):
+        self.config = config
+        self.monitor = monitor
+        self.logger = get_logger(__file__, log_level=config.log_level)
+
         # spline parameters
-        self.keypoint_distance = keypoint_distance
-        self.n_history = n_keypoints // 2
-        self.n_keypoints = n_keypoints
-        self.smoothness = smoothness
+        self.keypoint_distance = config.keypoint_distance
+        self.n_history = config.n_keypoints // 2
+        self.n_keypoints = config.n_keypoints
+        self.smoothness = config.smoothness
         self.keypoint_to_body_ratio = 5
 
         # stateful variables
@@ -47,7 +50,7 @@ class Spline:
             self.keypoints.append(keypoint.copy())
             self.prev_data = data
             if self.track and len(self) > 2:
-                monitor.add_keypoint(data.time, keypoint.copy())
+                self.monitor.add_keypoint(data.time, keypoint.copy())
         if len(self) < self.n_keypoints:
             return has_new_point
         if not has_new_point:

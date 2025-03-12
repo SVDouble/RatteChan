@@ -1,13 +1,13 @@
 import numpy as np
 
-from whisker_simulation.models import ControlMessage, SensorData
+from whisker_simulation.models import ControlMessage, Motion, WhiskerData
 from whisker_simulation.pid import PID
 from whisker_simulation.utils import normalize, unwrap_pid_error
 
-__all__ = ["BodyMotionController"]
+__all__ = ["WhiskerMotionController"]
 
 
-class BodyMotionController:
+class WhiskerMotionController:
     def __init__(self, *, total_v: float):
         self.total_v = total_v
         self.yaw_pid = PID(
@@ -21,17 +21,12 @@ class BodyMotionController:
     def __call__(
         self,
         *,
-        data: SensorData,
-        prev_data: SensorData,
+        wsk: WhiskerData,
+        motion: Motion,
         tgt_wsk_dr_w: np.ndarray,
         tgt_body_yaw_w: float | None,
-        orient: int,
     ) -> ControlMessage:
-        np.set_printoptions(precision=3, suppress=True)
-        assert orient != 0, "The orientation cannot not be zero"
-
-        # TODO: move the pivot point to the center of the body
-        # and adjust the rotation accordingly
+        data, prev_data = motion.data, motion.prev_data
 
         # 0. Update the time step of the PID controllers
         self.yaw_pid.dt = data.time - prev_data.time
@@ -46,7 +41,6 @@ class BodyMotionController:
 
         # 3. Account for the shift in the pivot point, as the body rotates around its center and not whisker base
         # Compute the correction term from the pivot shift: ω × (A - B)
-        wsk = data("r0")
         pivot_shift_w = wsk.body_offset_w  # TODO: shouldn't it be -wsk.body_offset_w?
         corr = body_omega_w * np.array([pivot_shift_w[1], -pivot_shift_w[0]])
         vx, vy = self.total_v * normalize(self.total_v * normalize(tgt_wsk_dr_w) + corr)

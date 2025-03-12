@@ -5,16 +5,15 @@ from whisker_simulation.utils import get_logger
 
 __all__ = ["AnomalyDetector"]
 
-logger = get_logger(__file__)
-
 
 class AnomalyDetector:
     def __init__(self, *, controller):
         from whisker_simulation.controller import Controller
 
+        self.logger = get_logger(__file__, log_level=controller.config.log_level)
         self.ctrl: Controller = controller
         self.log_anomalies = controller.config.detect_anomalies
-        self.total_v = controller.total_v
+        self.total_v = controller.config.body_total_v
         self.control_dt = controller.control_dt
 
         self.has_abnormal_velocity = False
@@ -45,8 +44,8 @@ class AnomalyDetector:
 
     def detect_abnormal_deflection(self) -> tuple[ControllerState, str] | None:
         if (
-            self.ctrl.orient * self.ctrl.tgt_orient == -1
-            and abs(self.ctrl.data("r0").defl) > self.ctrl.defl_threshold * 2
+            self.ctrl.wsk.orientation * self.ctrl.tgt_orient == -1
+            and abs(self.ctrl.data("r0").defl) > self.ctrl.wsk.defl_threshold * 2
         ):
             return ControllerState.FAILURE, "Deflection sign changed"
 
@@ -60,7 +59,7 @@ class AnomalyDetector:
                 self.abnormal_velocity_start_time = time
         elif self.has_abnormal_velocity:
             if self.log_anomalies:
-                logger.debug(f"Abnormal velocity duration: {time - self.abnormal_velocity_start_time:.3f}")
+                self.logger.debug(f"Abnormal velocity duration: {time - self.abnormal_velocity_start_time:.3f}")
             self.has_abnormal_velocity = False
             self.abnormal_velocity_start_time = None
 
@@ -86,14 +85,14 @@ class AnomalyDetector:
         elif self.is_slipping:
             if time - self.slip_start_time > m.dt * 1.5:
                 if self.log_anomalies:
-                    logger.debug(f"Whisker slip duration: {time - self.slip_start_time:.3f}")
+                    self.logger.debug(f"Whisker slip duration: {time - self.slip_start_time:.3f}")
             self.is_slipping = False
             self.slip_start_time = None
 
     def detect_detached_tip(self) -> tuple[ControllerState, str] | None:
         # check whether the tip is detached from the body
         time = self.ctrl.data.time
-        if not self.ctrl.orient:
+        if not self.ctrl.wsk.is_deflected:
             if not self.is_disengaged:
                 self.is_disengaged = True
                 self.disengaged_start_time = time
@@ -105,6 +104,6 @@ class AnomalyDetector:
                 )
         elif self.is_disengaged:
             if self.log_anomalies:
-                logger.debug(f"Whisker disengaged duration: {time - self.disengaged_start_time:.3f}")
+                self.logger.debug(f"Whisker disengaged duration: {time - self.disengaged_start_time:.3f}")
             self.is_disengaged = False
             self.disengaged_start_time = None

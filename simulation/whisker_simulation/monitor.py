@@ -127,7 +127,7 @@ class Monitor:
 
         spl_end = spline(1)
         plt.scatter(spl_end[0], spl_end[1], marker="*", s=100, label="Spline End")
-        for i, (key, p) in enumerate(kwargs.items()):
+        for key, p in kwargs.items():
             if p.shape == (2,):
                 plt.scatter(p[0], p[1], marker="x", s=100, label=key.title())
             elif p.shape[1] == 2:

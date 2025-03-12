@@ -2,12 +2,26 @@ from pathlib import Path
 from typing import Literal
 
 import numpy as np
-from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
+from pydantic import ConfigDict, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from whisker_simulation.utils import rotate
 
-__all__ = ["Config"]
+__all__ = ["Config", "SplineConfig"]
+
+np.set_printoptions(precision=3, suppress=True)
+
+type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+
+
+class SplineConfig(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="spline_")
+
+    keypoint_distance: float = 1e-3
+    n_keypoints: int = 7  # must be odd
+    smoothness: float = 0.1
+
+    log_level: LogLevel = Field(alias="log_level", default="INFO")
 
 
 class Config(BaseSettings):
@@ -33,6 +47,13 @@ class Config(BaseSettings):
     use_monitor: bool = True
     detect_anomalies: bool = False
     debug: bool = False
-    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "DEBUG"
+    log_level: LogLevel = "INFO"
 
     defl_model: str = "whisker_simulation.controller.deflection_model.DeflectionModel"
+
+    # controller parameters
+    wsk_defl_threshold: float = 2e-5
+    wsk_tgt_defl_abs: float = 3e-4
+    body_tilt: float = 0.2
+    body_total_v: float = 0.05
+    spline: SplineConfig = SplineConfig()

@@ -10,29 +10,44 @@ from tqdm import tqdm
 from whisker_simulation.config import Config
 from whisker_simulation.controller import Controller
 from whisker_simulation.models import SensorData
-from whisker_simulation.utils import get_logger, get_monitor
-
-logger = get_logger(__file__)
+from whisker_simulation.utils import get_logger
 
 
 class Simulation:
-    def __init__(self, config: Config):
+    def __init__(self, *, config: Config | None = None):
+        if config is None:
+            config = Config()
         self.config = config
+        self.logger = get_logger(__file__, log_level=config.log_level)
         self.model_path = str(config.model_path)
         # noinspection PyArgumentList
         self.model = mujoco.MjModel.from_xml_path(self.model_path)
         self.data = mujoco.MjData(self.model)
         self.control_rps = config.control_rps
+        self.monitor = self.get_monitor()
         self.controller = Controller(
             initial_data=SensorData.from_mujoco_data(self.data, self.config),
             config=self.config,
+            monitor=self.monitor,
         )
 
         self.duration = config.recording_duration
         self.camera_fps = config.recording_camera_fps
-        self.monitor = get_monitor()
         self.is_paused: bool = False
         self.is_controlled: bool = True
+
+    def get_monitor(self):
+        from whisker_simulation.monitor import Monitor
+
+        if self.config.use_monitor:
+            return Monitor()
+
+        class Dummy:
+            def __getattr__(self, name):
+                # Return a no-op function for any attribute access.
+                return lambda *args, **kwargs: None
+
+        return Dummy()
 
     def control(self, _: mujoco.MjModel, __: mujoco.MjData):
         if not self.is_controlled:
@@ -41,7 +56,7 @@ class Simulation:
         try:
             control = self.controller.control(sensor_data)
         except Exception as e:
-            logger.error(f"Error in control: {e}")
+            self.logger.error(f"Error in control: {e}")
             self.is_controlled = False
             self.is_paused = True
             return
@@ -89,7 +104,8 @@ class Simulation:
         mujoco.set_mjcb_control(self.control)
 
         # set the initial control values
-        self.data.ctrl[0:3] = self.controller.total_v * 0, self.controller.total_v * 1, 0
+        total_v = self.config.body_total_v
+        self.data.ctrl[0:3] = total_v * 0, total_v * 1, 0
 
         # launch the viewer
         with mujoco.viewer.launch_passive(
