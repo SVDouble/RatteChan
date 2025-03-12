@@ -1,18 +1,10 @@
 import numpy as np
 
-from whisker_simulation.config import Config
+from whisker_simulation.config import Config, WhiskerId, WhiskerOrientation
 from whisker_simulation.controller.anomaly_detector import AnomalyDetector
 from whisker_simulation.controller.body_motion import WhiskerMotionController
 from whisker_simulation.controller.spline import Spline
-from whisker_simulation.models import (
-    ControllerState,
-    ControlMessage,
-    Motion,
-    SensorData,
-    WhiskerData,
-    WhiskerId,
-    WhiskerOrientation,
-)
+from whisker_simulation.models import ControllerState, ControlMessage, Motion, SensorData, WhiskerData
 from whisker_simulation.monitor import Monitor
 from whisker_simulation.utils import get_logger, normalize, rotate
 
@@ -40,8 +32,7 @@ class Controller:
         self.spline = Spline(config=self.config.spline, monitor=self.monitor)
 
         # velocity and angle control
-        self.total_v = 0.05
-        self.wsk_motion_ctrl = WhiskerMotionController(total_v=self.config.body_total_v)
+        self.wsk_motion_ctrl = WhiskerMotionController(total_v=self.config.body.total_v)
 
         # disengagement policy
         self.disengaged_duration_threshold = 0.1
@@ -72,7 +63,7 @@ class Controller:
 
     @property
     def wsk(self) -> WhiskerData:
-        return self.data(self.wsk_id)
+        return self.data.whiskers[self.wsk_id]
 
     def control(self, new_data: SensorData) -> ControlMessage | None:  # noqa: C901
         # rate limit the control
@@ -164,7 +155,7 @@ class Controller:
         spline_angle = np.arctan2(spl_dk_w_n[1], spl_dk_w_n[0])
 
         # 3. Calculate the delta offset between the target and current deflection
-        tgt_defl_offset_s = self.wsk.defl_model(self.config.wsk_tgt_defl_abs * self.wsk.orientation)
+        tgt_defl_offset_s = self.wsk.defl_model(self.wsk.config.tgt_defl_abs * self.wsk.orientation)
         defl_doffset_w = rotate(tgt_defl_offset_s - self.wsk.defl_offset_s, self.wsk.yaw_w)
         defl_doffset_w_n = normalize(-defl_doffset_w)
         defl_offset_weight = np.linalg.norm(defl_doffset_w) / np.linalg.norm(
@@ -181,7 +172,7 @@ class Controller:
             wsk=self.wsk,
             motion=self.motion,
             tgt_wsk_dr_w=tgt_wsk_dr_n_w,
-            tgt_body_yaw_w=spline_angle + self.config.body_tilt * self.wsk.orientation,
+            tgt_body_yaw_w=spline_angle + self.config.body.tilt * self.wsk.orientation,
         )
 
         if self.config.debug and np.array_equiv(self.spline.keypoints[-1], self.wsk.tip_r_w):
@@ -226,7 +217,7 @@ class Controller:
         radius = self.wsk.length / 4
         tgt_tip_r_w = edge + rotate(radius * spl_tangent, tgt_orient * np.pi / 8)
         # total velocity is fixed for the body, so account for its wider radius
-        omega = self.config.body_total_v / radius * tgt_orient
+        omega = self.config.body.total_v / radius * tgt_orient
 
         def control_reach_over_the_edge():
             nonlocal tgt_tip_r_w
@@ -237,7 +228,7 @@ class Controller:
             normal = normalize(tgt_tip_r_w - edge)
             tangent = rotate(normal, tgt_orient * np.pi / 2)
             # get the new whisker rotation and position
-            tgt_body_yaw_w = np.arctan2(normal[1], normal[0]) - tgt_orient * self.config.body_tilt
+            tgt_body_yaw_w = np.arctan2(normal[1], normal[0]) - tgt_orient * self.config.body.tilt
             tgt_wsk_yaw_w = tgt_body_yaw_w - tgt_orient * self.wsk.body_angle
             tgt_wsk_r_w = tgt_tip_r_w - rotate(self.wsk.neutral_defl_offset, tgt_wsk_yaw_w)
 
@@ -334,7 +325,7 @@ class Controller:
         spl_tangent_angle = np.arctan2(spl_tangent_n[1], spl_tangent_n[0])
 
         # 1. Calculate the target body yaw (tilt a bit more for better edge engagement)
-        tgt_body_yaw_w = spl_tangent_angle + (self.config.body_tilt * 2) * orient
+        tgt_body_yaw_w = spl_tangent_angle + (self.config.body.tilt * 2) * orient
         tgt_wsk_yaw_w = tgt_body_yaw_w - orient * self.wsk.body_angle
 
         # 2. Calculate the target whisker position

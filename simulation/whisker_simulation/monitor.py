@@ -145,8 +145,8 @@ class Monitor:
 
     def on_simulation_step(self, viewer: mujoco.viewer.Handle, data: SensorData):
         self.body_trajectory.add_keypoint(np.array([*data.body.r_w, data.body.z_w]))
-        self.wsk_r0_tip_trajectory.add_keypoint(np.array([*data.wsk("r0").tip_r_w, data.body.z_w]))
-        self.wsk_l0_tip_trajectory.add_keypoint(np.array([*data.wsk("l0").tip_r_w, data.body.z_w]))
+        self.wsk_r0_tip_trajectory.add_keypoint(np.array([*data.whiskers["r0"].tip_r_w, data.body.z_w]))
+        self.wsk_l0_tip_trajectory.add_keypoint(np.array([*data.whiskers["l0"].tip_r_w, data.body.z_w]))
 
         self.body_trajectory.render(viewer)
         self.wsk_r0_tip_trajectory.render(viewer)

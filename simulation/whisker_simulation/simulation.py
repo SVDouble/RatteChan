@@ -56,7 +56,7 @@ class Simulation:
         try:
             control = self.controller.control(sensor_data)
         except Exception as e:
-            self.logger.error(f"Error in control: {e}")
+            self.logger.exception(f"Error in control: {e}", exc_info=e)
             self.is_controlled = False
             self.is_paused = True
             return
@@ -104,7 +104,7 @@ class Simulation:
         mujoco.set_mjcb_control(self.control)
 
         # set the initial control values
-        total_v = self.config.body_total_v
+        total_v = self.config.body.total_v
         self.data.ctrl[0:3] = total_v * 0, total_v * 1, 0
 
         # launch the viewer

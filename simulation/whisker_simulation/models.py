@@ -1,11 +1,11 @@
 from enum import Enum, auto
 from functools import cached_property
-from typing import Any, Literal
+from typing import Any, Self
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, computed_field
 
-from whisker_simulation.config import Config
+from whisker_simulation.config import BodyConfig, Config, WhiskerConfig, WhiskerOrientation, WhiskerId
 from whisker_simulation.utils import import_class, rotate
 
 __all__ = [
@@ -13,8 +13,6 @@ __all__ = [
     "ControlMessage",
     "ControllerState",
     "Motion",
-    "WhiskerId",
-    "WhiskerOrientation",
     "WhiskerData",
     "BodyData",
     "BodyMotion",
@@ -25,60 +23,55 @@ __all__ = [
 class BodyData(BaseModel):
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
-    r_w: np.ndarray  # 2D
+    x_w: float
+    y_w: float
     z_w: float
     yaw_w: float
 
+    config: BodyConfig
 
-type WhiskerId = Literal["r0", "l0"]
-type WhiskerOrientation = Literal[-1, 0, 1]
+    @computed_field(repr=False)
+    @cached_property
+    def r_w(self) -> np.ndarray:  # 2d
+        return np.array([self.x_w, self.y_w])
 
 
 class WhiskerData(BaseModel):
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     defl: float
-    defl_threshold: float
-    body_angle: float
-    body_offset_s: np.ndarray
-
-    _body: BodyData
-    _defl_model: Any
-
-    def __init__(self, *, _body: BodyData, _defl_model: Any, **data):
-        super().__init__(**data)
-        self._body = _body
-        self._defl_model = _defl_model
+    body_ref: BodyData
+    config: WhiskerConfig
 
     @computed_field(repr=False)
     @cached_property
     def defl_model(self) -> Any:
-        return self._defl_model
+        return import_class(self.config.defl_model)()
 
     @computed_field(repr=False)
     @cached_property
     def body_offset_w(self) -> np.ndarray:
-        return rotate(self.body_offset_s, self._body.yaw_w)
+        return rotate(self.config.body_wsk_offset, self.body_ref.yaw_w)
 
     @computed_field(repr=False)
     @cached_property
     def r_w(self) -> np.ndarray:
-        return self._body.r_w + self.body_offset_w
+        return self.body_ref.r_w + self.body_offset_w
 
     @computed_field(repr=False)
     @cached_property
     def yaw_w(self) -> float:
-        return self._body.yaw_w + self.body_angle
+        return self.body_ref.yaw_w + self.config.body_wsk_angle
 
     @computed_field(repr=False)
     @cached_property
     def defl_offset_s(self) -> np.ndarray:
-        return self._defl_model(self.defl)
+        return self.defl_model(self.defl)
 
     @computed_field(repr=False)
     @cached_property
     def defl_offset_w(self) -> np.ndarray:
-        return rotate(self._defl_model(self.defl), self.yaw_w)
+        return rotate(self.defl_model(self.defl), self.yaw_w)
 
     @computed_field(repr=False)
     @cached_property
@@ -88,7 +81,7 @@ class WhiskerData(BaseModel):
     @computed_field(repr=False)
     @cached_property
     def neutral_defl_offset(self) -> np.ndarray:
-        return self._defl_model(0)
+        return self.defl_model(0)
 
     @computed_field(repr=False)
     @cached_property
@@ -100,7 +93,7 @@ class WhiskerData(BaseModel):
     @computed_field(repr=False)
     @cached_property
     def is_deflected(self) -> bool:
-        return abs(self.defl) > self.defl_threshold
+        return abs(self.defl) > self.config.defl_threshold
 
     @computed_field(repr=False)
     @cached_property
@@ -113,55 +106,34 @@ class SensorData(BaseModel):
 
     time: float
     body: BodyData
-
-    _wsk_r0: WhiskerData
-    _wsk_l0: WhiskerData
-    _defl_model: Any
-
-    def __init__(self, *, _wsk_r0: WhiskerData, _wsk_l0: WhiskerData, _defl_model: Any, **data):
-        super().__init__(**data)
-        self._wsk_r0 = _wsk_r0
-        self._wsk_l0 = _wsk_l0
-        self._defl_model = _defl_model
-
-    def wsk(self, wsk_id: WhiskerId) -> WhiskerData:
-        return getattr(self, f"_wsk_{wsk_id}")
-
-    def __call__(self, wsk_id: WhiskerId) -> WhiskerData:
-        return self.wsk(wsk_id)
+    whiskers: dict[str, WhiskerData]
 
     @classmethod
-    def from_mujoco_data(cls, data, config: Config) -> "SensorData":
-        sensors = ["body_x_w", "body_y_w", "body_z_w", "body_yaw_w", "wsk_r0_defl", "wsk_l0_defl"]
-        sensor_data: dict[str, float] = {sensor: data.sensor(sensor).data.item() for sensor in sensors}
+    def from_mujoco_data(cls, data, config: Config) -> Self:
+        def get(sensor_name: str):
+            return data.sensor(sensor_name).data.item()
+
         # the coordinate system of the body should be such that the tip of the mouse points at 90 degrees
         # otherwise a correction factor for yaw_w might be required to compensate for the rotational offset
         # between the deflection model and the body coordinate systems respectively
         # rotating the body so that the tip points at 0 degrees seems to cause instability in mujoco
         # so sticking to the current setup for now
         body_data = BodyData(
-            r_w=np.array([sensor_data["body_x_w"], sensor_data["body_y_w"]]),
-            z_w=sensor_data["body_z_w"],
-            yaw_w=sensor_data["body_yaw_w"],
+            x_w=get(config.body.x_sensor_name),
+            y_w=get(config.body.y_sensor_name),
+            z_w=get(config.body.z_sensor_name),
+            yaw_w=get(config.body.yaw_sensor_name),
+            config=config.body,
         )
-        defl_model = import_class(config.defl_model)()
-        wsk_r0 = WhiskerData(
-            defl=sensor_data["wsk_r0_defl"],
-            defl_threshold=config.wsk_defl_threshold,
-            body_angle=config.body_wsk_r0_angle,
-            body_offset_s=config.body_wsk_r0_offset,
-            _body=body_data,
-            _defl_model=defl_model,
-        )
-        wsk_l0 = WhiskerData(
-            defl=sensor_data["wsk_l0_defl"],
-            defl_threshold=config.wsk_defl_threshold,
-            body_angle=config.body_wsk_l0_angle,
-            body_offset_s=config.body_wsk_l0_offset,
-            _body=body_data,
-            _defl_model=defl_model,
-        )
-        return cls(time=data.time, body=body_data, _wsk_r0=wsk_r0, _wsk_l0=wsk_l0, _defl_model=defl_model)
+        whiskers = {
+            name: WhiskerData(
+                defl=get(wsk_config.defl_sensor_name),
+                body_ref=body_data,
+                config=wsk_config,
+            )
+            for name, wsk_config in config.whiskers.items()
+        }
+        return cls(time=data.time, body=body_data, whiskers=whiskers)
 
 
 class ControlMessage(BaseModel):
@@ -261,5 +233,10 @@ class Motion(BaseModel):
     def body(self) -> BodyMotion:
         return BodyMotion(body=self.data.body, prev_body=self.prev_data.body, dt=self.dt)
 
-    def wsk(self, wsk_id: WhiskerId) -> WhiskerMotion:
-        return WhiskerMotion(wsk=self.data(wsk_id), prev_wsk=self.prev_data(wsk_id), body_motion=self.body, dt=self.dt)
+    def for_whisker(self, wsk_id: WhiskerId) -> WhiskerMotion:
+        return WhiskerMotion(
+            wsk=self.data.whiskers[wsk_id],
+            prev_wsk=self.prev_data.whiskers[wsk_id],
+            body_motion=self.body,
+            dt=self.dt,
+        )

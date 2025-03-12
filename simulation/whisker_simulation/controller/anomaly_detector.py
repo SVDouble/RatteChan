@@ -1,6 +1,8 @@
+from functools import partial
+
 import numpy as np
 
-from whisker_simulation.models import ControllerState
+from whisker_simulation.models import ControllerState, WhiskerData
 from whisker_simulation.utils import get_logger
 
 __all__ = ["AnomalyDetector"]
@@ -12,9 +14,9 @@ class AnomalyDetector:
 
         self.logger = get_logger(__file__, log_level=controller.config.log_level)
         self.ctrl: Controller = controller
-        self.log_anomalies = controller.config.detect_anomalies
-        self.total_v = controller.config.body_total_v
-        self.control_dt = controller.control_dt
+        self.log_anomalies = self.ctrl.config.detect_anomalies
+        self.total_v = self.ctrl.config.body.total_v
+        self.control_dt = self.ctrl.control_dt
 
         self.has_abnormal_velocity = False
         self.abnormal_velocity_start_time = None
@@ -32,7 +34,7 @@ class AnomalyDetector:
         assert m.dt <= self.control_dt * 1.1, f"Time step {m.dt} is larger than the control period {self.control_dt}"
 
         checks = [
-            self.detect_abnormal_deflection,
+            partial(self.detect_abnormal_deflection, wsk=m.data.whiskers[self.ctrl.wsk_id]),
             self.detect_abnormal_velocity,
             self.detect_slippage,
             self.detect_detached_tip,
@@ -42,11 +44,8 @@ class AnomalyDetector:
                 return result
         return None
 
-    def detect_abnormal_deflection(self) -> tuple[ControllerState, str] | None:
-        if (
-            self.ctrl.wsk.orientation * self.ctrl.tgt_orient == -1
-            and abs(self.ctrl.data("r0").defl) > self.ctrl.wsk.defl_threshold * 2
-        ):
+    def detect_abnormal_deflection(self, wsk: WhiskerData) -> tuple[ControllerState, str] | None:
+        if wsk.orientation * self.ctrl.tgt_orient == -1 and abs(wsk.defl) > wsk.config.defl_threshold * 2:
             return ControllerState.FAILURE, "Deflection sign changed"
 
     def detect_abnormal_velocity(self) -> tuple[ControllerState, str] | None:
@@ -69,7 +68,7 @@ class AnomalyDetector:
         # control might not be respected, so rely on the previous world data
         # the tip might be stuck, so ignore small movements
         time, m = self.ctrl.data.time, self.ctrl.motion
-        body, wsk = m.body, m.wsk("r0")
+        body, wsk = m.body, m.for_whisker(self.ctrl.wsk_id)
         if wsk.tip_drift_v / body.v > 0.5 and (angle := np.dot(wsk.tip_drift_v_w, body.v_w)) < -1e3:
             return (
                 ControllerState.FAILURE,
