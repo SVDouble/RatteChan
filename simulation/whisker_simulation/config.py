@@ -70,6 +70,8 @@ class Config(BaseSettings):
     detect_anomalies: bool = False
     debug: bool = False
     log_level: LogLevel = "INFO"
+    local_assets_path: Path = Path("assets/local").absolute()
+    generate_demo_assets: bool = True
 
     # controller parameters
     # the offsets need to be rotated as the body yaw is measured from the tip

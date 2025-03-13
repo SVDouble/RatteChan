@@ -1,14 +1,15 @@
 import math
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Polygon
 from scipy import interpolate
 
-assets = Path("../assets").absolute()
+from whisker_simulation.config import Config
+
+__all__ = ["generate_demo_assets", "has_demo_assets"]
 
 
 # Resample a curve uniformly by arc length using a spline.
@@ -424,7 +425,13 @@ def generate_squiggly_circles(base_radius=1.0, sine_amp=0.1, sine_freq=5, gap_pe
     return outer, inner
 
 
-def run():
+def has_demo_assets(config: Config) -> bool:
+    return config.local_assets_path.exists() and (config.local_assets_path / "walls.xml").exists()
+
+
+def generate_demo_assets(config: Config):
+    config.local_assets_path.mkdir(exist_ok=True)
+
     outer, inner = generate_squiggly_circles(gap_percent=25)
     outer = remove_curve_segment(outer, 0, 20)
     outer = wrap_cutouts(outer, inner, 0.1, 1.5)
@@ -438,9 +445,9 @@ def run():
         color="0.2 0.5 0.1 1",
         model_name="walls",
         body_names=["wall1", "wall2"],
-        output_file=str(assets / "walls.xml"),
+        output_file=str(config.local_assets_path / "walls.xml"),
     )
 
 
 if __name__ == "__main__":
-    run()
+    generate_demo_assets(config=Config())

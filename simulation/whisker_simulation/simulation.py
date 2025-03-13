@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 from whisker_simulation.config import Config
 from whisker_simulation.controller import Controller
+from whisker_simulation.demo_assets import generate_demo_assets, has_demo_assets
 from whisker_simulation.models import SensorData
 from whisker_simulation.utils import get_logger
 
@@ -19,6 +20,15 @@ class Simulation:
             config = Config()
         self.config = config
         self.logger = get_logger(__file__, log_level=config.log_level)
+
+        if not has_demo_assets(self.config):
+            if self.config.generate_demo_assets:
+                self.logger.info("Generating the missing demo assets...")
+                generate_demo_assets(self.config)
+                self.logger.info("All demo assets have been generated")
+            else:
+                self.logger.warning("Some demo assets are missing, the simulation might crash")
+
         self.model_path = str(config.model_path)
         # noinspection PyArgumentList
         self.model = mujoco.MjModel.from_xml_path(self.model_path)
