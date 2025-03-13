@@ -92,51 +92,61 @@ class Controller:
         left_wsk, right_wsk = whiskers["l0"], whiskers["r0"]
         if left_wsk.is_deflected and right_wsk.is_deflected:
             self.logger.info("Switched to 2-whisker control")
-            self.state = ControllerState.FAILURE
-            return None
-
-        if not self.is_wsk_locked and (left_wsk.is_deflected or right_wsk.is_deflected):
+            self.state = ControllerState.TUNNELING
+        elif left_wsk.is_deflected or right_wsk.is_deflected:
             new_wsk_id = next(wsk_id for wsk_id, wsk in whiskers.items() if wsk.is_deflected)
-            if self.active_wsk_id != new_wsk_id:
+            if not self.is_wsk_locked and self.active_wsk_id != new_wsk_id:
+                # reset the splines of the other whiskers
+                for wsk_id in whiskers:
+                    if wsk_id != new_wsk_id:
+                        self.splines[wsk_id].reset()
                 self.active_wsk_id = new_wsk_id
-                self.logger.info(f"Switched to 1-whisker control, active whisker: {self.active_wsk_id}")
+                self.logger.info(f"Switched to 1-whisker control, active whisker: {self.wsk}")
+            if self.state == ControllerState.TUNNELING:
+                self.state = ControllerState.SWIPING
+        elif self.state == ControllerState.TUNNELING:
+            self.logger.info("Switched to 0-whisker control")
+            self.state = ControllerState.DISENGAGED
 
         # update the spline
-        if self.active_wsk_id is not None and self.wsk.is_deflected:
-            has_new_point = self.spline.add_keypoint(keypoint=self.wsk.tip_r_w, data=self.data)
-            if has_new_point and len(self.spline.keypoints) == 1:
-                self.logger.debug("Whisker has come into contact with the surface")
+        for wsk_id, wsk in whiskers.items():
+            if wsk.is_deflected:
+                spline = self.splines[wsk_id]
+                has_new_point = spline.add_keypoint(keypoint=wsk.tip_r_w, data=self.data)
+                if has_new_point and len(spline.keypoints) == 1:
+                    self.logger.debug(f"Whisker {wsk} has come into contact with the surface")
 
         # detect anomalies (ignore them if state is EXPLORING)
         if anomaly := self.anomaly_detector():
             anomaly_state, anomaly_msg = anomaly
             if (self.state, anomaly_state) not in self.anomaly_blacklist:
-                self.logger.warning(f"Anomaly detected: {anomaly_msg}")
+                self.logger.info(f"Anomaly detected: {anomaly_msg}")
                 self.state = anomaly_state
 
-        if self.state == ControllerState.EXPLORING:
-            # explore the map according to the exploration instructions
-            return self.exploration_policy()
-
-        if self.state == ControllerState.SWIPING:
-            # follow the surface
-            self.is_wsk_locked = False
-            return self.policy_swiping()
-
-        if self.state == ControllerState.WHISKING:
-            # pull the whisker back to the edge (simple linear movement)
-            return self.whisking_instructions()
-
-        if self.state == ControllerState.DISENGAGED:
-            if self.prev_state == ControllerState.SWIPING:
-                # the whisker has disengaged, needs to swipe back
-                self.is_wsk_locked = True
-                return self.policy_initiate_whisking()
-            if self.prev_state == ControllerState.WHISKING:
-                # we swiped the other side of the edge, now we rotate and engage
-                return self.policy_reattaching()
-
-        raise NotImplementedError(f"State {self.state} is not implemented")
+        # run the policy matching the state
+        match self.state:
+            case ControllerState.EXPLORING:
+                # explore the map according to the exploration instructions
+                return self.exploration_policy()
+            case ControllerState.SWIPING:
+                # follow the surface
+                self.is_wsk_locked = False
+                return self.policy_swiping()
+            case ControllerState.WHISKING:
+                # pull the whisker back to the edge (simple linear movement)
+                return self.whisking_instructions()
+            case ControllerState.DISENGAGED:
+                if self.prev_state == ControllerState.SWIPING:
+                    # the whisker has disengaged, needs to swipe back
+                    self.is_wsk_locked = True
+                    return self.policy_initiate_whisking()
+                if self.prev_state == ControllerState.WHISKING:
+                    # we swiped the other side of the edge, now we rotate and engage
+                    return self.policy_reattaching()
+            case ControllerState.TUNNELING:
+                return self.wsk_motion_ctrl.idle()
+            case _:
+                raise NotImplementedError(f"State {self.state} is not implemented")
 
     def exploration_policy(self) -> ControlMessage | None:
         def apply_instructions() -> ControlMessage | None:
@@ -230,7 +240,7 @@ class Controller:
 
         # keep the old swiping orientation
         tgt_orient = self.tgt_orient
-        prev_spline = self.spline
+        prev_spline = self.spline.copy()
         # the actual edge is continuous, we use the spline middle point for stability
         spl_start = self.spline(0)
         edge = self.spline(1)
@@ -276,7 +286,7 @@ class Controller:
             )
 
         # 2. Reset the spline
-        self.spline = Spline(config=self.config.spline, monitor=self.monitor, track=False)
+        self.spline.reset(track=False)
 
         # 3. Set the desired next state and the exploration instructions
         has_reached_surface = False
@@ -371,7 +381,7 @@ class Controller:
         )
 
         # 3. Reset the spline and the tip estimator
-        self.spline = Spline(config=self.config.spline, monitor=self.monitor)
+        self.spline.reset()
 
         # 4. Set the exploration policy to reattach the whisker
 

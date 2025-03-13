@@ -1,4 +1,5 @@
 from collections import deque
+from typing import Self
 
 import numpy as np
 import scipy.interpolate as interpolate
@@ -77,10 +78,18 @@ class Spline:
             # update the spline
             self._update()
 
-    def reset(self) -> None:
+    def reset(self, track: bool = True) -> None:
         self.keypoints.clear()
         self.spl = None
         self.prev_data = None
+        self.track = track
+
+    def copy(self) -> Self:
+        spl = self.__class__(config=self.config, monitor=self.monitor, track=self.track)
+        spl.keypoints = self.keypoints.copy()
+        spl.prev_data = self.prev_data.model_copy(deep=True) if self.prev_data else None
+        spl._update()
+        return spl
 
     def end_kth_point_u(self, k: float) -> float:
         return 1 + k / (len(self) - 1)

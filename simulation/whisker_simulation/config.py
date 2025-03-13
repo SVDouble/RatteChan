@@ -39,6 +39,8 @@ class WhiskerConfig(BaseSettings):
     offset_from_body: np.ndarray
     side: Literal["left", "right"]
 
+    name: str
+
 
 class BodyConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="body_")
@@ -80,11 +82,13 @@ class Config(BaseSettings):
             angle_from_body=-np.pi / 2,
             offset_from_body=rotate(np.array([0.030, 0.125]) - _body_com_s, -np.pi / 2),
             side="right",
+            name="R0",
         ),
         "l0": WhiskerConfig(
             defl_sensor_name="wsk_l0_defl",
             angle_from_body=np.pi / 2,
             offset_from_body=rotate(np.array([-0.030, 0.125]) - _body_com_s, -np.pi / 2),
             side="left",
+            name="L0",
         ),
     }

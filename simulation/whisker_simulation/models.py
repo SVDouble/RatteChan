@@ -5,7 +5,7 @@ from typing import Any, Self
 import numpy as np
 from pydantic import BaseModel, ConfigDict, computed_field
 
-from whisker_simulation.config import BodyConfig, Config, WhiskerConfig, WhiskerOrientation, WhiskerId
+from whisker_simulation.config import BodyConfig, Config, WhiskerConfig, WhiskerId, WhiskerOrientation
 from whisker_simulation.utils import import_class, rotate
 
 __all__ = [
@@ -42,6 +42,9 @@ class WhiskerData(BaseModel):
     defl: float
     body_ref: BodyData
     config: WhiskerConfig
+
+    def __str__(self) -> str:
+        return self.config.name
 
     @computed_field(repr=False)
     @cached_property
