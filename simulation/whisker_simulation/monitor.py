@@ -1,11 +1,10 @@
-__all__ = ["Monitor"]
-
-
 import mujoco
 import mujoco.viewer
 import numpy as np
 
 from whisker_simulation.models import SensorData
+
+__all__ = ["Monitor"]
 
 
 class Trajectory:

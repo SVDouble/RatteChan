@@ -1,9 +1,9 @@
 import numpy as np
 
-__all__ = ["DeflectionModel"]
+__all__ = ["DeflectionModelRight", "DeflectionModelLeft"]
 
 
-class DeflectionModel:
+class DeflectionModelRight:
     @classmethod
     def __x(cls, an: float | np.ndarray):
         poly = -1.41e18 * an**5 - 8.617e14 * an**4 - 9.859e10 * an**3 + 2.063e08 * an**2 + 5192 * an - 0.1542
@@ -25,7 +25,7 @@ class DeflectionModel:
     @classmethod
     def r(cls, an: float | np.ndarray) -> np.ndarray:
         length = np.linalg.norm(cls.__r(0))
-        r = cls.__r(an)
+        r = cls.__r(-an)  # the model was originally defined for negative angles
         np.clip(r[:, 0], 1e-6, length, out=r[:, 0])
         np.clip(r[:, 1], -length, length, out=r[:, 1])
         r /= max(np.linalg.norm(r) / length, 1)
@@ -35,3 +35,14 @@ class DeflectionModel:
 
     def __call__(self, an: float | np.ndarray) -> np.ndarray:
         return self.r(an)
+
+
+class DeflectionModelLeft(DeflectionModelRight):
+    @classmethod
+    def r(cls, an: float | np.ndarray) -> np.ndarray:
+        r = super().r(an)
+        if np.isscalar(an):
+            r[1] *= -1
+            return r
+        r[:, 1] *= -1
+        return r

@@ -32,7 +32,7 @@ class Controller:
         # single-whisker control
         self.active_wsk_id: WhiskerId | None = None
         self.is_wsk_locked: bool = False
-        self.tgt_orient: WhiskerOrientation = 0
+        self.tgt_orient: WhiskerOrientation = WhiskerOrientation.NEUTRAL
         self.motion_ctrl = MotionController(total_v=self.config.body.total_v)
 
         # anomaly detector
@@ -55,7 +55,7 @@ class Controller:
         match value:
             case ControllerState.EXPLORING:
                 self.logger.info("Switched to 0-whisker control")
-            case ControllerState.SWIPING, ControllerState.WHISKING:
+            case ControllerState.SWIPING | ControllerState.WHISKING:
                 self.logger.info(f"Switched to 1-whisker control, active whisker: {self.wsk}")
             case ControllerState.TUNNELING:
                 self.logger.info("Switched to 2-whisker control")
@@ -101,13 +101,14 @@ class Controller:
         left_wsk, right_wsk = whiskers["l0"], whiskers["r0"]
         both_wsk_deflected = left_wsk.is_deflected and right_wsk.is_deflected
         any_wsk_deflected = left_wsk.is_deflected or right_wsk.is_deflected
-        if both_wsk_deflected and self.state != ControllerState.TUNNELING:
+        tunneling_possible = both_wsk_deflected and left_wsk.defl * right_wsk.defl > 0
+        if tunneling_possible and self.state != ControllerState.TUNNELING:
             self.active_wsk_id = None
             self.is_wsk_locked = False
-            self.tgt_orient = 0
+            self.tgt_orient = WhiskerOrientation.NEUTRAL
             self.state = ControllerState.TUNNELING
 
-        if any_wsk_deflected and not both_wsk_deflected:
+        if any_wsk_deflected and not tunneling_possible:
             if self.state == ControllerState.TUNNELING:
                 self.state = ControllerState.SWIPING
             new_wsk_id = next(wsk_id for wsk_id, wsk in whiskers.items() if wsk.is_deflected)
@@ -166,7 +167,7 @@ class Controller:
             return self.exploration_instructions()
 
         if self.active_wsk_id is None or not self.spline:
-            self.tgt_orient = 0
+            self.tgt_orient = WhiskerOrientation.NEUTRAL
             return apply_instructions()
 
         # At this point we have a spline to work with
@@ -177,9 +178,9 @@ class Controller:
         assert self.desired_next_state is not None
         self.state = self.desired_next_state
         self.desired_next_state = None
-        if self.tgt_orient == 0:
+        if self.tgt_orient == WhiskerOrientation.NEUTRAL:
             self.tgt_orient = self.wsk.orientation
-        assert self.tgt_orient != 0
+        assert self.tgt_orient != WhiskerOrientation.NEUTRAL
 
         # Use the exploration instructions one last time to let it prepare for the engaged state
         control = apply_instructions()
@@ -199,7 +200,7 @@ class Controller:
         spline_angle = np.arctan2(spl_dk_w_n[1], spl_dk_w_n[0])
 
         # 3. Calculate the delta offset between the target and current deflection
-        tgt_defl_offset_s = self.wsk.defl_model(self.wsk.config.tgt_defl_abs * self.wsk.orientation)
+        tgt_defl_offset_s = self.wsk.defl_model(self.wsk.config.tgt_defl_abs * np.sign(self.wsk.defl))
         defl_doffset_w = rotate(tgt_defl_offset_s - self.wsk.defl_offset_s, self.wsk.yaw_w)
         defl_doffset_w_n = normalize(-defl_doffset_w)
         defl_offset_weight = np.linalg.norm(defl_doffset_w) / np.linalg.norm(
@@ -216,7 +217,7 @@ class Controller:
             wsk=self.wsk,
             motion=self.motion,
             tgt_wsk_dr_w=tgt_wsk_dr_n_w,
-            tgt_body_yaw_w=spline_angle + self.config.body.tilt * self.wsk.orientation,
+            tgt_body_yaw_w=spline_angle + self.config.body.tilt * self.wsk.orientation.value,
         )
 
         if self.config.debug and np.array_equiv(self.spline.keypoints[-1], self.wsk.tip_r_w):
@@ -256,12 +257,12 @@ class Controller:
         spl_start = self.spline(0)
         edge = self.spline(1)
         spl_tangent = normalize(edge - spl_start)
-        spl_normal = rotate(spl_tangent, -tgt_orient * np.pi / 2)
+        spl_normal = rotate(spl_tangent, -tgt_orient.value * np.pi / 2)
         # the tip might be oscillating, so use its neutral position
         radius = self.wsk.length / 4
-        tgt_tip_r_w = edge + rotate(radius * spl_tangent, tgt_orient * np.pi / 8)
+        tgt_tip_r_w = edge + rotate(radius * spl_tangent, tgt_orient.value * np.pi / 8)
         # total velocity is fixed for the body, so account for its wider radius
-        omega = self.config.body.total_v / radius * tgt_orient
+        omega = self.config.body.total_v / radius * tgt_orient.value
 
         def control_reach_over_the_edge():
             nonlocal tgt_tip_r_w
@@ -270,10 +271,10 @@ class Controller:
                 tgt_tip_r_w = edge + rotate(tgt_tip_r_w - edge, omega * self.motion.dt)
             # get the normal and tangent to the circle at the tip
             normal = normalize(tgt_tip_r_w - edge)
-            tangent = rotate(normal, tgt_orient * np.pi / 2)
+            tangent = rotate(normal, tgt_orient.value * np.pi / 2)
             # get the new whisker rotation and position
-            tgt_body_yaw_w = np.arctan2(normal[1], normal[0]) - tgt_orient * self.config.body.tilt
-            tgt_wsk_yaw_w = tgt_body_yaw_w - tgt_orient * self.wsk.config.angle_from_body
+            tgt_body_yaw_w = np.arctan2(normal[1], normal[0]) - tgt_orient.value * self.config.body.tilt
+            tgt_wsk_yaw_w = tgt_body_yaw_w + self.wsk.config.angle_from_body
             tgt_wsk_r_w = tgt_tip_r_w - rotate(self.wsk.neutral_defl_offset, tgt_wsk_yaw_w)
 
             if self.config.debug:
@@ -327,7 +328,7 @@ class Controller:
                     self.spline.prepend_fake_keypoint(keypoint=fake_keypoint)
                 # we have faked the swipe back
                 # noinspection PyTypeChecker
-                self.tgt_orient = -tgt_orient
+                self.tgt_orient = tgt_orient.flip()
                 return None
 
             if self.config.debug:
@@ -361,16 +362,16 @@ class Controller:
             return None
 
         # 0. Calculate the spline orientation (flip the direction, as we were moving backwards)
-        orient = -self.tgt_orient
+        orient = self.tgt_orient.flip()
         self.spline.stabilize()
         spl_start_w, spl_end_w = self.spline(1), self.spline(0)
         spl_tangent_n = normalize(spl_end_w - spl_start_w)
-        spl_normal_n = rotate(spl_tangent_n, -orient * np.pi / 2)
+        spl_normal_n = rotate(spl_tangent_n, -orient.value * np.pi / 2)
         spl_tangent_angle = np.arctan2(spl_tangent_n[1], spl_tangent_n[0])
 
         # 1. Calculate the target body yaw (tilt a bit more for better edge engagement)
-        tgt_body_yaw_w = spl_tangent_angle + (self.config.body.tilt * 2) * orient
-        tgt_wsk_yaw_w = tgt_body_yaw_w - orient * self.wsk.config.angle_from_body
+        tgt_body_yaw_w = spl_tangent_angle + (self.config.body.tilt * 2) * orient.value
+        tgt_wsk_yaw_w = tgt_body_yaw_w + self.wsk.config.angle_from_body
 
         # 2. Calculate the target whisker position
         # Keep in mind that the current deflection is zero

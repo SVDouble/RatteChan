@@ -101,7 +101,9 @@ class WhiskerData(BaseModel):
     @computed_field(repr=False)
     @cached_property
     def orientation(self) -> WhiskerOrientation:
-        return np.sign(self.defl) if self.is_deflected else 0
+        if not self.is_deflected:
+            return WhiskerOrientation.NEUTRAL
+        return WhiskerOrientation(np.sign(self.defl) * self.config.side.value)
 
 
 class SensorData(BaseModel):

@@ -11,7 +11,7 @@ from whisker_simulation.config import Config
 from whisker_simulation.controller import Controller
 from whisker_simulation.demo_assets import generate_demo_assets, has_demo_assets
 from whisker_simulation.models import SensorData
-from whisker_simulation.utils import get_logger
+from whisker_simulation.utils import get_logger, prettify
 
 
 class Simulation:
@@ -110,6 +110,11 @@ class Simulation:
             self.is_paused = not self.is_paused
 
     def run(self):
+        if self.config.debug:
+            self.logger.info(prettify(self.config))
+
+        self.logger.info(f"Running the simulation with model: {self.model_path}")
+
         # set the control function
         mujoco.set_mjcb_control(self.control)
 

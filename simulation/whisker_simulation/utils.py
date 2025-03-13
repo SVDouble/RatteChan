@@ -1,26 +1,29 @@
 import importlib
 import logging
+import os
 from functools import lru_cache
 
 import numpy as np
 from rich.logging import Console, RichHandler
 
-__all__ = [
-    "get_logger",
-    "rotate",
-    "normalize",
-    "unwrap_pid_error",
-    "import_class",
-]
+__all__ = ["get_logger", "rotate", "normalize", "unwrap_pid_error", "import_class", "prettify"]
 
 
-console = Console(color_system="256", width=150, style="blue")
+def create_console(**kwargs) -> Console:
+    return Console(color_system="256", width=150, style="blue", markup=True, **kwargs)
+
+
+def prettify(obj) -> str:
+    with open(os.devnull, 'w') as f:
+        console = create_console(record=True, file=f)
+        console.print(obj)
+        return console.export_text()
 
 
 @lru_cache()
 def get_logger(module_name: str, *, log_level: str):
     logger = logging.getLogger(module_name)
-    handler = RichHandler(console=console, enable_link_path=False)
+    handler = RichHandler(console=create_console(), enable_link_path=False, rich_tracebacks=True, markup=True)
     handler.setFormatter(logging.Formatter("%(message)s"))
     logger.addHandler(handler)
     logger.setLevel(log_level)
