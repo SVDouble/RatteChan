@@ -2,7 +2,7 @@ import numpy as np
 
 from whisker_simulation.config import Config, WhiskerId, WhiskerOrientation
 from whisker_simulation.controller.anomaly_detector import AnomalyDetector
-from whisker_simulation.controller.body_motion import WhiskerMotionController
+from whisker_simulation.controller.body_motion import MotionController
 from whisker_simulation.controller.spline import Spline
 from whisker_simulation.models import ControllerState, ControlMessage, Motion, SensorData, WhiskerData
 from whisker_simulation.monitor import Monitor
@@ -24,14 +24,16 @@ class Controller:
         self.data = self.prev_data = initial_data
         self.motion: Motion = Motion(data=self.data, prev_data=self.prev_data)
         self.splines: dict[WhiskerId, Spline] = {
-            wsk_id: Spline(config=self.config.spline, monitor=self.monitor) for wsk_id in self.data.whiskers
+            wsk_id: Spline(name=wsk_id, config=self.config.spline, monitor=self.monitor)
+            for wsk_id in self.data.whiskers
         }
+        self.midpoint_spline = Spline(name="midpoint", config=self.config.spline, monitor=self.monitor, track=False)
 
         # single-whisker control
         self.active_wsk_id: WhiskerId | None = None
         self.is_wsk_locked: bool = False
         self.tgt_orient: WhiskerOrientation = 0
-        self.wsk_motion_ctrl = WhiskerMotionController(total_v=self.config.body.total_v)
+        self.motion_ctrl = MotionController(total_v=self.config.body.total_v)
 
         # anomaly detector
         self.anomaly_detector = AnomalyDetector(controller=self)
@@ -50,6 +52,13 @@ class Controller:
         self.__prev_state = self.__state
         self.logger.info(f"State transition: {self.__state} -> {value}")
         self.__state = value
+        match value:
+            case ControllerState.EXPLORING:
+                self.logger.info("Switched to 0-whisker control")
+            case ControllerState.SWIPING, ControllerState.WHISKING:
+                self.logger.info(f"Switched to 1-whisker control, active whisker: {self.wsk}")
+            case ControllerState.TUNNELING:
+                self.logger.info("Switched to 2-whisker control")
 
     @property
     def prev_state(self) -> ControllerState:
@@ -82,7 +91,7 @@ class Controller:
 
         # if in failure state, send idle control
         if self.state == ControllerState.FAILURE:
-            return self.wsk_motion_ctrl.idle()
+            return self.motion_ctrl.idle()
 
         # update the controller given the new sensor data
         self.prev_data, self.data = self.data, new_data
@@ -90,10 +99,17 @@ class Controller:
 
         whiskers = self.data.whiskers
         left_wsk, right_wsk = whiskers["l0"], whiskers["r0"]
-        if left_wsk.is_deflected and right_wsk.is_deflected:
-            self.logger.info("Switched to 2-whisker control")
+        both_wsk_deflected = left_wsk.is_deflected and right_wsk.is_deflected
+        any_wsk_deflected = left_wsk.is_deflected or right_wsk.is_deflected
+        if both_wsk_deflected and self.state != ControllerState.TUNNELING:
+            self.active_wsk_id = None
+            self.is_wsk_locked = False
+            self.tgt_orient = 0
             self.state = ControllerState.TUNNELING
-        elif left_wsk.is_deflected or right_wsk.is_deflected:
+
+        if any_wsk_deflected and not both_wsk_deflected:
+            if self.state == ControllerState.TUNNELING:
+                self.state = ControllerState.SWIPING
             new_wsk_id = next(wsk_id for wsk_id, wsk in whiskers.items() if wsk.is_deflected)
             if not self.is_wsk_locked and self.active_wsk_id != new_wsk_id:
                 # reset the splines of the other whiskers
@@ -101,20 +117,15 @@ class Controller:
                     if wsk_id != new_wsk_id:
                         self.splines[wsk_id].reset()
                 self.active_wsk_id = new_wsk_id
-                self.logger.info(f"Switched to 1-whisker control, active whisker: {self.wsk}")
-            if self.state == ControllerState.TUNNELING:
-                self.state = ControllerState.SWIPING
-        elif self.state == ControllerState.TUNNELING:
-            self.logger.info("Switched to 0-whisker control")
-            self.state = ControllerState.DISENGAGED
 
-        # update the spline
+        # update the splines
+        self.midpoint_spline.add_keypoint(keypoint=(left_wsk.tip_r_w + right_wsk.tip_r_w) / 2, data=self.data)
         for wsk_id, wsk in whiskers.items():
             if wsk.is_deflected:
                 spline = self.splines[wsk_id]
                 has_new_point = spline.add_keypoint(keypoint=wsk.tip_r_w, data=self.data)
                 if has_new_point and len(spline.keypoints) == 1:
-                    self.logger.debug(f"Whisker {wsk} has come into contact with the surface")
+                    self.logger.debug(f"Whisker '{wsk}' has come into contact with the surface")
 
         # detect anomalies (ignore them if state is EXPLORING)
         if anomaly := self.anomaly_detector():
@@ -144,7 +155,7 @@ class Controller:
                     # we swiped the other side of the edge, now we rotate and engage
                     return self.policy_reattaching()
             case ControllerState.TUNNELING:
-                return self.wsk_motion_ctrl.idle()
+                return self.policy_tunneling()
             case _:
                 raise NotImplementedError(f"State {self.state} is not implemented")
 
@@ -160,7 +171,7 @@ class Controller:
 
         # At this point we have a spline to work with
         # This means that exploration has ended and the state should be updated
-        self.logger.debug("The spline has been defined")
+        self.logger.debug(f"Spline '{self.spline}' has been defined")
         if self.config.debug:
             self.monitor.draw_spline(self.spline, title="Exploration End", wsk=self.wsk.r_w)
         assert self.desired_next_state is not None
@@ -201,7 +212,7 @@ class Controller:
 
         # 5. Calculate the control values
         # for v to follow tgt_wsk_dr_w and for omega to follow the spline slightly tilted
-        control = self.wsk_motion_ctrl(
+        control = self.motion_ctrl.steer_wsk(
             wsk=self.wsk,
             motion=self.motion,
             tgt_wsk_dr_w=tgt_wsk_dr_n_w,
@@ -278,7 +289,7 @@ class Controller:
                     normal=tgt_tip_r_w + normal * radius / 4,
                     tangent=tgt_tip_r_w + tangent * radius / 4,
                 )
-            return self.wsk_motion_ctrl(
+            return self.motion_ctrl.steer_wsk(
                 wsk=self.wsk,
                 motion=self.motion,
                 tgt_wsk_dr_w=tgt_wsk_r_w - self.wsk.r_w,
@@ -330,7 +341,7 @@ class Controller:
                     tangent=tgt_tip_outside_w + spl_tangent * radius / 4,
                 )
 
-            return self.wsk_motion_ctrl(
+            return self.motion_ctrl.steer_wsk(
                 wsk=self.wsk,
                 motion=self.motion,
                 tgt_wsk_dr_w=tgt_tip_dr_w,
@@ -387,7 +398,7 @@ class Controller:
 
         def reattach_instructions() -> ControlMessage | None:
             # orientation has changed by now
-            return self.wsk_motion_ctrl(
+            return self.motion_ctrl.steer_wsk(
                 wsk=self.wsk,
                 motion=self.motion,
                 tgt_wsk_dr_w=tgt_wsk_r_w - self.wsk.r_w,
@@ -398,3 +409,14 @@ class Controller:
         self.state = ControllerState.EXPLORING
         self.desired_next_state = ControllerState.SWIPING
         return self.exploration_instructions()
+
+    def policy_tunneling(self) -> ControlMessage | None:
+        if not self.midpoint_spline:
+            return None
+        spl_start_w, spl_end_w = self.midpoint_spline(0), self.midpoint_spline(1)
+        spl_tangent_n = normalize(spl_end_w - spl_start_w)
+        return self.motion_ctrl.steer_body(
+            motion=self.motion,
+            tgt_body_dr_w=spl_tangent_n,
+            tgt_body_yaw_w=np.arctan2(spl_tangent_n[1], spl_tangent_n[0]),
+        )

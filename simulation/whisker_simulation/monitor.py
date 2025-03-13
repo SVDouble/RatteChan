@@ -1,5 +1,6 @@
 __all__ = ["Monitor"]
 
+
 import mujoco
 import mujoco.viewer
 import numpy as np
@@ -8,9 +9,8 @@ from whisker_simulation.models import SensorData
 
 
 class Trajectory:
-    def __init__(self, color: np.ndarray, kp_d: float, n_kp_max: int | None = None):
+    def __init__(self, color: np.ndarray, kp_d: float):
         self.keypoint_distance = kp_d
-        self.n_points_max = n_kp_max
 
         self.kp_color = color
         self.kp_size = 0.001
@@ -86,8 +86,9 @@ class Monitor:
         self.body_trajectory = Trajectory(color=np.array([1, 1, 0, 1]), kp_d=0.005)
         self.wsk_r0_tip_trajectory = Trajectory(color=np.array([0, 1, 0, 1]), kp_d=0.005)
         self.wsk_l0_tip_trajectory = Trajectory(color=np.array([1, 0, 0, 1]), kp_d=0.005)
+        # self.spline_kps: dict[str, list[tuple[float, np.ndarray]]] = defaultdict(list)
 
-    def add_keypoint(self, time: float, keypoint: np.ndarray):
+    def add_keypoint(self, name: str, time: float, keypoint: np.ndarray):
         if self.first_keypoint is None:
             self.first_keypoint = (time, keypoint)
         self.keypoint_history.append((time, keypoint))

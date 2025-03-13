@@ -13,6 +13,7 @@
         <mesh name="object_complex_f1" file="../assets/object_complex_f1.stl" scale="0.001 0.001 0.001"/>
         <mesh name="object_complex_f2" file="../assets/object_complex_f2.stl" scale="0.001 0.001 0.001"/>
         <model name="cog" file="../assets/cog/cog.xml"/>
+        <model name="walls" file="../assets/walls.xml"/>
     </asset>
 
     <extension>
@@ -37,14 +38,18 @@
 
         <!-- Meshes to swipe the whisker against -->
         <body>
-                        <geom type="mesh" mesh="object_complex_f1" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>
-                        <geom type="mesh" mesh="object_complex_f2" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>
-<!--            <geom type="box" size="0.2 0.2 0.03" pos="0.32 0.2 0.05" euler="0 0 10" rgba="0.2 0.5 0.1 1"/>-->
-<!--            <geom type="box" size="0.2 0.2 0.03" pos="-0.42 0.2 0.05" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>-->
-            <!--            <body pos="0 -0.5 0.01" euler="0 0 130">-->
-            <!--                <attach model="cog" body="cog" prefix="cog_"/>-->
-            <!--            </body>-->
-            <!--                        <geom type="mesh" mesh="cube" pos="0.15 0.2 0" euler="0 0 100" rgba="0.2 0.5 0.1 1"/>-->
+            <!--            <geom type="mesh" mesh="object_complex_f1" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>-->
+            <!--            <geom type="mesh" mesh="object_complex_f2" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>-->
+            <!--                        <geom type="box" size="0.2 0.2 0.03" pos="0.32 0.2 0.05" euler="0 0 10" rgba="0.2 0.5 0.1 1"/>-->
+            <!--                        <geom type="box" size="0.2 0.2 0.03" pos="-0.42 0.2 0.05" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>-->
+<!--            <body pos="0 -0.5 0.01" euler="0 0 130">-->
+<!--                <attach model="cog" body="cog" prefix="cog_"/>-->
+<!--            </body>-->
+            <!--            <geom type="mesh" mesh="cube" pos="0.15 0.2 0" euler="0 0 100" rgba="0.2 0.5 0.1 1"/>-->
+            <body pos="-0.5 1 0" euler="0 0 -90">
+                <attach model="walls" body="wall1" prefix="wall1_"/>
+                <attach model="walls" body="wall2" prefix="wall2_"/>
+            </body>
 
         </body>
 

@@ -14,7 +14,8 @@ __all__ = ["Spline"]
 
 
 class Spline:
-    def __init__(self, *, config: SplineConfig, monitor: Monitor, track: bool = True):
+    def __init__(self, *, name: str, config: SplineConfig, monitor: Monitor, track: bool = True):
+        self.name = name
         self.config = config
         self.monitor = monitor
         self.logger = get_logger(__file__, log_level=config.log_level)
@@ -51,7 +52,7 @@ class Spline:
             self.keypoints.append(keypoint.copy())
             self.prev_data = data
             if self.track and len(self) > 2:
-                self.monitor.add_keypoint(data.time, keypoint.copy())
+                self.monitor.add_keypoint(self.name, data.time, keypoint.copy())
         if len(self) < self.n_keypoints:
             return has_new_point
         if not has_new_point:
@@ -85,7 +86,7 @@ class Spline:
         self.track = track
 
     def copy(self) -> Self:
-        spl = self.__class__(config=self.config, monitor=self.monitor, track=self.track)
+        spl = self.__class__(name=self.name, config=self.config, monitor=self.monitor, track=self.track)
         spl.keypoints = self.keypoints.copy()
         spl.prev_data = self.prev_data.model_copy(deep=True) if self.prev_data else None
         spl._update()
@@ -102,3 +103,6 @@ class Spline:
 
     def __len__(self):
         return min(len(self.keypoints), self.n_keypoints)
+
+    def __str__(self) -> str:
+        return self.name

@@ -2,7 +2,6 @@ import math
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -106,7 +105,7 @@ def generate_mujoco_xml(
     worldbody = ET.SubElement(mujoco, "worldbody")
 
     plt.figure()  # Single plot for all curves.
-    for curve, body_name in zip(curves, body_names):
+    for curve, body_name in zip(curves, body_names, strict=True):
         body = ET.SubElement(worldbody, "body", attrib={"name": body_name})
         # Create walls for this curve.
         geoms, resampled, segments = create_walls_from_curve(curve, resolution, wall_thickness, wall_height, color)
@@ -180,78 +179,228 @@ def remove_curve_segment(curve: np.ndarray, cut_start: float, cut_end: float) ->
     return new_curve
 
 
-def create_ref_interpolator(ref_curve: np.ndarray) -> Callable[[float], float]:
-    # Convert reference curve to polar coordinates.
-    angles = np.arctan2(ref_curve[:, 1], ref_curve[:, 0])
-    angles = np.unwrap(angles)
-    radii = np.sqrt(ref_curve[:, 0] ** 2 + ref_curve[:, 1] ** 2)
-    # Append the first point shifted by 2π for periodicity.
-    angles = np.concatenate((angles, [angles[0] + 2 * np.pi]))
-    radii = np.concatenate((radii, [radii[0]]))
+def smooth_blend(t: float | np.ndarray) -> float | np.ndarray:
+    """
+    A cubic blend that stays at 1 with zero derivative at t=0,
+    goes to 0 with zero derivative at t=1. Specifically:
+      B(t) = 1 - 3t^2 + 2t^3
+    so B(0)=1, B'(0)=0, B(1)=0, B'(1)=0.
+    We'll use this to smoothly reduce the offset toward 0.
+    """
+    return 1.0 - 3.0 * (t**2) + 2.0 * (t**3)
 
-    def interp(theta: float) -> float:
-        theta_mod = np.mod(theta - angles[0], 2 * np.pi) + angles[0]
-        return np.interp(theta_mod, angles, radii)
 
-    return interp
+def segment_arclength(points: np.ndarray) -> float:
+    """Compute total arc length of a polyline."""
+    if len(points) < 2:
+        return 0.0
+    diffs = np.diff(points, axis=0)
+    return float(np.sum(np.hypot(diffs[:, 0], diffs[:, 1])))
+
+
+def resample_by_arclength(points: np.ndarray, n_samples: int) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Return (S, XY) where:
+      S is a (n_samples,) array of uniform arc-length parameters from [0..L].
+      XY is a (n_samples,2) array of coordinates resampled from 'points'.
+    """
+    L = segment_arclength(points)
+    if L < 1e-12 or len(points) < 2:
+        return np.array([0.0]), points.copy()
+    # Original cumulative length
+    diffs = np.diff(points, axis=0)
+    seglens = np.hypot(diffs[:, 0], diffs[:, 1])
+    cumlen = np.concatenate(([0], np.cumsum(seglens)))
+    s_new = np.linspace(0, cumlen[-1], n_samples)
+    x_samp = np.interp(s_new, cumlen, points[:, 0])
+    y_samp = np.interp(s_new, cumlen, points[:, 1])
+    xy = np.column_stack((x_samp, y_samp))
+    return s_new, xy
+
+
+def build_offset(
+    xy: np.ndarray, svals: np.ndarray, f_len: float, displacement: float, ref_radii: np.ndarray
+) -> np.ndarray:
+    """
+    Given:
+      xy        : shape (N,2) coordinates
+      svals     : shape (N,) arc-length param from 0..L
+      f_len     : length fraction for endpoints (e.g. 0.15 means 15% at each end)
+      displacement : radial scaling factor (<1 pulls in, >1 pushes out)
+      ref_radii : reference radius at each sample
+    Return an array of new radii that transitions from an offset near the endpoints
+    to zero offset in the middle, using smooth_blend(t).
+    """
+    l = svals[-1] if len(svals) > 1 else 0
+    if l < 1e-12:
+        return np.hypot(xy[:, 0], xy[:, 1])
+
+    r = np.hypot(xy[:, 0], xy[:, 1])
+    # For the first f_len * L, we want an offset that goes from max at s=0 to 0 at s=f_len*L
+    # For the last f_len * L, we want an offset that goes from 0 at s=(1-f_len)*L to max at s=L
+    # "max" means (displacement-1)*(r - r_ref).
+    # We'll define a local param t in [0..1], then use smooth_blend(t).
+
+    l_end = f_len * l
+    new_r = r.copy()
+    for i, s in enumerate(svals):
+        # Determine if we are in the start region, middle region, or end region
+        if s < l_end:
+            # start region
+            t = s / l_end  # from 0..1
+            # blend goes from 1 at t=0 to 0 at t=1
+            blend = smooth_blend(t)
+        elif s > (1 - f_len) * l:
+            # end region
+            dist_from_end = l - s
+            t = dist_from_end / l_end  # from 0..1
+            # blend goes from 1 at t=0 to 0 at t=1
+            blend = smooth_blend(t)
+        else:
+            blend = 0.0
+        offset = (displacement - 1.0) * (r[i] - ref_radii[i]) * blend
+        new_r[i] = r[i] + offset
+    return new_r
+
+
+def create_ref_interpolator(ref_curve: np.ndarray, n_samples: int = 1000) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Build a uniform-sampled table of angles -> reference radius, for radial offset.
+    We'll do a simple nearest-angle or linear angle interpolation.
+    This is simpler if your shape is star-like around (0,0).
+    Returns (angles, radii).
+    """
+    # Convert reference curve to polar and sort by angle
+    x, y = ref_curve[:, 0], ref_curve[:, 1]
+    th = np.unwrap(np.arctan2(y, x))
+    r = np.hypot(x, y)
+    # Sort by ascending angle
+    idx_sort = np.argsort(th)
+    th_sorted = th[idx_sort]
+    r_sorted = r[idx_sort]
+    # Extend 2π for wrap-around
+    th_sorted = np.concatenate((th_sorted, [th_sorted[0] + 2 * math.pi]))
+    r_sorted = np.concatenate((r_sorted, [r_sorted[0]]))
+    # Create a uniform angle grid from [th_sorted[0]..th_sorted[-1]]
+    angle_min, angle_max = th_sorted[0], th_sorted[-1]
+    angle_table = np.linspace(angle_min, angle_max, n_samples)
+    radius_table = np.interp(angle_table, th_sorted, r_sorted)
+    return angle_table, radius_table
+
+
+def interp_ref_radius(theta: float, angle_table: np.ndarray, radius_table: np.ndarray) -> float:
+    """Linear interpolation of reference radius given an angle."""
+    # Map theta into [angle_min..angle_min+2π]
+    while theta < angle_table[0]:
+        theta += 2 * math.pi
+    while theta > angle_table[-1]:
+        theta -= 2 * math.pi
+    return np.interp(theta, angle_table, radius_table)
+
+
+def wrap_segment_preserve_length(
+    seg: np.ndarray,
+    angle_table: np.ndarray,
+    radius_table: np.ndarray,
+    wrap_fraction: float,
+    displacement: float,
+    num_iter: int = 5,
+    num_samples: int = 200,
+) -> np.ndarray:
+    """
+    Smoothly push/pull the endpoints of 'seg' in a radial sense, preserving its original arc length.
+    1) Resample 'seg' by arc length to get (svals, xy)
+    2) Build new radius array with a smooth blend near endpoints
+    3) Iteratively scale that offset so final length == original length
+    4) Re-sample final_xy back to the original number of points in 'seg'
+    """
+    l_orig = segment_arclength(seg)
+    if l_orig < 1e-12 or len(seg) < 2:
+        return seg
+
+    # 1) Resample the original segment
+    svals, xy = resample_by_arclength(seg, num_samples)
+    th_xy = np.arctan2(xy[:, 1], xy[:, 0])
+    # Reference radii at each sample
+    ref_r = np.array([interp_ref_radius(a, angle_table, radius_table) for a in th_xy])
+
+    # 2 & 3) Iteratively adjust offset to preserve length
+    alpha = 1.0
+    for _ in range(num_iter):
+        new_r = build_offset(xy, svals, wrap_fraction, displacement, ref_r * alpha)
+        new_xy = np.column_stack((new_r * np.cos(th_xy), new_r * np.sin(th_xy)))
+        l_new = segment_arclength(new_xy)
+        if l_new < 1e-12:
+            break
+        alpha *= l_orig / l_new
+
+    # Final pass
+    final_r = build_offset(xy, svals, wrap_fraction, displacement, ref_r * alpha)
+    final_xy = np.column_stack((final_r * np.cos(th_xy), final_r * np.sin(th_xy)))
+
+    # 4) Get the arc-length parameter for final_xy, then interpolate back to len(seg) points
+    if len(final_xy) < 2:
+        return final_xy  # Degenerate
+    svals_new, _ = resample_by_arclength(final_xy, final_xy.shape[0])  # Param for final_xy
+    svals_final = np.linspace(0, svals_new[-1], len(seg))  # New param for output
+
+    x_out = np.interp(svals_final, svals_new, final_xy[:, 0])
+    y_out = np.interp(svals_final, svals_new, final_xy[:, 1])
+    return np.column_stack((x_out, y_out))
 
 
 def wrap_cutouts(
     target_curve: np.ndarray,
     reference_curve: np.ndarray,
-    wrap_percent: float,  # fraction of points at each cutout end to modify (e.g., 0.1 for 10%)
-    displacement: float,  # scaling factor: 1 means no change, -0.5 moves endpoints inward (closer to ref), 1.5 moves them outward (away from ref)
-    gap_threshold_factor: float = 3.0,  # factor over median distance to detect a gap
+    wrap_fraction: float,
+    displacement: float,
+    gap_threshold_factor: float = 3.0,
+    num_iter: int = 5,
+    num_samples: int = 200,
 ) -> np.ndarray:
     """
-    For each cutout (detected as a large gap) in target_curve, modify the endpoints
-    by gradually adjusting their radial coordinate. The new radius is calculated as:
-       new_r = r + (displacement - 1) * (r - r_ref) * weight
-    where r_ref is the reference radius (from an interpolator) at the point's angle,
-    and weight (from 0 to 1) controls the gradual transition.
-    Returns the modified curve as one concatenated np.ndarray.
+    1) Split 'target_curve' by large gaps into segments.
+    2) For each segment, smoothly push/pull endpoints radially, preserving its length.
+    3) Concatenate segments and return as one curve.
+
+    wrap_fraction: fraction of segment length at each end to blend (0..0.5).
+    displacement : 1 => no shift, <1 => move inward, >1 => move outward
     """
+    if len(target_curve) < 2:
+        return target_curve
+
+    # Identify large gaps
     diffs = np.linalg.norm(np.diff(target_curve, axis=0), axis=1)
-    median_diff = np.median(diffs)
+    median_diff = np.median(diffs) if len(diffs) else 0.0
     gap_indices = np.where(diffs > gap_threshold_factor * median_diff)[0]
 
-    segments: list[np.ndarray] = []
+    segments = []
     start = 0
-    for gap_idx in gap_indices:
-        segments.append(target_curve[start : gap_idx + 1])
-        start = gap_idx + 1
+    for gidx in gap_indices:
+        segments.append(target_curve[start : gidx + 1])
+        start = gidx + 1
     segments.append(target_curve[start:])
 
-    ref_interp = create_ref_interpolator(reference_curve)
-    modified_segments: list[np.ndarray] = []
+    # Precompute reference curve's angle->radius table
+    angle_table, radius_table = create_ref_interpolator(reference_curve)
+
+    wrapped_segments: list[np.ndarray] = []
     for seg in segments:
-        n_points = len(seg)
-        if n_points < 2:
-            modified_segments.append(seg)
-            continue
-        mod_seg = seg.copy()
-        n_wrap = max(2, int(wrap_percent * n_points))
-        # Modify start endpoint of segment.
-        for i in range(n_wrap):
-            weight = (n_wrap - i) / n_wrap  # weight: 1 at the very endpoint, 0 at the boundary of unmodified region
-            x, y = mod_seg[i]
-            r = math.hypot(x, y)
-            theta = math.atan2(y, x)
-            r_ref = ref_interp(theta)
-            # New radius: positive displacement moves endpoints away from reference.
-            new_r = r + (displacement - 1) * (r - r_ref) * weight
-            mod_seg[i] = np.array([new_r * math.cos(theta), new_r * math.sin(theta)])
-        # Modify end endpoint of segment.
-        for i in range(n_points - n_wrap, n_points):
-            weight = (i - (n_points - n_wrap)) / (n_wrap - 1) if n_wrap > 1 else 1.0
-            x, y = mod_seg[i]
-            r = math.hypot(x, y)
-            theta = math.atan2(y, x)
-            r_ref = ref_interp(theta)
-            new_r = r + (displacement - 1) * (r - r_ref) * weight
-            mod_seg[i] = np.array([new_r * math.cos(theta), new_r * math.sin(theta)])
-        modified_segments.append(mod_seg)
-    return np.concatenate(modified_segments, axis=0)
+        if len(seg) < 2:
+            wrapped_segments.append(seg)
+        else:
+            seg_wrapped = wrap_segment_preserve_length(
+                seg,
+                angle_table,
+                radius_table,
+                wrap_fraction=wrap_fraction,
+                displacement=displacement,
+                num_iter=num_iter,
+                num_samples=num_samples,
+            )
+            wrapped_segments.append(seg_wrapped)
+
+    return np.concatenate(wrapped_segments, axis=0)
 
 
 def generate_sine_wave():
@@ -276,9 +425,9 @@ def generate_squiggly_circles(base_radius=1.0, sine_amp=0.1, sine_freq=5, gap_pe
 
 
 def run():
-    outer, inner = generate_squiggly_circles()
+    outer, inner = generate_squiggly_circles(gap_percent=25)
     outer = remove_curve_segment(outer, 0, 20)
-    outer = wrap_cutouts(outer, inner, 0.1, 2)
+    outer = wrap_cutouts(outer, inner, 0.1, 1.5)
 
     # Generate curves and plot them.
     generate_mujoco_xml(
