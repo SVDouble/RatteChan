@@ -51,7 +51,7 @@ class WhiskerData(BaseModel):
     @computed_field(repr=False)
     @cached_property
     def body_offset_w(self) -> np.ndarray:
-        return rotate(self.config.body_wsk_offset, self.body_ref.yaw_w)
+        return rotate(self.config.offset_from_body, self.body_ref.yaw_w)
 
     @computed_field(repr=False)
     @cached_property
@@ -61,7 +61,7 @@ class WhiskerData(BaseModel):
     @computed_field(repr=False)
     @cached_property
     def yaw_w(self) -> float:
-        return self.body_ref.yaw_w + self.config.body_wsk_angle
+        return self.body_ref.yaw_w + self.config.angle_from_body
 
     @computed_field(repr=False)
     @cached_property
@@ -106,7 +106,7 @@ class SensorData(BaseModel):
 
     time: float
     body: BodyData
-    whiskers: dict[str, WhiskerData]
+    whiskers: dict[WhiskerId, WhiskerData]
 
     @classmethod
     def from_mujoco_data(cls, data, config: Config) -> Self:
@@ -149,6 +149,7 @@ class ControllerState(int, Enum):
     SWIPING = auto()
     DISENGAGED = auto()
     WHISKING = auto()
+    TUNNELING = auto()
     FAILURE = auto()
 
 

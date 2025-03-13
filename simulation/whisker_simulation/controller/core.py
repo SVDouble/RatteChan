@@ -23,28 +23,22 @@ class Controller:
         self.desired_next_state = ControllerState.SWIPING
         self.data = self.prev_data = initial_data
         self.motion: Motion = Motion(data=self.data, prev_data=self.prev_data)
+        self.splines: dict[WhiskerId, Spline] = {
+            wsk_id: Spline(config=self.config.spline, monitor=self.monitor) for wsk_id in self.data.whiskers
+        }
 
-        # tip position estimation
-        self.wsk_id: WhiskerId = "r0"
+        # single-whisker control
+        self.active_wsk_id: WhiskerId | None = None
+        self.is_wsk_locked: bool = False
         self.tgt_orient: WhiskerOrientation = 0
-
-        # tip position prediction using spline
-        self.spline = Spline(config=self.config.spline, monitor=self.monitor)
-
-        # velocity and angle control
         self.wsk_motion_ctrl = WhiskerMotionController(total_v=self.config.body.total_v)
-
-        # disengagement policy
-        self.disengaged_duration_threshold = 0.1
 
         # anomaly detector
         self.anomaly_detector = AnomalyDetector(controller=self)
         self.anomaly_blacklist = [(ControllerState.EXPLORING, ControllerState.DISENGAGED)]
 
-        # exploration policy
+        # additional instruction for different policies
         self.exploration_instructions = None
-
-        # whisking policy
         self.whisking_instructions = None
 
     @property
@@ -63,7 +57,21 @@ class Controller:
 
     @property
     def wsk(self) -> WhiskerData:
-        return self.data.whiskers[self.wsk_id]
+        if self.active_wsk_id is None:
+            raise RuntimeError("Active whisker id not set")
+        return self.data.whiskers[self.active_wsk_id]
+
+    @property
+    def spline(self) -> Spline | None:
+        if self.active_wsk_id is None:
+            raise RuntimeError("Active whisker id not set")
+        return self.splines[self.active_wsk_id]
+
+    @spline.setter
+    def spline(self, value: Spline) -> None:
+        if self.active_wsk_id is None:
+            raise RuntimeError("Active whisker id not set")
+        self.splines[self.active_wsk_id] = value
 
     def control(self, new_data: SensorData) -> ControlMessage | None:  # noqa: C901
         # rate limit the control
@@ -80,8 +88,21 @@ class Controller:
         self.prev_data, self.data = self.data, new_data
         self.motion = Motion(data=self.data, prev_data=self.prev_data)
 
+        whiskers = self.data.whiskers
+        left_wsk, right_wsk = whiskers["l0"], whiskers["r0"]
+        if left_wsk.is_deflected and right_wsk.is_deflected:
+            self.logger.info("Switched to 2-whisker control")
+            self.state = ControllerState.FAILURE
+            return None
+
+        if not self.is_wsk_locked and (left_wsk.is_deflected or right_wsk.is_deflected):
+            new_wsk_id = next(wsk_id for wsk_id, wsk in whiskers.items() if wsk.is_deflected)
+            if self.active_wsk_id != new_wsk_id:
+                self.active_wsk_id = new_wsk_id
+                self.logger.info(f"Switched to 1-whisker control, active whisker: {self.active_wsk_id}")
+
         # update the spline
-        if self.wsk.is_deflected:
+        if self.active_wsk_id is not None and self.wsk.is_deflected:
             has_new_point = self.spline.add_keypoint(keypoint=self.wsk.tip_r_w, data=self.data)
             if has_new_point and len(self.spline.keypoints) == 1:
                 self.logger.debug("Whisker has come into contact with the surface")
@@ -99,6 +120,7 @@ class Controller:
 
         if self.state == ControllerState.SWIPING:
             # follow the surface
+            self.is_wsk_locked = False
             return self.policy_swiping()
 
         if self.state == ControllerState.WHISKING:
@@ -108,6 +130,7 @@ class Controller:
         if self.state == ControllerState.DISENGAGED:
             if self.prev_state == ControllerState.SWIPING:
                 # the whisker has disengaged, needs to swipe back
+                self.is_wsk_locked = True
                 return self.policy_initiate_whisking()
             if self.prev_state == ControllerState.WHISKING:
                 # we swiped the other side of the edge, now we rotate and engage
@@ -121,7 +144,7 @@ class Controller:
                 return None
             return self.exploration_instructions()
 
-        if not self.spline:
+        if self.active_wsk_id is None or not self.spline:
             self.tgt_orient = 0
             return apply_instructions()
 
@@ -229,7 +252,7 @@ class Controller:
             tangent = rotate(normal, tgt_orient * np.pi / 2)
             # get the new whisker rotation and position
             tgt_body_yaw_w = np.arctan2(normal[1], normal[0]) - tgt_orient * self.config.body.tilt
-            tgt_wsk_yaw_w = tgt_body_yaw_w - tgt_orient * self.wsk.body_angle
+            tgt_wsk_yaw_w = tgt_body_yaw_w - tgt_orient * self.wsk.config.angle_from_body
             tgt_wsk_r_w = tgt_tip_r_w - rotate(self.wsk.neutral_defl_offset, tgt_wsk_yaw_w)
 
             if self.config.debug:
@@ -269,7 +292,7 @@ class Controller:
             has_reached_surface = True
             tgt_tip_outside_w = edge + (radius / 4) * spl_normal
             tgt_tip_dr_w = tgt_tip_outside_w - self.wsk.tip_r_w
-            spl_kp_d = self.config.spline_keypoint_distance
+            spl_kp_d = self.config.spline.keypoint_distance
             if abs(np.linalg.norm(tgt_tip_dr_w)) < spl_kp_d * 2 and not self.wsk.is_deflected:
                 # the length was not enough to reconstruct the full spline
                 # and we have already reached the edge and even went beyond
@@ -326,7 +349,7 @@ class Controller:
 
         # 1. Calculate the target body yaw (tilt a bit more for better edge engagement)
         tgt_body_yaw_w = spl_tangent_angle + (self.config.body.tilt * 2) * orient
-        tgt_wsk_yaw_w = tgt_body_yaw_w - orient * self.wsk.body_angle
+        tgt_wsk_yaw_w = tgt_body_yaw_w - orient * self.wsk.config.angle_from_body
 
         # 2. Calculate the target whisker position
         # Keep in mind that the current deflection is zero

@@ -12,7 +12,7 @@ __all__ = ["Config", "SplineConfig", "WhiskerConfig", "BodyConfig", "WhiskerId",
 np.set_printoptions(precision=3, suppress=True)
 
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-type WhiskerId = Literal["r0", "l0"] | str
+type WhiskerId = Literal["r0", "l0"]
 type WhiskerOrientation = Literal[-1, 0, 1]
 
 
@@ -35,8 +35,9 @@ class WhiskerConfig(BaseSettings):
     disengaged_duration_threshold: float = 0.1
 
     defl_sensor_name: str
-    body_wsk_angle: float
-    body_wsk_offset: np.ndarray
+    angle_from_body: float
+    offset_from_body: np.ndarray
+    side: Literal["left", "right"]
 
 
 class BodyConfig(BaseSettings):
@@ -76,12 +77,14 @@ class Config(BaseSettings):
     whiskers: dict[WhiskerId, WhiskerConfig] = {
         "r0": WhiskerConfig(
             defl_sensor_name="wsk_r0_defl",
-            body_wsk_angle=-np.pi / 2,
-            body_wsk_offset=rotate(np.array([0.030, 0.125]) - _body_com_s, -np.pi / 2),
+            angle_from_body=-np.pi / 2,
+            offset_from_body=rotate(np.array([0.030, 0.125]) - _body_com_s, -np.pi / 2),
+            side="right",
         ),
         "l0": WhiskerConfig(
             defl_sensor_name="wsk_l0_defl",
-            body_wsk_angle=np.pi / 2,
-            body_wsk_offset=rotate(np.array([-0.030, 0.125]) - _body_com_s, -np.pi / 2),
+            angle_from_body=np.pi / 2,
+            offset_from_body=rotate(np.array([-0.030, 0.125]) - _body_com_s, -np.pi / 2),
+            side="left",
         ),
     }

@@ -34,13 +34,16 @@ class AnomalyDetector:
         assert m.dt <= self.control_dt * 1.1, f"Time step {m.dt} is larger than the control period {self.control_dt}"
 
         checks = [
-            partial(self.detect_abnormal_deflection, wsk=m.data.whiskers[self.ctrl.wsk_id]),
             self.detect_abnormal_velocity,
-            self.detect_slippage,
-            self.detect_detached_tip,
+            (
+                self.ctrl.active_wsk_id
+                and partial(self.detect_abnormal_deflection, wsk=m.data.whiskers[self.ctrl.active_wsk_id])
+            ),
+            (self.ctrl.active_wsk_id and self.detect_slippage),
+            (self.ctrl.active_wsk_id and self.detect_detached_tip),
         ]
         for check in checks:
-            if result := check():
+            if check and (result := check()):
                 return result
         return None
 
@@ -68,7 +71,7 @@ class AnomalyDetector:
         # control might not be respected, so rely on the previous world data
         # the tip might be stuck, so ignore small movements
         time, m = self.ctrl.data.time, self.ctrl.motion
-        body, wsk = m.body, m.for_whisker(self.ctrl.wsk_id)
+        body, wsk = m.body, m.for_whisker(self.ctrl.active_wsk_id)
         if wsk.tip_drift_v / body.v > 0.5 and (angle := np.dot(wsk.tip_drift_v_w, body.v_w)) < -1e3:
             return (
                 ControllerState.FAILURE,
@@ -96,7 +99,7 @@ class AnomalyDetector:
                 self.is_disengaged = True
                 self.disengaged_start_time = time
 
-            if time - self.disengaged_start_time > self.ctrl.disengaged_duration_threshold:
+            if time - self.disengaged_start_time > self.ctrl.wsk.config.disengaged_duration_threshold:
                 return (
                     ControllerState.DISENGAGED,
                     f"No deflection for {time - self.disengaged_start_time:.3f}s",
