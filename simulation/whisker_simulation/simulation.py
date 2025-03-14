@@ -1,6 +1,7 @@
 import datetime
 import math
 import time
+from functools import cached_property
 
 import mediapy as media
 import mujoco
@@ -11,6 +12,7 @@ from whisker_simulation.config import Config
 from whisker_simulation.controller import Controller
 from whisker_simulation.demo_assets import generate_demo_assets, has_demo_assets
 from whisker_simulation.models import SensorData
+from whisker_simulation.preprocessor import DataPreprocessor
 from whisker_simulation.utils import get_logger, prettify
 
 
@@ -29,14 +31,18 @@ class Simulation:
             else:
                 self.logger.warning("Some demo assets are missing, the simulation might crash")
 
+        self._sensor_data_last_updated: float = 0
+        self._sensor_data_cache: SensorData | None = None
+
         self.model_path = str(config.model_path)
         # noinspection PyArgumentList
         self.model = mujoco.MjModel.from_xml_path(self.model_path)
         self.data = mujoco.MjData(self.model)
         self.control_rps = config.control_rps
         self.monitor = self.get_monitor()
+        self.preprocessor = DataPreprocessor(config)
         self.controller = Controller(
-            initial_data=SensorData.from_mujoco_data(self.data, self.config),
+            initial_data=self.sensor_data,
             config=self.config,
             monitor=self.monitor,
         )
@@ -45,6 +51,12 @@ class Simulation:
         self.camera_fps = config.recording_camera_fps
         self.is_paused: bool = False
         self.is_controlled: bool = True
+
+    @cached_property
+    def sensor_data(self) -> SensorData:
+        # needs to be cleared every iteration
+        # the filter is set to a certain frequency, so we can't update it more than once per control step
+        return SensorData.from_mujoco_data(self.data, self.preprocessor, self.config)
 
     def get_monitor(self):
         from whisker_simulation.monitor import Monitor
@@ -62,9 +74,8 @@ class Simulation:
     def control(self, _: mujoco.MjModel, __: mujoco.MjData):
         if not self.is_controlled:
             return
-        sensor_data = SensorData.from_mujoco_data(self.data, self.config)
         try:
-            control = self.controller.control(sensor_data)
+            control = self.controller.control(self.sensor_data)
         except Exception as e:
             self.logger.exception(f"Error in control: {e}", exc_info=e)
             self.is_controlled = False
@@ -129,17 +140,24 @@ class Simulation:
             key_callback=self.key_callback,
             show_left_ui=False,
         ) as viewer:
+            with viewer.lock():
+                viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
+                viewer.cam.trackbodyid = self.data.body(self.config.body.mj_body_name).id
             while viewer.is_running():
                 if self.is_paused:
                     time.sleep(self.model.opt.timestep)
                     continue
+
+                # reset the sensor data cache
+                # noinspection PyPropertyAccess
+                del self.sensor_data
 
                 # step the physics
                 step_start = time.time()
                 mujoco.mj_step(self.model, self.data)
 
                 # call the monitor to draw the trajectories
-                self.monitor.on_simulation_step(viewer, SensorData.from_mujoco_data(self.data, self.config))
+                self.monitor.on_simulation_step(viewer, self.sensor_data)
 
                 # update the display
                 viewer.sync()

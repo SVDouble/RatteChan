@@ -155,7 +155,7 @@ class Monitor:
     def plot_defl_profile(self, defl_model):
         import matplotlib.pyplot as plt
 
-        deflections = np.linspace(-6e-4, 6e-4, 100)
+        deflections = np.linspace(-6e-4, 6e-4, 1000)
         points = defl_model(deflections)
         plt.scatter(points[:, 0], points[:, 1], c=deflections, cmap="viridis")
         plt.xlabel("X")

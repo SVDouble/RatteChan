@@ -5,7 +5,8 @@ from typing import Any, Self
 import numpy as np
 from pydantic import BaseModel, ConfigDict, computed_field
 
-from whisker_simulation.config import BodyConfig, Config, WhiskerConfig, WhiskerId, WhiskerOrientation
+from whisker_simulation.config import BodyConfig, Config, Orientation, WhiskerConfig, WhiskerId
+from whisker_simulation.preprocessor import DataPreprocessor
 from whisker_simulation.utils import import_class, rotate
 
 __all__ = [
@@ -100,10 +101,10 @@ class WhiskerData(BaseModel):
 
     @computed_field(repr=False)
     @cached_property
-    def orientation(self) -> WhiskerOrientation:
+    def orientation(self) -> Orientation:
         if not self.is_deflected:
-            return WhiskerOrientation.NEUTRAL
-        return WhiskerOrientation(np.sign(self.defl) * self.config.side.value)
+            return Orientation.NEUTRAL
+        return Orientation(np.sign(self.defl) * self.config.side.value)
 
 
 class SensorData(BaseModel):
@@ -114,7 +115,7 @@ class SensorData(BaseModel):
     whiskers: dict[WhiskerId, WhiskerData]
 
     @classmethod
-    def from_mujoco_data(cls, data, config: Config) -> Self:
+    def from_mujoco_data(cls, data, preprocessor: DataPreprocessor, config: Config) -> Self:
         def get(sensor_name: str):
             return data.sensor(sensor_name).data.item()
 
@@ -124,19 +125,19 @@ class SensorData(BaseModel):
         # rotating the body so that the tip points at 0 degrees seems to cause instability in mujoco
         # so sticking to the current setup for now
         body_data = BodyData(
-            x_w=get(config.body.x_sensor_name),
-            y_w=get(config.body.y_sensor_name),
-            z_w=get(config.body.z_sensor_name),
-            yaw_w=get(config.body.yaw_sensor_name),
+            x_w=get(config.body.x_mj_sensor_name),
+            y_w=get(config.body.y_mj_sensor_name),
+            z_w=get(config.body.z_mj_sensor_name),
+            yaw_w=get(config.body.yaw_mj_sensor_name),
             config=config.body,
         )
         whiskers = {
-            name: WhiskerData(
-                defl=get(wsk_config.defl_sensor_name),
+            wsk_id: WhiskerData(
+                defl=preprocessor.preprocess_defl(get(wsk_config.defl_sensor_name), wsk_id),
                 body_ref=body_data,
                 config=wsk_config,
             )
-            for name, wsk_config in config.whiskers.items()
+            for wsk_id, wsk_config in config.whiskers.items()
         }
         return cls(time=data.time, body=body_data, whiskers=whiskers)
 

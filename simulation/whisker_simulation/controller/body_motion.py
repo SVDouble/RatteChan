@@ -18,7 +18,14 @@ class MotionController:
             out_limits=(-np.pi / 3, np.pi / 3),
         )
 
-    def steer_body(self, *, motion: Motion, tgt_body_dr_w: np.ndarray, tgt_body_yaw_w: float | None):
+    def steer_body(
+        self,
+        *,
+        motion: Motion,
+        tgt_body_dr_w: np.ndarray,
+        tgt_body_yaw_w: float | None,
+        reverse: bool = False,
+    ):
         data, prev_data = motion.data, motion.prev_data
 
         # 1. Update the time step of the PID controllers
@@ -27,7 +34,10 @@ class MotionController:
         # 2. Calculate the yaw error
         if tgt_body_yaw_w is None:
             tgt_body_yaw_w = data.body.yaw_w
-        yaw_error = unwrap_pid_error(tgt_body_yaw_w - data.body.yaw_w)
+        body_yaw_w = data.body.yaw_w
+        if reverse:
+            body_yaw_w += np.pi
+        yaw_error = unwrap_pid_error(tgt_body_yaw_w - body_yaw_w)
 
         # 3. Calculate the angular velocity
         body_omega_w = self.yaw_pid(yaw_error)
@@ -37,13 +47,19 @@ class MotionController:
     def steer_wsk(
         self,
         *,
-        motion: Motion,
         wsk: WhiskerData,
+        motion: Motion,
         tgt_wsk_dr_w: np.ndarray,
         tgt_body_yaw_w: float | None,
+        reverse: bool = False,
     ) -> ControlMessage:
         # 1. Calculate the body control
-        ctrl = self.steer_body(motion=motion, tgt_body_dr_w=tgt_wsk_dr_w, tgt_body_yaw_w=tgt_body_yaw_w)
+        ctrl = self.steer_body(
+            motion=motion,
+            tgt_body_dr_w=tgt_wsk_dr_w,
+            tgt_body_yaw_w=tgt_body_yaw_w,
+            reverse=reverse,
+        )
         # 2. Account for the shift in the pivot point, as the body rotates around its center and not whisker base
         # Compute the correction term from the pivot shift: ω × (A - B)
         pivot_shift_w = wsk.body_offset_w  # TODO: shouldn't it be -wsk.body_offset_w?

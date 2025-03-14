@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from whisker_simulation.utils import rotate
 
-__all__ = ["Config", "SplineConfig", "WhiskerConfig", "BodyConfig", "WhiskerId", "WhiskerOrientation"]
+__all__ = ["Config", "SplineConfig", "WhiskerConfig", "BodyConfig", "WhiskerId", "Orientation"]
 
 np.set_printoptions(precision=3, suppress=True)
 
@@ -17,7 +17,7 @@ type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 type WhiskerId = Literal["r0", "l0"]
 
 
-class WhiskerOrientation(IntEnum):
+class Orientation(IntEnum):
     LEFT = 1  # also: ccw
     RIGHT = -1  # also: cw
     NEUTRAL = 0
@@ -57,20 +57,24 @@ class WhiskerConfig(BaseSettings):
 
     @computed_field(repr=False)
     @cached_property
-    def side(self) -> WhiskerOrientation:
-        return WhiskerOrientation.LEFT if 0 < self.angle_from_body % (2 * np.pi) < np.pi else WhiskerOrientation.RIGHT
+    def side(self) -> Orientation:
+        return Orientation.LEFT if 0 < self.angle_from_body % (2 * np.pi) < np.pi else Orientation.RIGHT
+
+    lowpass_cutoff: float = 0.5
+    lowpass_baseline: float = 0
 
 
 class BodyConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="body_")
 
-    tilt: float = 0.2
+    tilt: float = 0
     total_v: float = 0.05
 
-    x_sensor_name: str = "body_x_w"
-    y_sensor_name: str = "body_y_w"
-    z_sensor_name: str = "body_z_w"
-    yaw_sensor_name: str = "body_yaw_w"
+    x_mj_sensor_name: str = "body_x_w"
+    y_mj_sensor_name: str = "body_y_w"
+    z_mj_sensor_name: str = "body_z_w"
+    yaw_mj_sensor_name: str = "body_yaw_w"
+    mj_body_name: str = "platform"
 
 
 class Config(BaseSettings):

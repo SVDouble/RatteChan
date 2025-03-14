@@ -1,6 +1,6 @@
 import numpy as np
 
-from whisker_simulation.config import Config, WhiskerId, WhiskerOrientation
+from whisker_simulation.config import Config, WhiskerId, Orientation
 from whisker_simulation.controller.anomaly_detector import AnomalyDetector
 from whisker_simulation.controller.body_motion import MotionController
 from whisker_simulation.controller.spline import Spline
@@ -32,7 +32,7 @@ class Controller:
         # single-whisker control
         self.active_wsk_id: WhiskerId | None = None
         self.is_wsk_locked: bool = False
-        self.tgt_orient: WhiskerOrientation = WhiskerOrientation.NEUTRAL
+        self.tgt_orient: Orientation = Orientation.NEUTRAL
         self.motion_ctrl = MotionController(total_v=self.config.body.total_v)
 
         # anomaly detector
@@ -105,12 +105,10 @@ class Controller:
         if tunneling_possible and self.state != ControllerState.TUNNELING:
             self.active_wsk_id = None
             self.is_wsk_locked = False
-            self.tgt_orient = WhiskerOrientation.NEUTRAL
+            self.tgt_orient = Orientation.NEUTRAL
             self.state = ControllerState.TUNNELING
 
         if any_wsk_deflected and not tunneling_possible:
-            if self.state == ControllerState.TUNNELING:
-                self.state = ControllerState.SWIPING
             new_wsk_id = next(wsk_id for wsk_id, wsk in whiskers.items() if wsk.is_deflected)
             if not self.is_wsk_locked and self.active_wsk_id != new_wsk_id:
                 # reset the splines of the other whiskers
@@ -118,6 +116,9 @@ class Controller:
                     if wsk_id != new_wsk_id:
                         self.splines[wsk_id].reset()
                 self.active_wsk_id = new_wsk_id
+            if self.state == ControllerState.TUNNELING:
+                self.tgt_orient = self.wsk.orientation
+                self.state = ControllerState.SWIPING
 
         # update the splines
         self.midpoint_spline.add_keypoint(keypoint=(left_wsk.tip_r_w + right_wsk.tip_r_w) / 2, data=self.data)
@@ -157,6 +158,8 @@ class Controller:
                     return self.policy_reattaching()
             case ControllerState.TUNNELING:
                 return self.policy_tunneling()
+            case ControllerState.FAILURE:
+                return self.motion_ctrl.idle()
             case _:
                 raise NotImplementedError(f"State {self.state} is not implemented")
 
@@ -167,7 +170,7 @@ class Controller:
             return self.exploration_instructions()
 
         if self.active_wsk_id is None or not self.spline:
-            self.tgt_orient = WhiskerOrientation.NEUTRAL
+            self.tgt_orient = Orientation.NEUTRAL
             return apply_instructions()
 
         # At this point we have a spline to work with
@@ -178,9 +181,9 @@ class Controller:
         assert self.desired_next_state is not None
         self.state = self.desired_next_state
         self.desired_next_state = None
-        if self.tgt_orient == WhiskerOrientation.NEUTRAL:
+        if self.tgt_orient == Orientation.NEUTRAL:
             self.tgt_orient = self.wsk.orientation
-        assert self.tgt_orient != WhiskerOrientation.NEUTRAL
+        assert self.tgt_orient != Orientation.NEUTRAL
 
         # Use the exploration instructions one last time to let it prepare for the engaged state
         control = apply_instructions()
@@ -216,6 +219,7 @@ class Controller:
         control = self.motion_ctrl.steer_wsk(
             wsk=self.wsk,
             motion=self.motion,
+            reverse=np.sign(self.wsk.defl) == -1,
             tgt_wsk_dr_w=tgt_wsk_dr_n_w,
             tgt_body_yaw_w=spline_angle + self.config.body.tilt * self.wsk.orientation.value,
         )
