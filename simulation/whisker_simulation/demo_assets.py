@@ -415,13 +415,12 @@ def generate_sine_wave():
 # Generate squiggly circle curves: an outer curve with sine-modulated radius and an inner curve offset by gap_percent.
 def generate_squiggly_circles(base_radius=1.0, sine_amp=0.1, sine_freq=5, gap_percent=20, num_points=500):
     theta = np.linspace(0, 2 * np.pi, num_points, endpoint=False)  # angular positions
-    # Outer curve: base radius modulated by a sine wave.
-    r_outer = base_radius + sine_amp * np.sin(sine_freq * theta)
-    outer = np.column_stack((r_outer * np.cos(theta), r_outer * np.sin(theta)))
-    # Inner curve: each radius reduced by gap_percent.
+    r_outer = base_radius + sine_amp * np.sin(sine_freq * theta)  # sine-modulated outer radius
+    outer = np.column_stack((r_outer * np.cos(theta), r_outer * np.sin(theta)))  # outer curve coordinates
+    gap = gap_percent / 100 * base_radius  # constant gap based on base_radius
     inner = np.column_stack(
-        ((r_outer * (1 - gap_percent / 100)) * np.cos(theta), (r_outer * (1 - gap_percent / 100)) * np.sin(theta))
-    )
+        ((r_outer - gap) * np.cos(theta), (r_outer - gap) * np.sin(theta))
+    )  # inner curve with constant width
     return outer, inner
 
 

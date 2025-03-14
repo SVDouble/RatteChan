@@ -81,7 +81,10 @@ class Config(BaseSettings):
     model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
 
     # simulation setup
-    model_path: Path = "models/whisker.xml"
+    project_path: Path = Path(__file__).parents[1].resolve()
+    model_path: Path = project_path / "models/whisker.xml"
+    assets_path: Path = project_path / "assets"
+    local_assets_path: Path = assets_path / "local"
     control_rps: int = 30
 
     # recording setup
@@ -93,7 +96,6 @@ class Config(BaseSettings):
     detect_anomalies: bool = False
     debug: bool = False
     log_level: LogLevel = "INFO"
-    local_assets_path: Path = Path("assets/local").absolute()
     generate_demo_assets: bool = True
 
     # controller parameters
@@ -105,14 +107,14 @@ class Config(BaseSettings):
         "r0": WhiskerConfig(
             defl_model="whisker_simulation.controller.deflection_model.DeflectionModelRight",
             defl_sensor_name="wsk_r0_defl",
-            angle_from_body=-np.pi / 2,
+            angle_from_body=np.radians(-105),
             offset_from_body=rotate(np.array([0.030, 0.125]) - _body_com_s, -np.pi / 2),
             name="R0",
         ),
         "l0": WhiskerConfig(
             defl_model="whisker_simulation.controller.deflection_model.DeflectionModelLeft",
             defl_sensor_name="wsk_l0_defl",
-            angle_from_body=np.pi / 2,
+            angle_from_body=np.radians(105),
             offset_from_body=rotate(np.array([-0.030, 0.125]) - _body_com_s, -np.pi / 2),
             name="L0",
         ),

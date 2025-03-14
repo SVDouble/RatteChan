@@ -37,10 +37,10 @@
 
         <!-- Meshes to swipe the whisker against -->
         <body>
-<!--            <geom type="mesh" mesh="object_complex_f1" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>-->
-<!--            <geom type="mesh" mesh="object_complex_f2" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>-->
-<!--            <geom type="box" size="0.2 0.2 0.03" pos="0.32 -0.2 0.05" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>-->
-<!--            <geom type="box" size="0.2 0.2 0.03" pos="-0.42 0.2 0.05" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>-->
+            <!--            <geom type="mesh" mesh="object_complex_f1" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>-->
+            <!--            <geom type="mesh" mesh="object_complex_f2" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>-->
+            <!--            <geom type="box" size="0.2 0.2 0.03" pos="0.32 -0.2 0.05" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>-->
+            <!--            <geom type="box" size="0.2 0.2 0.03" pos="-0.42 0.2 0.05" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>-->
             <!--            <geom type="mesh" mesh="cube" pos="0.15 0.2 0" euler="0 0 100" rgba="0.2 0.5 0.1 1"/>-->
             <body pos="-0.5 1 0" euler="0 0 -90">
                 <attach model="walls" body="wall1" prefix="wall1_"/>
@@ -64,7 +64,7 @@
             <camera name="platform_cam" pos="0 0.25 0.05" xyaxes="1 0 0 0 0 -1"/>
 
             <!-- Whisker attached to the base -->
-            <body name="wsk_r0" pos="0.030 0.125 0.01">
+            <body name="wsk_r0" pos="0.030 0.125 0.01" axisangle="0 0 1 -15">
                 <!-- Hinge joint connecting base to whisker body -->
                 <joint name="wsk_r0_defl" type="hinge" axis="0 0 -1" damping="0.01" stiffness="1" armature="0.00001"/>
                 <!-- Thin cylinder geom for the whisker body -->
@@ -85,7 +85,7 @@
                 </composite>
             </body>
 
-            <body name="wsk_l0" pos="-0.030 0.125 0.01" axisangle="0 0 1 180">
+            <body name="wsk_l0" pos="-0.030 0.125 0.01" axisangle="0 0 1 195">
                 <!-- Hinge joint connecting base to whisker body -->
                 <joint name="wsk_l0_defl" type="hinge" axis="0 0 1" damping="0.01" stiffness="1" armature="0.00001"/>
                 <!-- Thin cylinder geom for the whisker body -->
