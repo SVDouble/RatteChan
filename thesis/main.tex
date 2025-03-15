@@ -1,0 +1,72 @@
+% !TeX spellcheck = en_US
+\documentclass[AIRstudentthesis%      style
+,optCharter%            font
+,optBlackHeadings%      black sections to reduce number of colored pages
+,optBlackRefs%          black references to reduce number of colored pages
+%,optCMYK%              color model
+,optBiber%              bibliography tool
+,optBibstyleAlphabetic% bibliography style
+,optCenterEquations%    alignment of equations
+,optEnglish%            language
+%,optTikzExternalize%   compiles faster for large tikz images
+,optComputerModernMath
+]{AIRlatex}
+
+
+% Load additional LaTeX packages - remove what you do not need
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{booktabs}
+
+% Set paths
+\graphicspath{{figures/}}
+\addbibresource{source/literature.bib}
+
+% Define additional commands
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\degree}[0]{^\circ}
+
+\begin{document}
+    % Titlepage
+    \frontmatter
+    \AIRstudentthesisTitlePageCustomBachelorsThesis{
+        German Title
+    }{
+        Reconstruction of contacts in search space from a whisker sensor array
+    }{
+        \AIRlangFieldOfStudyRoboticsCognitionIntelligence
+    }{
+        Valentin Safronov
+    }{}{
+        \AIRnamesProfKnoll
+    }{
+        Yixuan Dang, M.Sc.
+    }{
+        \AIRutilsDate{28}{03}{2025}
+    }
+
+    % Abstract
+    \include{source/abstract}
+
+    % Content
+    \AIRstudentthesisPrintTableOfContents
+    \mainmatter
+    \include{source/introduction}
+    \include{source/background}
+    \include{source/hardware}
+    \include{source/software}
+    \include{source/experiments}
+    \include{source/demonstration}
+    \include{source/conclusion}
+
+    % Appendix
+    \appendix
+    \include{source/appendix}
+
+    % References
+    {
+    %\sloppy% "Word"-like typesetting in order to improve breaking lines with long URLs/DOIs
+        \printbibliography[heading=bibintoc]%
+    }
+
+\end{document}
