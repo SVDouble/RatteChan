@@ -1,16 +1,107 @@
 % !TeX spellcheck = en_US
 
 
-\chapter{Software Design}
+\chapter{Control Algorithms}
 
 
 \section{Overview}
 
+The goal of the whisker control is to reconstruct the contour of an object the whisker came into contact by swiping along its curve.
+This requires an algorithm with the following properties:
+\begin{enumerate}
+    \item It enables the whisker to precisely reconstruct the contour of the object at the immediate contact point.
+    \item It can accurately follow the curves and sharp angles of the object, while maintaining the optimal whisker deflection.
+    \item It can handle whisker detachment due to sharp angles or sudden changes in the object's surface.
+    \item It is aware of the dimensions of the platform and can avoid collisions with the object.
+\end{enumerate}
+
+To realize these properties, the control algorithm is implemented as a finite state machine.
+Different states handle semantically different aspects of the whisker's behavior.
+The behavior of the control is divided into policies that are executed sequentially based on the environment's state.
+In this thesis, three policies are implemented:
+\begin{enumerate}
+    \item \textbf{Swiping Policy:} The whisker is swiping along a smooth curve, maintaining an optimal deflection profile.
+    \item \textbf{Retrieval Policy:} The whisker quickly retrieves the object if it has become detached and continues swiping along the profile.
+    \item \textbf{Tunnelling Policy:} Given two walls, shaped like a tunnel, the platform maintains centering between the walls.
+\end{enumerate}
+
 
 \section{Data Preprocessing}
 
+\subsection{Control Algorithm Variables}
+
+It is necessary to consider the variables of the control algorithm.
+The inputs come from 3 sources:
+\begin{enumerate}
+    \item Sensors on the platform (provide the platform's position, orientation and whisker deflection).
+    \item The geometric configuration of the model (e.g., whisker placement).
+    \item The control algorithm's configuration (e.g., whisker deflection threshold).
+\end{enumerate}
+The output variables concerns the target linear and angular velocities of the platform.
+The variables are summarized in Table~\ref{tab:variables}.
+
+\begin{table}[htb]
+    \centering
+    \begin{tabular}{p{1cm} p{2cm} p{3cm} p{7cm}}
+        \toprule
+        \textbf{Name}                           & \textbf{Values}                                    & \textbf{Source}                            & \textbf{Description}                                                                                                        \\
+        \midrule
+        \multicolumn{4}{l}{\textbf{Platform}} \\
+        \midrule
+        \(^{\mathrm{w}}x_{\textrm{body}}\)      & \(\mathbb{R}\)                                     & Measured                                   & x-coordinate in world coordinates.                                                                                          \\
+        \(^{\mathrm{w}}y_{\textrm{body}}\)      & \(\mathbb{R}\)                                     & Measured                                   & y-coordinate in world coordinates.                                                                                          \\
+        \(^{\mathrm{w}}z_{\textrm{body}}\)      & \(\mathbb{R}\)                                     & Measured                                   & z-coordinate (height) in world coordinates.                                                                                 \\
+        \(^{\mathrm{w}}\alpha_{\textrm{body}}\) & \(\mathbb{R}\)                                     & Measured                                   & Yaw angle (orientation) in world coordinates.                                                                               \\
+        \(\boldsymbol{r}_{\textrm{body}}\)      & \(\mathbb{R}^2\)                                   & Measured (alias)                           & Radius vector in world coordinates                                                                                          \\
+        \(v_{\textrm{tot}}\)                    & \(\mathbb{R}^{+}\)                                 & Configuration                              & Total platform velocity.                                                                                                    \\
+        \midrule
+        \multicolumn{4}{l}{\textbf{Whisker}} \\
+        \midrule
+        \(defl_{i}\)                            & \([-\delta_{\textrm{max}},\delta_{\textrm{max}}]\) & Measured                                   & Deflection due to contact forces.                                                                                           \\
+        \(orient_{i}\)                          & \(\{-1, 0, 1\}\)                                   & Derived from \(defl_{i}\) and \(side_{i}\) & Valid swipe orientation with current deflection: \(-1\) for clockwise, \(0\) for undefined, and \(1\) for counterclockwise. \\
+        \(\alpha_{i, \textrm{body}}\)           & \([-\pi,\pi)\)                                     & Simulation Model                           & Angle for whisker placement relative to the platform.                                                                       \\
+        \(\boldsymbol{r}_{i, \textrm{body}}\)   & \(\mathbb{R}^2\)                                   & Simulation Model                           & Offset from the platform center to the whisker base.                                                                        \\
+        \(side_{i}\)                            & \{\texttt{"left"}, \texttt{"right"}\}              & Simulation Model                           & Platform side where the whisker is fixed.                                                                                   \\
+        \(tilt_{i}\)                            & \((-\pi,\pi)\)                                     & Configuration                              & Desired tilt angle to the object surface.                                                                                   \\
+        \bottomrule
+    \end{tabular}
+    \caption{Overview of input variables used in the system.}
+    \label{tab:variables}
+\end{table}
+
+\subsection{Deflection Smoothing}
+The measured whisker deflection \(defl_{i}\) is inherently noisy, as whiskers are subject to vibrations and jumps (e.g., due to being temporarily stuck because of the traction).
+To smooth the deflection, a Butterworth filter is applied to the deflection values.
+It is initially warmed up with the neutral deflection and then updated with each new measurement.
+
+
+\section{Body Motion Control}
+All the control policies calculate the desired body or whisker position, which is then executed by the platform's actuators.
+In order for the body to move properly, the body motion algorithm must calculate the required velocities to reach the desired position.
+A PID controller is employed to calculate the target platform angular velocity.
+To simplify the control, the linear velocity is kept constant, and therefore the velocity vector can be directly derived from the desired angle.
+In some cases body motion controller received the target position for the whisker instead of the body.
+In this case, the body linear velocity is adjusted for the coordinate transformation from the whisker to the body frame.
+
+Here's the pseudocode for the body motion control algorithm:
+
+\begin{algorithm}[htb]
+    \caption{Steer Body to Target Position and Orientation}
+    \begin{algorithmic}
+        \State \textbf{Require} \(^{\mathrm{w}}r_{body}^{t+1}\), \(^{\mathrm{w}}yaw_{body}^{t+1}\)
+        \State \(^{\mathrm{w}}\omega_{body}^{t+1} \rightarrow PID\Big(^{\mathrm{w}}yaw_{body}^{t+1} - ^{\mathrm{w}}yaw_{body}^{t}\Big)\)
+        \State \(v_{body}^{t+1} \rightarrow v_{\textrm{tot}} \cdot \dfrac{^{\mathrm{w}}r_{body}^{t+1}}{\|^{\mathrm{w}}r_{body}^{t+1}\|}\)
+        \State \textbf{Return} \(v_{body}^{t+1}\), \(^{\mathrm{w}}\omega_{body}^{t+1}\)
+    \end{algorithmic}
+    \label{alg:steer_body}
+\end{algorithm}
+
 
 \section{Swiping Policy}
+
+The goal of the swiping policy is to provide a smooth swiping motion of the whisker along the object's contour.
+
+\subsection{Contact Detection}
 
 
 \section{Retrieval Policy}
