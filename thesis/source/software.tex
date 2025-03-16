@@ -73,13 +73,13 @@ The variables are summarized in Table~\ref{tab:variables}.
         \(\alpha_{i}^{t}\)                    & \(\mathbb{R}\)                                     & \(^{\mathrm{w}}\alpha^{t} + \alpha_{i, \textrm{body}}\) & Yaw angle (orientation) of the whisker base in world coordinates.                                                           \\
         \(orient_{i}^{t}\)                    & \(\{-1, 0, 1\}\)                                   & \(sgn(\delta_{i}^{t}) \cdot side_{i}\)                  & Valid swipe orientation with current deflection: \(-1\) for clockwise, \(0\) for undefined, and \(1\) for counterclockwise. \\
         \(side_{i}\)                          & \(\{-1, 1\}\)                                      & \(\branch{\alpha_{i,\mathrm{body}} < 0}{-1}{1}\)        & Platform side where the whisker is fixed, -1 is left and 1 is right                                                         \\
-        \(\delta_{i}^{thr}\)                  & \(\mathbb{R}^{+}\)                                 & Deflection Model                                        & Deflection threshold value for contact detection (\(\delta_{i}^{thr}\ll\delta_{\textrm{max}}\)).                    \\
-        \(\delta_{i}^{\infty}\)               & \([-\delta_{\textrm{max}},\delta_{\textrm{max}}]\) & Deflection Model                                        & Desired deflection value for small reconstruction error.                                                                        \\
+        \(\delta_{i}^{thr}\)                  & \(\mathbb{R}^{+}\)                                 & Deflection Model                                        & Deflection threshold value for contact detection (\(\delta_{i}^{thr}\ll\delta_{\textrm{max}}\)).                            \\
+        \(\delta_{i}^{target}\)               & \([-\delta_{\textrm{max}},\delta_{\textrm{max}}]\) & Deflection Model                                        & Target deflection value for small reconstruction error.                                                                     \\
         \(\boldsymbol{r}_{i, \textrm{body}}\) & \(\mathbb{R}^2\)                                   & Robot Geometry                                          & Offset from the platform center to the whisker base.                                                                        \\
         \(\alpha_{i, \textrm{body}}\)         & \([-\pi,\pi)\)                                     & Robot Geometry                                          & Angle for whisker placement relative to the platform.                                                                       \\
         \bottomrule
     \end{tabular}
-    \caption{Overview of input variables used in the system.}
+    \caption{Overview of input and output variables used in the control system.}
     \label{tab:variables}
 \end{table}
 
@@ -130,27 +130,23 @@ The goal of the swiping policy is to provide a smooth swiping motion of the whis
 \begin{algorithm}[htb]
     \caption{Swiping Policy}
     \begin{algorithmic}
-        \State If \(abs(\delta_{i}) < \delta_{i}^{threshold}\)  Then
-        \State \quad \textbf{Return} \(\boldsymbol{v}^{t}\), \(^{\mathrm{w}}\omega^{t}\)
+        \State If \(abs(\delta_{wsk}^{t}) < \delta_{wsk}^{threshold}\)  Then
+        \State \quad \textbf{Return} \(\;^{\mathrm{w}}\boldsymbol{v}^{t}\), \(\;^{\mathrm{w}}\omega^{t}\)
         \State End If
 
-        \State \(\;^{\mathrm{s}}\boldsymbol{r}_{tip}^{t} \gets defl\_model\Big(\delta_{wsk}^{t}\Big)\) \Comment{Whisker base-tip offset}
-        \State \(\;^{\mathrm{w}}\boldsymbol{r}_{tip}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \boldsymbol{r}_{wsk, \textrm{body}} + \;^{\mathrm{s}}\boldsymbol{r}_{tip}^{t}\) \Comment{Whisker tip position}
+        \State \(\;^{\mathrm{s}}\boldsymbol{r}_{tip}^{t} \gets defl\_model\Big(\delta_{wsk}^{t}\Big)\)
+        \State \(\;^{\mathrm{w}}\boldsymbol{r}_{tip}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \boldsymbol{r}_{wsk, \textrm{body}} + \;^{\mathrm{s}}\boldsymbol{r}_{tip}^{t}\)
         \State \(spline.add\_keypoint\big(\;^{\mathrm{w}}\boldsymbol{r}_{tip}^{t}\big)\) \Comment{Make sure the spline has the latest tip position}
 
-        \State \(\;^{\mathrm{w}}\boldsymbol{\tau}_{spline} \gets \dfrac{spline(u_{k1}) - spline(u_{k0})}{\|spline(u_{k1}) - spline(u_{k0})\|}\) \Comment{Spline tangent at the end of the curve}
-        \State \(\;^{\mathrm{w}}\theta_{spline} \gets \arctan2\Big(\;^{\mathrm{w}}\boldsymbol{\tau}_{spline}\Big)\) \Comment{Spline angle at the end of the curve}
-        \State \(\;^{\mathrm{s}}\boldsymbol{r}_{tip}^{t_{\infty}} \gets defl\_model\Big(\delta_{wsk}^{\infty} \cdot \operatorname{sgn}(\delta_{wsk}^{t})\Big)\) \Comment{Desired whisker base-tip offset}
-        \State \(\Delta\boldsymbol{r}_{tip}^{t} \gets rotate\Big(\;^{\mathrm{s}}\boldsymbol{r}_{tip}^{t_{\infty}} - \;^{\mathrm{s}}\boldsymbol{r}_{tip}^{t},\; ^{\mathrm{w}}\alpha_{wsk}^{t}\Big)\) \Comment{Get tip offset error in world coordinates}
-        \State \(\;^{\mathrm{w}}\boldsymbol{r}_{wsk}^{t+1} \gets \;^{\mathrm{w}}\boldsymbol{r}_{wsk}^{t} + w \cdot \dfrac{-\Delta\boldsymbol{r}_{tip}^{t}}{\|\Delta\boldsymbol{r}_{tip}^{t}|}\)
-        \State \(w \gets \dfrac{\|\Delta\delta_w\|}{\|\delta_{target} - \delta_{neutral}\|}\)
-        \State // Compute target whisker direction as normalized weighted sum of deflection and spline directions
-        \State \(\;^{\mathrm{w}}\boldsymbol{d}_{target} \gets \dfrac{w\,\;^{\mathrm{w}}\boldsymbol{d}_\delta + (1-w)\,\;^{\mathrm{w}}\boldsymbol{d}_s}{\|w\,\;^{\mathrm{w}}\boldsymbol{d}_\delta + (1-w)\,\;^{\mathrm{w}}\boldsymbol{d}_s\|}\)
-        \State // Set target orientation as the spline angle adjusted by tilt and whisker orientation
-        \State \(\alpha_{target} \gets \theta_s + tilt \cdot orientation\)
-        \State // Compute control commands using target whisker direction and target orientation
-        \State \(^{\mathrm{w}}\boldsymbol{v}^{t+1}\), \(^{\mathrm{w}}\omega^{t+1}\) \gets steer\_wsk\big(\;^{\mathrm{w}}\boldsymbol{d}_{target},\; \alpha_{target}\big)\)
-        \State \textbf{Return} \(v_{target},\; \omega_{target}\)
+        \State \(\;^{\mathrm{w}}\boldsymbol{\tau}_{spline}^{t} \gets \dfrac{spline(u_{k1}) - spline(u_{k0})}{\|spline(u_{k1}) - spline(u_{k0})\|}\) \Comment{Spline tangent at the end of the curve}
+        \State \(\;^{\mathrm{w}}\theta_{spline}^{t} \gets \arctan2\Big(\;^{\mathrm{w}}\boldsymbol{\tau}_{spline}^{t}\Big)\) \Comment{Spline angle at the end of the curve}
+        \State \(\;^{\mathrm{s}}\boldsymbol{r}_{tip}^{target} \gets defl\_model\Big(\delta_{wsk}^{target} \cdot \operatorname{sgn}(\delta_{wsk}^{t})\Big)\) \Comment{Desired whisker base-tip offset}
+        \State \(\Delta\boldsymbol{r}_{tip}^{t} \gets rotate\Big(\;^{\mathrm{s}}\boldsymbol{r}_{tip}^{target} - \;^{\mathrm{s}}\boldsymbol{r}_{tip}^{t},\; ^{\mathrm{w}}\alpha_{wsk}^{t}\Big)\) \Comment{\((\forall{t} \;^{\mathrm{w}}\boldsymbol{v}^{t+1} \updownarrow \Delta\boldsymbol{r}_{tip}^{t}) \implies \delta_{wsk}^{t} \xrightarrow[t \to \infty]{} \delta_{wsk}^{target}\) }
+        \State \(\;^{\mathrm{s}}\boldsymbol{r}_{tip}^{neutral} \gets defl\_model\Big(0\Big)\) \Comment{Undeformed whisker base-tip offset}
+        \State \(w \gets \dfrac{\|\Delta\boldsymbol{r}_{tip}^{t}\|}{\|\;^{\mathrm{s}}\boldsymbol{r}_{tip}^{target} - \;^{\mathrm{s}}\boldsymbol{r}_{tip}^{neutral}\|}\) \Comment{Balance between following the object curvature...}
+        \State \(\;^{\mathrm{w}}\boldsymbol{r}_{wsk}^{t+1} \gets \;^{\mathrm{w}}\boldsymbol{r}_{wsk}^{t} + w \cdot \dfrac{-\Delta\boldsymbol{r}_{tip}^{t}}{\|\Delta\boldsymbol{r}_{tip}^{t}\|} + (1 - w) \cdot \;^{\mathrm{w}}\boldsymbol{\tau}_{spline}^{t}\) \Comment{...and maintaining target deflection}
+        \State \(\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1} \gets steer\_wsk\big(\;^{\mathrm{w}}\boldsymbol{r}_{wsk}^{t+1},\;^{\mathrm{w}}\theta_{spline}^{t}\big)\)
+        \State \textbf{Return} \(\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1}\)
     \end{algorithmic}
     \label{alg:swiping_policy}
 \end{algorithm}
