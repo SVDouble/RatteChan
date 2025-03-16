@@ -40,29 +40,43 @@ The inputs come from 3 sources:
 The output variables concerns the target linear and angular velocities of the platform.
 The variables are summarized in Table~\ref{tab:variables}.
 
+\newcommand{\branch}[3]{%
+    \scalebox{0.75}{$\left\{
+                         \begin{array}{@{}l@{\quad}l@{}}
+                             #2, & \text{if } #1,\\[0.5em]
+                             #3, & \text{otherwise.}
+                         \end{array}
+    \right.$}%
+}
+
+
 \begin{table}[htb]
     \centering
-    \begin{tabular}{p{1cm} p{2cm} p{3cm} p{7cm}}
+    \begin{tabular}{p{1cm} p{2cm} p{3cm} p{8cm}}
         \toprule
-        \textbf{Name}                           & \textbf{Values}                                    & \textbf{Source}                            & \textbf{Description}                                                                                                        \\
+        \textbf{Name}                         & \textbf{Values}                                    & \textbf{Source}                                         & \textbf{Description}                                                                                                        \\
         \midrule
-        \multicolumn{4}{l}{\textbf{Platform}} \\
+        \multicolumn{4}{l}{\textbf{Platform Inputs}} \\
         \midrule
-        \(^{\mathrm{w}}x_{\textrm{body}}\)      & \(\mathbb{R}\)                                     & Measured                                   & x-coordinate in world coordinates.                                                                                          \\
-        \(^{\mathrm{w}}y_{\textrm{body}}\)      & \(\mathbb{R}\)                                     & Measured                                   & y-coordinate in world coordinates.                                                                                          \\
-        \(^{\mathrm{w}}z_{\textrm{body}}\)      & \(\mathbb{R}\)                                     & Measured                                   & z-coordinate (height) in world coordinates.                                                                                 \\
-        \(^{\mathrm{w}}\alpha_{\textrm{body}}\) & \(\mathbb{R}\)                                     & Measured                                   & Yaw angle (orientation) in world coordinates.                                                                               \\
-        \(\boldsymbol{r}_{\textrm{body}}\)      & \(\mathbb{R}^2\)                                   & Measured (alias)                           & Radius vector in world coordinates                                                                                          \\
-        \(v_{\textrm{tot}}\)                    & \(\mathbb{R}^{+}\)                                 & Configuration                              & Total platform velocity.                                                                                                    \\
+        \(^{\mathrm{w}}\boldsymbol{r}^{t}\)   & \(\mathbb{R}^2, [x, y]^\textrm{T}\)                & Measured                                                & Radius vector in world coordinates.                                                                                         \\
+        \(^{\mathrm{w}}\alpha^{t}\)           & \(\mathbb{R}\)                                     & Measured                                                & Yaw angle (orientation) in world coordinates.                                                                               \\
+        \(v_{\textrm{total}}\)                & \(\mathbb{R}^{+}\)                                 & Configuration                                           & Total platform velocity.                                                                                                    \\
         \midrule
-        \multicolumn{4}{l}{\textbf{Whisker}} \\
+        \multicolumn{4}{l}{\textbf{Platform Outputs}} \\
         \midrule
-        \(defl_{i}\)                            & \([-\delta_{\textrm{max}},\delta_{\textrm{max}}]\) & Measured                                   & Deflection due to contact forces.                                                                                           \\
-        \(orient_{i}\)                          & \(\{-1, 0, 1\}\)                                   & Derived from \(defl_{i}\) and \(side_{i}\) & Valid swipe orientation with current deflection: \(-1\) for clockwise, \(0\) for undefined, and \(1\) for counterclockwise. \\
-        \(\alpha_{i, \textrm{body}}\)           & \([-\pi,\pi)\)                                     & Simulation Model                           & Angle for whisker placement relative to the platform.                                                                       \\
-        \(\boldsymbol{r}_{i, \textrm{body}}\)   & \(\mathbb{R}^2\)                                   & Simulation Model                           & Offset from the platform center to the whisker base.                                                                        \\
-        \(side_{i}\)                            & \{\texttt{"left"}, \texttt{"right"}\}              & Simulation Model                           & Platform side where the whisker is fixed.                                                                                   \\
-        \(tilt_{i}\)                            & \((-\pi,\pi)\)                                     & Configuration                              & Desired tilt angle to the object surface.                                                                                   \\
+        \(^{\mathrm{w}}\boldsymbol{v}^{t}\)   & \(\mathbb{R}^2, [v_x, v_y]^\textrm{T}\)            & Controlled                                              & Linear velocity vector in world coordinates.                                                                                \\
+        \(^{\mathrm{w}}\omega^{t}\)           & \(\mathbb{R}^2\)                                   & Controlled                                              & Angular velocity (yaw) in world coordinates.                                                                                \\
+        \midrule
+        \multicolumn{4}{l}{\textbf{Whisker Inputs (per whisker)}} \\
+        \midrule
+        \(\delta_{i}^{t}\)                    & \([-\delta_{\textrm{max}},\delta_{\textrm{max}}]\) & Measured                                                & Deflection due to contact forces.                                                                                           \\
+        \(\alpha_{i}^{t}\)                    & \(\mathbb{R}\)                                     & \(^{\mathrm{w}}\alpha^{t} + \alpha_{i, \textrm{body}}\) & Yaw angle (orientation) of the whisker base in world coordinates.                                                           \\
+        \(orient_{i}^{t}\)                    & \(\{-1, 0, 1\}\)                                   & \(sgn(\delta_{i}^{t}) \cdot side_{i}\)                  & Valid swipe orientation with current deflection: \(-1\) for clockwise, \(0\) for undefined, and \(1\) for counterclockwise. \\
+        \(side_{i}\)                          & \(\{-1, 1\}\)                                      & \(\branch{\alpha_{i,\mathrm{body}} < 0}{-1}{1}\)        & Platform side where the whisker is fixed, -1 is left and 1 is right                                                         \\
+        \(\delta_{i}^{thr}\)                  & \(\mathbb{R}^{+}\)                                 & Deflection Model                                        & Deflection threshold value for contact detection (\(\delta_{i}^{thr}\ll\delta_{\textrm{max}}\)).                    \\
+        \(\delta_{i}^{\infty}\)               & \([-\delta_{\textrm{max}},\delta_{\textrm{max}}]\) & Deflection Model                                        & Desired deflection value for small reconstruction error.                                                                        \\
+        \(\boldsymbol{r}_{i, \textrm{body}}\) & \(\mathbb{R}^2\)                                   & Robot Geometry                                          & Offset from the platform center to the whisker base.                                                                        \\
+        \(\alpha_{i, \textrm{body}}\)         & \([-\pi,\pi)\)                                     & Robot Geometry                                          & Angle for whisker placement relative to the platform.                                                                       \\
         \bottomrule
     \end{tabular}
     \caption{Overview of input variables used in the system.}
@@ -70,7 +84,7 @@ The variables are summarized in Table~\ref{tab:variables}.
 \end{table}
 
 \subsection{Deflection Smoothing}
-The measured whisker deflection \(defl_{i}\) is inherently noisy, as whiskers are subject to vibrations and jumps (e.g., due to being temporarily stuck because of the traction).
+The measured whisker deflection \(\delta_{i}\) is inherently noisy, as whiskers are subject to vibrations and jumps (e.g., due to being temporarily stuck because of the traction).
 To smooth the deflection, a Butterworth filter is applied to the deflection values.
 It is initially warmed up with the neutral deflection and then updated with each new measurement.
 
@@ -86,20 +100,60 @@ In this case, the body linear velocity is adjusted for the coordinate transforma
 Here's the pseudocode for the body motion control algorithm:
 
 \begin{algorithm}[htb]
-    \caption{Steer Body to Target Position and Orientation}
+    \caption{Steer the Platform to Target Position and Orientation}
     \begin{algorithmic}
-        \State \textbf{Require} \(^{\mathrm{w}}r_{body}^{t+1}\), \(^{\mathrm{w}}yaw_{body}^{t+1}\)
-        \State \(^{\mathrm{w}}\omega_{body}^{t+1} \rightarrow PID\Big(^{\mathrm{w}}yaw_{body}^{t+1} - ^{\mathrm{w}}yaw_{body}^{t}\Big)\)
-        \State \(v_{body}^{t+1} \rightarrow v_{\textrm{tot}} \cdot \dfrac{^{\mathrm{w}}r_{body}^{t+1}}{\|^{\mathrm{w}}r_{body}^{t+1}\|}\)
-        \State \textbf{Return} \(v_{body}^{t+1}\), \(^{\mathrm{w}}\omega_{body}^{t+1}\)
+        \State \textbf{Require} \(^{\mathrm{w}}\boldsymbol{r}^{t+1}\), \(^{\mathrm{w}}\alpha^{t+1}\)
+        \State \(^{\mathrm{w}}\omega^{t+1} \gets PID\Big(^{\mathrm{w}}\alpha^{t+1} - ^{\mathrm{w}}\alpha^{t}\Big)\)
+        \State \(\boldsymbol{v}^{t+1} \gets v_{\textrm{total}} \cdot \dfrac{^{\mathrm{w}}\boldsymbol{r}^{t+1}}{\|^{\mathrm{w}}\boldsymbol{r}^{t+1}\|}\)
+        \State \textbf{Return} \(\boldsymbol{v}^{t+1}\), \(^{\mathrm{w}}\omega^{t+1}\)
     \end{algorithmic}
-    \label{alg:steer_body}
+    \label{alg:steer_platform}
+\end{algorithm}
+
+\begin{algorithm}[htb]
+    \caption{Steer Whisker to Target Position and Orientation}
+    \begin{algorithmic}
+        \State \textbf{Require} \(^{\mathrm{w}}\boldsymbol{r}_{wsk}^{t+1}\), \(^{\mathrm{w}}\alpha_{wsk}^{t+1}\)
+        \State \((^{\mathrm{w}}\boldsymbol{v}^{t+1},\, ^{\mathrm{w}}\omega^{t+1}) \gets steer\_body\big(^{\mathrm{w}}\boldsymbol{r}_{wsk}^{t+1},\, ^{\mathrm{w}}\alpha_{wsk}^{t+1}\big)\)
+        \State \(^{\mathrm{w}}\boldsymbol{r}_{corr} \gets [0,\,0,\,^{\mathrm{w}}\omega^{t+1}] \times \boldsymbol{r}_{wsk, \textrm{body}}\) \Comment{Correct for whisker offset (pivot shift)}
+        \State \(^{\mathrm{w}}\boldsymbol{v}^{t+1} \gets v_{\textrm{tot}} \cdot \dfrac{^{\mathrm{w}}\boldsymbol{v}^{t+1} + \,^{\mathrm{w}}\boldsymbol{r}_{corr}}{\|^{\mathrm{w}}\boldsymbol{v}^{t+1} + \,^{\mathrm{w}}\boldsymbol{r}_{corr}\|}\)
+        \State \textbf{Return} \(^{\mathrm{w}}\boldsymbol{v}^{t+1}\), \(^{\mathrm{w}}\omega^{t+1}\)
+    \end{algorithmic}
+    \label{alg:steer_whisker}
 \end{algorithm}
 
 
 \section{Swiping Policy}
 
 The goal of the swiping policy is to provide a smooth swiping motion of the whisker along the object's contour.
+
+\begin{algorithm}[htb]
+    \caption{Swiping Policy}
+    \begin{algorithmic}
+        \State If \(abs(\delta_{i}) < \delta_{i}^{threshold}\)  Then
+        \State \quad \textbf{Return} \(\boldsymbol{v}^{t}\), \(^{\mathrm{w}}\omega^{t}\)
+        \State End If
+
+        \State \(\;^{\mathrm{s}}\boldsymbol{r}_{tip}^{t} \gets defl\_model\Big(\delta_{wsk}^{t}\Big)\) \Comment{Whisker base-tip offset}
+        \State \(\;^{\mathrm{w}}\boldsymbol{r}_{tip}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \boldsymbol{r}_{wsk, \textrm{body}} + \;^{\mathrm{s}}\boldsymbol{r}_{tip}^{t}\) \Comment{Whisker tip position}
+        \State \(spline.add\_keypoint\big(\;^{\mathrm{w}}\boldsymbol{r}_{tip}^{t}\big)\) \Comment{Make sure the spline has the latest tip position}
+
+        \State \(\;^{\mathrm{w}}\boldsymbol{\tau}_{spline} \gets \dfrac{spline(u_{k1}) - spline(u_{k0})}{\|spline(u_{k1}) - spline(u_{k0})\|}\) \Comment{Spline tangent at the end of the curve}
+        \State \(\;^{\mathrm{w}}\theta_{spline} \gets \arctan2\Big(\;^{\mathrm{w}}\boldsymbol{\tau}_{spline}\Big)\) \Comment{Spline angle at the end of the curve}
+        \State \(\;^{\mathrm{s}}\boldsymbol{r}_{tip}^{t_{\infty}} \gets defl\_model\Big(\delta_{wsk}^{\infty} \cdot \operatorname{sgn}(\delta_{wsk}^{t})\Big)\) \Comment{Desired whisker base-tip offset}
+        \State \(\Delta\boldsymbol{r}_{tip}^{t} \gets rotate\Big(\;^{\mathrm{s}}\boldsymbol{r}_{tip}^{t_{\infty}} - \;^{\mathrm{s}}\boldsymbol{r}_{tip}^{t},\; ^{\mathrm{w}}\alpha_{wsk}^{t}\Big)\) \Comment{Get tip offset error in world coordinates}
+        \State \(\;^{\mathrm{w}}\boldsymbol{r}_{wsk}^{t+1} \gets \;^{\mathrm{w}}\boldsymbol{r}_{wsk}^{t} + w \cdot \dfrac{-\Delta\boldsymbol{r}_{tip}^{t}}{\|\Delta\boldsymbol{r}_{tip}^{t}|}\)
+        \State \(w \gets \dfrac{\|\Delta\delta_w\|}{\|\delta_{target} - \delta_{neutral}\|}\)
+        \State // Compute target whisker direction as normalized weighted sum of deflection and spline directions
+        \State \(\;^{\mathrm{w}}\boldsymbol{d}_{target} \gets \dfrac{w\,\;^{\mathrm{w}}\boldsymbol{d}_\delta + (1-w)\,\;^{\mathrm{w}}\boldsymbol{d}_s}{\|w\,\;^{\mathrm{w}}\boldsymbol{d}_\delta + (1-w)\,\;^{\mathrm{w}}\boldsymbol{d}_s\|}\)
+        \State // Set target orientation as the spline angle adjusted by tilt and whisker orientation
+        \State \(\alpha_{target} \gets \theta_s + tilt \cdot orientation\)
+        \State // Compute control commands using target whisker direction and target orientation
+        \State \(^{\mathrm{w}}\boldsymbol{v}^{t+1}\), \(^{\mathrm{w}}\omega^{t+1}\) \gets steer\_wsk\big(\;^{\mathrm{w}}\boldsymbol{d}_{target},\; \alpha_{target}\big)\)
+        \State \textbf{Return} \(v_{target},\; \omega_{target}\)
+    \end{algorithmic}
+    \label{alg:swiping_policy}
+\end{algorithm}
 
 \subsection{Contact Detection}
 
