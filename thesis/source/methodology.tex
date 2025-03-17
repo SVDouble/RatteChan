@@ -15,6 +15,14 @@ This requires an algorithm with the following properties:
     \item It is aware of the dimensions of the platform and can avoid collisions with the object.
 \end{enumerate}
 
+A couple of assumptions are made about the environment in this paper:
+1. The contour capturing happens in a 2D slice of the object, which implies flat motion of the platform and whiskers (in xy plane)
+2. The object is rigid and doesn't move during the whisker's contact with it
+3. The forces acted upon the platform by the whiskers do not affect its motion
+4. The absolute position of the platform in the world frame is known at all times
+5. The initial trajectory of the platform is such that the one of the whisker eventually comes into contact with the whisker
+6. Multiple objects might be presents at the scene, and they might come into contact with the whisker, but obly a single object is in focus of the whisker's attention
+
 To realize these properties, the control algorithm is implemented as a finite state machine.
 Different states handle semantically different aspects of the whisker's behavior.
 The behavior of the control is divided into policies that are executed sequentially based on the environment's state.
@@ -85,9 +93,12 @@ The variables are summarized in Table~\ref{tab:variables}.
 
 \subsection{Deflection Smoothing}
 The measured whisker deflection \(\delta_{i}^{t}\) is inherently noisy, as whiskers are subject to vibrations and jumps (e.g., due to being temporarily stuck because of the traction).
-To smooth the deflection, a Butterworth filter is applied to the deflection values.
+To smooth the deflection, a low-pass Butterworth filter is applied to the deflection values.
 It is initially warmed up with the neutral deflection and then updated with each new measurement.
 
+\subsection{Deflection Model}
+For the deflection model a polynomial of the 5th degree is fitted to the sampled whisker deflection calibration data.
+The deflection offset is mirrored from the neutral position and is clipped by the half-circle of the whisker length.
 
 \section{Body Motion Control}
 All the control policies calculate the desired body or whisker position, which is then executed by the platform's actuators.
@@ -127,11 +138,11 @@ The goal of the swiping policy is to provide a smooth swiping motion of the whis
 At the same time, it is expected to collect high precision data about the object's shape.
 In order to achieve this, the whisker must maintain an optimal deflection profile, as the error of the deflection model is usually dependent on the whisker's deflection.
 All in all, this requires balancing between following the object's curvature and maintaining the target deflection.
-For the contour following part, a spline is used to approximate the object's curve.
-The spline is updated with each new whisker position, and the tangent at the end of the curve is used to calculate the desired whisker orientation.
+For the contour following part, a spline is used to approximate the object's curve - at every control iteration it receives the latest whisker tip position.
+The tangent at the end of the curve is used to calculate the desired whisker orientation.
 To account for the whisker's deflection, the target whisker base-tip offset is calculated based on the deflection model, and compared to the target deflection.
 The whisker's position is thus given as a weighted sum of the vector, which minimizes the deflection error, and the spline tangent.
-For the transient effects, specifically when the whisker deflection is below a certain threshold or the spline couldn't have been built yet, the swiping policy preserves the last control values.
+For the transient effects, specifically when the whisker deflection is below a certain threshold or the spline couldn't have been built yet, the swiping policy preserves the existing control values.
 
 \begin{algorithm}[htb]
     \caption{Swiping Policy}
@@ -162,6 +173,8 @@ For the transient effects, specifically when the whisker deflection is below a c
     \label{alg:swiping_policy}
 \end{algorithm}
 
+The contour is reconstructed by adjoining the keypoints of the spline.
+The stopping position is determined when the latest keypoint is closer to the starting position than the distance between two consecutive keypoints and a certain trajectory length has been achieved.
 
 \section{Retrieval Policy}
 
@@ -239,25 +252,76 @@ Here's the statechart of the finite state machine for the discussed policies:
 
 
 \section{Additional features}
+
+A couple of useful modifications can be applied to the control algorithm depending on the specific requirements of the task.
+
 \subsection{Retrieval without edge reconstruction}
-...
+
+If the goal is to quickly analyze the surface of the object without the need for precise edge reconstruction, the whisking step in the retrieval policy can be skipped and angle resolution stage then directly leads to swiping at the other side.
+
 \subsection{Tilt}
-...
+
+If more stability during the swiping is required (i.e. sharper angles are desired to get handled without separation), the platform can be tilted slightly to the object.
+This solely requires a simple modification of the body motion control algorithm, where the target orientation is adjusted by a small angle.
+The tilt increases the time the whisker can stay in contact with the surface given that the platform preserves it's direction, as it is foreshadowing the potential curve.
+Which allows for a larger delay in the platform's rotation, which is beneficial given that the spline can only be constructed at the contact point and cannot predict the future curve far away.
+
 \subsection{Reverse swiping}
-...
+
+If it is required for the platform to backtrack its path, the swiping policy can be modified to follow the spline in the opposite direction.
+This is made possible by defining the principal movement direction (normally pointing in the direction of the "nose" of the platform), which is reversed in the reverse swiping mode.
+This entails a modification of the body motion control algorithm, where the linear velocity is calculated with offsetted (opposite) yaw in mind.
+The retrieval policy can be adjusted to account for the reverse swiping as it is independent of the platform orientation and is only predicated on the position of the whisker base.
+
+
 \subsection{Positioning of whiskers at different angles}
-...
+
+Another way of improving the adhesion of the whisker to the object is to position the whisker at an angle to the platform, while maintaining the tangential inclination of the platform to the object.
+It follows the same principle as tilt, while preserving the platform's angle relative to the object.
+Positioning of whiskers becomes quite important in the case of tunneling, as both of the whiskers should handle the turns in the tunnel without getting stuck.
+While entering the tunnel, which usually happens with the body swiping along one of its sides and then the other joining, when contact with the other side is established, when the second whisker comes into contact with the surface, it is important that it is positioned at proper angle to the platform, which is slightly behind the main body.
+If it's not the case and the whisker is pointing in the direction of movement, it might insert inself into the cavities in the surface and bend in the direction, as if the body was moving in the opposite direction.
+This prevents the platform from gliding further along the tunnel, as the whisker integrity is endangered, as it can only withstand certain forces and will break if deflected too violently.
+It can be avoided by positioning the whisker at an angle to the platform, facing slightly backwards, so that it doesn't face the other side of the tunnel head-on.
+
+
 \subsection{Integration of multiple whiskers on each side}
+
+Multiple whiskers might be integrated at each side of the platform
+
 - precision of the surface resolution
 - single shot swiping without need for retrieval
 - active whisking
-\subsection{Transition to SLAM and free exploration}
-
-\section{Limitations of the suggested control algorithm}
 
 \section{Comparison to the baseline}
-The baseline from the previous works only has the swiping policy
-This swiping policy employs a single PID controller that takes whisker deflection error as an input and returns the desired velocity of the platform in the direction of the object.
-The idea is that in order to keep the whisker profile constant the deflection needs to be constant, and for that the body should move closer to the object when the whisker becomes too loose and away if it is too strained.
-Albeit such an algorithm is suitable and works in a well defined scenarios, it has some inherent instabilities:
--
+\subsection{Baseline Algorithm}
+The baseline from the previous works implements the swiping policy
+For preprocessing, a kalman filter with measurement noise calculated as measurement covariance is applied for the whisker deflection offset
+Its swiping policy employs a single PID controller that takes whisker deflection error as an input and returns the desired velocity of the platform in the direction of the object in the sensor frame.
+The total velocity is preserved and the principal direction velocity in the local frame is calculated as a complement given the total velocity and velocity toward the whisker compression / relaxation.
+The output velocity in the world frame is thus given as the output velocity in the local frame rotated by the whisker tip spline tangent.
+The idea is that in order to track the surface, the whisker profile (i.e. the deflection) must be kept constant, and for that the body should move closer to the object when the whisker becomes too relaxed and away if it is too strained.
+
+\subsection{Comparison}
+
+\subsubsection{Baseline Swiping Policy Evaluation}
+Here's an evaluation of the baseline
+Pros:
+- whisker deflection offset is not susceptible to noise in whisker deflection, as it is filtered
+- the swiping policy is more straightforward and is designed to maintain constant whisker profile
+Cons:
+- filtering whisker deflection doesn't solve the fundamental problem of a noisy deflection signal or an ill-posed deflection model and removes the subtle changes in the whisker deflection that might be important for the surface reconstruction
+- maintaining constant deflection profile only implies surface tracking, but doesn't guarantee the capture of the whole object
+- relatively slow velocity of the platform, as
+One of the more frequent cases where such strategy fails is a sudden principal direction turn due to the whisker slippage
+During the slippage spline direction might change by 180 degrees and the platform might start moving in the opposite direction
+
+\subsubsection{Rectifying the baseline swiping policy}
+1. In order to make the whisker deflection offset more reactive, the Kalman filter is removed and the smoothing is instead imposed on the deflection itself (the low-pass Butterworth in \ref{sec:deflection_smoothing})
+2. The swiping policy is modified to weight the importance of moving along the spline and maintaining the deflection profile
+3. The whisker orientation (whether the body is moving clockwise or counterclockwise) is introduced to prevent the whisker profile from deflected in the opposite direction at any time of the control
+The orientation is set once the whisker comes into contact with the surface and is preserved until the whisker is disengaged
+It is employed where the desired whisker base-tip offset is calculated in the swiping policy
+
+\subsection{Limitations of the suggested control algorithm}
+...
