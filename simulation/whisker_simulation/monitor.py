@@ -2,6 +2,7 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
+from whisker_simulation.config import Config
 from whisker_simulation.models import SensorData
 
 __all__ = ["Monitor"]
@@ -75,7 +76,9 @@ class Trajectory:
 
 
 class Monitor:
-    def __init__(self):
+    def __init__(self, config: Config):
+        self.config = config
+
         # contains pairs (time, (x, y))
         self.keypoint_history = []
         self.first_keypoint = None
@@ -157,9 +160,11 @@ class Monitor:
 
         deflections = np.linspace(-6e-4, 6e-4, 1000)
         points = defl_model(deflections)
+        f = plt.figure()
         plt.scatter(points[:, 0], points[:, 1], c=deflections, cmap="viridis")
         plt.xlabel("X")
         plt.ylabel("Y")
-        plt.title("Deflection Model")
-        plt.colorbar(label="Deflection")  # shows which color corresponds to which deflection
+        plt.title("Deflection Profile of the Deflection Model")
+        plt.colorbar(label="Whisker Deflection")
         plt.show()
+        f.savefig(self.config.local_assets_path / "deflection_profile.pdf", backend="pdf")

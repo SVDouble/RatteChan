@@ -62,7 +62,7 @@ class Simulation:
         from whisker_simulation.monitor import Monitor
 
         if self.config.use_monitor:
-            return Monitor()
+            return Monitor(config=self.config)
 
         class Dummy:
             def __getattr__(self, name):

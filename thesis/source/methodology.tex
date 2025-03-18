@@ -106,7 +106,13 @@ The filter is initially seeded with the neutral deflection and updated with each
 A 5th-degree polynomial is fitted to calibration data to model whisker deflection.
 This model mirrors the deflection offset from the neutral position and clips the result based on the whisker's half-circle limit.
 
-\todo[inline]{Add a figure of the deflection profile.}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/deflection_profile}
+    \caption{Deflection Profile Model.}
+    \label{fig:deflection_profile}
+\end{figure}
+
 
 
 \section{Body Motion Control}
@@ -226,12 +232,49 @@ The angle resolution strategy operates as follows:
 \begin{itemize}
     \item The whisker returns to a starting angle-detection position.
     \item It targets the nearest out of all potential contact point at a fixed distance from the last known position; the locus of such points is a circle.
-    \item It moves sequentially from one candidate point to another, until the contact is established.
+    \item It moves sequentially from one candidate point to another, until the contact is established, as shown in Figure~\ref{fig:angle_retrieval}.
     For every candidate point on the circle, the whisker's yaw is adjusted so that it contacts the object at a predefined angle.
     The object's surface is assumed to be a straight line from edge to the candidate point.
     \item Once the contact is re-established, the edge angle is determined as an angle between the spline tangent before the detachment and the line connecting the edge and the contact point.
     The required deflection threshold to detect the contact is set high enough for the deflection model to have a sufficiently small error during the next step with such a deflection.
 \end{itemize}
+
+\begin{figure}[htb]
+    \centering
+    \begin{tikzpicture}[scale=2]
+        \coordinate (E) at (0,0);
+        \coordinate (X) at (2,0);
+        \coordinate (Y) at ({2*cos(30)},{2*sin(30)});
+        \coordinate (Yp) at ({2*cos(135)},{2*sin(135)});
+        \coordinate (C) at ({cos(30)},{sin(30)});
+        \coordinate (W) at ({cos(135)}, {sin(135)});
+        \coordinate (T) at ({cos(135) - cos(135 - 90)}, {sin(135) - sin(135 - 90)});
+        \coordinate (B) at ({cos(135) - 2*cos(135 - 90 + 20)}, {sin(135) - 2*sin(135 - 90 + 20)});
+
+        \draw [blue, dotted] (E) circle (1);
+        \draw (E) -- (X);
+        \draw (E) -- (Y);
+        \draw [green] (B) -- (W);
+        \draw [blue, dashed] (E) -- (Yp);
+        \draw [blue, dashed] (W) -- (T);
+
+        % Mark the 30° angle at vertex B.
+        \draw (0.5,0) arc (0:30:0.5);
+        \node at (0.8,0.15) {$\beta$};
+
+        % Label the points.
+        \fill (X) circle (1pt) node[below right] {$X$};
+        \fill (E) circle (1pt) node[below left] {$E$};
+        \fill (Y) circle (1pt) node[above right] {$Y$};
+        \fill (Yp) circle (1pt) node[above right] {$Y'$};
+        \fill (W) circle (1pt) node[above left] {$W$};
+        \fill (B) circle (1pt) node[above left] {$B$};
+        \fill (T) circle (1pt) node[above left] {$T$};
+
+    \end{tikzpicture}
+    \caption{Angle Retrieval Strategy. Black $[XE]$, $[EY]$ \textemdash{} object surface, Green $[BW]$ \textemdash{} the whisker, Blue $[EY']$ \textemdash{} the potential adjacent surface of the edge and its tangent $[WT]$, Blue circle \textemdash{} the targeted contact points.}
+    \label{fig:angle_retrieval}
+\end{figure}
 
 \subsection{Whisking Back to the Edge}
 The whisker moves back along the opposite side of the edge by linearly steering towards the edge.
@@ -280,7 +323,30 @@ This B-Spline serves as a continuous reference for steering the platform through
 The policies are specialized and only in combination can the whisker harness their full potential.
 A finite state machine (FSM) is used to implement these policies, with each policy represented as a state.
 Transitions occur when specific events arise, such as ``whisker has come into contact with the surface'' or ``whisker has become disengaged.''
-Below is the statechart of the FSM for the discussed policies.
+The statechart of the FSM for the discussed policies is shown in \cref{fig:fsm}.
+
+\begin{comment}
+    stateDiagram-v2
+    [*] --> Exploring
+    Exploring --> Swiping : Spline defined & <br>contact established
+    Exploring --> Tunneling : Both whiskers deflected (tunnel condition)
+    Tunneling --> Exploring : Tunnel condition ceases (exploration resumes)
+    Swiping --> Retrieval : Whisker detaches <br>(steep curve slope)
+    Retrieval --> Whisking : Contact reestablished
+    Whisking --> Swiping : Reattachment & new spline constructed
+    Swiping --> Tunneling : Both whiskers deflected (tunnel condition)
+    Tunneling --> Swiping : Tunnel condition ceases (only one deflected)
+    Retrieval --> Failure : Anomaly detected
+    Swiping --> Failure : Anomaly detected
+    Tunneling --> Failure : Anomaly detected
+\end{comment}
+
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/fsm}
+    \caption{FSM diagram of the whisker control system. The diagram illustrates the various states (Exploring, Swiping, Tunneling, Retrieval, Whisking, Failure) and the transitions triggered by events such as contact establishment, detachment, and reattachment.}
+    \label{fig:fsm}
+\end{figure}
 
 
 \section{Additional features}
