@@ -1,0 +1,50 @@
+graph TD;
+    subgraph Platform with whiskers
+        W1[Hall sensors,<br>left side]
+        W2[Hall sensors,<br>right side]
+        B1[I2C Bus 1]
+        B2[I2C Bus 2]
+    end
+
+    subgraph Actuator
+        R[Robotic Arm]
+    end
+
+    subgraph Laptop
+        BR[Browser]
+    end
+
+    subgraph Infrastructure on Raspberry Pi 5
+        S[Sensor IO Module<br>with I2C and MQTT]
+        C[Controller]
+        M[MQTT Broker]
+        T[Telegraf]
+        I[InfluxDB]
+        G[Grafana]
+        P[Promtail]
+        L[Loki]
+        X[Traefik]
+        J[Simulation]
+    end
+
+    W1 -->|Deflection data| B2
+    W2 -->|Deflection data| B1
+
+    B1 <-->|I2C sensor data<br>Sensor configuration| S
+    B2 <-->|I2C sensor data<br>Sensor configuration| S
+    S -->|Publishes sensor data| M
+    S -->|Publishes control data| R
+    M -->|Forwards control data| S
+    M -->|Forwards sensor data| C
+    M -->|Forwards sensor data| I
+    C -->|Publishes control data| M
+    C -->|Sends statistics| T
+    M -->|Forwards sensor and control data| J
+    T -->|Stores metrics| I
+    I -->|Provides historic data| G
+    M -->|Provides real-time<br>sensor data| G
+    P -->|Sends all logs| L
+    L -->|Provides logs| G
+    X -.->|Routes HTTP requests| G
+    X -.->|Routes HTTP requests| M
+    BR -->|Access Dashboard| G
