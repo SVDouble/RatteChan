@@ -1,2 +1,20 @@
 % In total max. 1 Page!
-\AIRstudentthesisAbstract{<Abstract English>}{<Zusammenfassung Deutsch>}
+\AIRstudentthesisAbstract{
+    Object contour reconstruction is critical in robotics for tasks such as recognition, manipulation, and navigation.
+    Whisker sensors offer a promising tactile modality due to their high spatial resolution, robustness under varying conditions, and low data volume.
+    However, existing approaches typically rely on a single whisker for active control, limiting effectiveness when encountering sharp corners.
+    In this work, we introduce a development platform that integrates multiple magnetically transduced whisker sensors on each side, mounted on a robotic arm for active control.
+    For single-whisker configurations, we propose an enhanced contour-following strategy paired with an object retrieval policy to manage unavoidable whisker detachments at sharp corners and accurately capture their contours.
+    For multi-whisker setups, a tunneling policy is introduced, and all control policies are combined into a single finite state machine that dynamically selects the active policy and determines which whiskers are relied on.
+    Simulation results demonstrate that our method effectively tracks objects, reconstructs contours, and maintains a centered trajectory in confined passages.
+    Finally, we present a comprehensive framework for real-world experiments, including data collection, preprocessing, evaluation, storage, and visualization.
+}{
+    Die Rekonstruktion von Objektkonturen ist in der Robotik entscheidend für Aufgaben wie Erkennung, Manipulation und Navigation.
+    Vibrissensensoren bieten eine vielversprechende taktile Modalität aufgrund ihrer hohen räumlichen Auflösung, Robustheit unter unterschiedlichen Bedingungen und geringen Datenmenge.
+    Bestehende Ansätze verlassen sich jedoch typischerweise auf eine einzelne Vibrisse zur aktiven Steuerung, was ihre Effektivität bei scharfen Ecken einschränkt.
+    In dieser Arbeit stellen wir eine Entwicklungsplattform vor, die mehrere magnetisch transduzierte Vibrissensensoren auf jeder Seite integriert und an einem Roboterarm zur aktiven Steuerung montiert ist.
+    Für Ein-Vibrissen-Konfigurationen schlagen wir eine verbesserte Konturfolgestrategie in Kombination mit einer Objektrückholungsstrategie vor, um unvermeidbare Vibrissenablösungen an scharfen Ecken zu handhaben und deren Konturen präzise zu erfassen.
+    Für Mehr-Vibrissen-Setups wird eine Tunneling-Policy eingeführt, und alle Steuerungsrichtlinien werden in einem einzigen endlichen Automaten zusammengefasst, der dynamisch die aktive Policy auswählt und bestimmt, auf welche Vibrissen sich verlassen wird.
+    Simulationsergebnisse zeigen, dass unsere Methode Objekte effektiv verfolgt, Konturen rekonstruiert und in engen Passagen einen zentrierten Kurs beibehält.
+    Abschließend präsentieren wir einen umfassenden Rahmen für Realwelt-Experimente, einschließlich Datenerfassung, -vorverarbeitung, Evaluation, Speicherung und Visualisierung.
+}

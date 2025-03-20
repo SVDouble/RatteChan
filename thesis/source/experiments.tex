@@ -3,4 +3,18 @@
 
 \chapter{Experimental Setup}
 
-Experimental setup goes here.
+To experimentally validate the proposed policies, we developed a simulation environment that emulates the whisker sensor system.
+It is based on the Mujoco physics engine, developed by Google DeepMind, which provides a realistic simulation of the contact dynamics between the whisker and the object.
+The controller is implemented in Python
+
+\section{Swiping policy}
+For swiping policy a single whisker performs a sweeping motion over the object.
+The following metrics are considered for evaluation:
+\begin{itemize}
+    \item \textbf{Mean Reconstruction Error:} The mean reconstruction error of the object's shape.
+    \item \textbf{Average speed:} The average speed of the whisker during the swiping motion.
+    \item \textbf{Critical angle:} The angle at which the whisker loses contact with the object and cannot recover automatically.
+\end{itemize}
+
+\section{Retrieval policy}
+
