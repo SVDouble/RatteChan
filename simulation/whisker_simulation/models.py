@@ -11,7 +11,6 @@ from whisker_simulation.utils import import_class, rotate
 
 __all__ = [
     "SensorData",
-    "ControlMessage",
     "ControllerState",
     "Motion",
     "WhiskerData",
@@ -140,14 +139,6 @@ class SensorData(BaseModel):
             for wsk_id, wsk_config in config.whiskers.items()
         }
         return cls(time=data.time, body=body_data, whiskers=whiskers)
-
-
-class ControlMessage(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    body_vx_w: float
-    body_vy_w: float
-    body_omega_w: float
 
 
 class ControllerState(int, Enum):

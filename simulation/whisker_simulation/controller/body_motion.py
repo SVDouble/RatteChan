@@ -1,6 +1,7 @@
 import numpy as np
 
-from whisker_simulation.models import ControlMessage, Motion, WhiskerData
+from whisker_simulation.config import ControlMessage
+from whisker_simulation.models import Motion, WhiskerData
 from whisker_simulation.pid import PID
 from whisker_simulation.utils import normalize, unwrap_pid_error
 

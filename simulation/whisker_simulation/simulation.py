@@ -1,19 +1,55 @@
-import datetime
-import math
 import time
 from functools import cached_property
+from pathlib import Path
 
-import mediapy as media
 import mujoco
 import mujoco.viewer
-from tqdm import tqdm
+import numpy as np
 
-from whisker_simulation.config import Config, MujocoBodyConfig
+from whisker_simulation.config import (
+    Config,
+    ExperimentConfig,
+    MujocoBodyConfig,
+    MujocoGeomConfig,
+    MujocoMeshConfig,
+    RendererConfig,
+)
 from whisker_simulation.controller import Controller
 from whisker_simulation.demo_assets import generate_demo_assets, has_demo_assets
 from whisker_simulation.models import SensorData
 from whisker_simulation.preprocessor import DataPreprocessor
-from whisker_simulation.utils import get_logger, prettify
+from whisker_simulation.utils import get_logger, normalize, prettify
+
+
+class Renderer:
+    def __init__(self, model: mujoco.MjModel, config: RendererConfig):
+        self.config = config
+        self.model: mujoco.MjModel = model
+        self.mj_renderer: mujoco.Renderer = mujoco.Renderer(
+            self.model,
+            width=self.config.width,
+            height=self.config.height,
+        )
+        self.frames = []
+
+    def reset(self, model: mujoco.MjModel):
+        self.model = model
+        self.mj_renderer = mujoco.Renderer(
+            self.model,
+            width=self.config.width,
+            height=self.config.height,
+        )
+        self.frames = []
+
+    def render(self, data: mujoco.MjData):
+        if len(self.frames) < data.time * self.config.fps:
+            self.mj_renderer.update_scene(data, camera=self.config.camera)
+            self.frames.append(self.mj_renderer.render())
+
+    def export_video(self, path: Path):
+        import mediapy as media
+
+        media.write_video(path, self.frames, fps=self.config.fps)
 
 
 class Simulation:
@@ -39,8 +75,6 @@ class Simulation:
         self.spec: mujoco.MjSpec = mujoco.MjSpec.from_file(str(self.model_path))
         self.model: mujoco.MjModel = self.spec.compile()
         self.data: mujoco.MjData = mujoco.MjData(self.model)
-        if self.config.test_body is not None:
-            self.add_dynamic_body(config.test_body)
         self.control_rps = config.control_rps
         self.monitor = self.get_monitor()
         self.preprocessor = DataPreprocessor(config)
@@ -50,8 +84,6 @@ class Simulation:
             monitor=self.monitor,
         )
 
-        self.duration = config.recording_duration
-        self.camera_fps = config.recording_camera_fps
         self.is_paused: bool = False
         self.is_controlled: bool = True
 
@@ -91,53 +123,42 @@ class Simulation:
                 control.body_omega_w,
             ]
 
-    def record(self):
-        renderer = mujoco.Renderer(self.model, width=720, height=512)
-
-        # calculate the steps and their sizes
-        dt = self.model.opt.timestep
-        frames = []
-        total_steps = math.ceil(self.duration / dt)
-        camera_step = round(1 / self.camera_fps / dt)
-        control_step = round(1 / self.control_rps / dt)
-        if camera_step < 1 or control_step < 1:
-            raise ValueError("Camera and control FPS are too high.")
-
-        # run the simulation
-        pbar = tqdm(total=total_steps, desc="Simulating {:.1f}s".format(self.duration))
-        pbar.update(0)
-        for step in range(0, total_steps, camera_step):
-            renderer.update_scene(self.data, camera="whisker_cam")
-            frames.append(renderer.render())
-            mujoco.mj_step(self.model, self.data, camera_step)
-            pbar.update(step)
-        pbar.close()
-
-        # write the video
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        print(f"Writing video to {timestamp}.mp4")
-        media.write_video(f"outputs/{timestamp}.mp4", frames, fps=self.camera_fps)
-        print("Done!")
-
     def key_callback(self, keycode):
         if chr(keycode) == " ":
             self.is_paused = not self.is_paused
 
-    def add_dynamic_body(self, body_config: MujocoBodyConfig):
+    def _add_mesh(self, mesh: MujocoMeshConfig):
+        for mj_mesh in self.spec.meshes:
+            if mj_mesh.name == mesh.name:
+                return
+        self.spec.add_mesh(**mesh.to_kwargs())
+
+    def _add_geom(self, body: mujoco.MjsBody, geom: MujocoGeomConfig):
+        for mj_geom in self.spec.geoms:
+            if mj_geom.name == geom.name:
+                return
+        if geom.type == "mesh":
+            self._add_mesh(geom.mesh)
+        body.add_geom(**geom.to_kwargs())
+
+    def add_body(self, body_config: MujocoBodyConfig) -> mujoco.MjsBody:
+        # Check if the body already exists
+        for body in self.spec.bodies:
+            if body.name == body_config.name:
+                return body
         # Add a new body to the worldbody with a unique name
         body = self.spec.worldbody.add_body()
         body.name = body_config.name
         # Add geoms to the body
         for geom in body_config.geoms:
-            if geom.type == "mesh":
-                self.spec.add_mesh(**geom.mesh.to_kwargs())
-            body.add_geom(**geom.to_kwargs())
+            self._add_geom(body, geom)
         # Recompile model & data preserving the state
         self.model, self.data = self.spec.recompile(self.model, self.data)
+        return body
 
-    def remove_dynamic_body(self, body_name: str):
+    def remove_body(self, body: mujoco.MjsBody):
         # Locate the body by its unique name and delete it if present
-        self.spec.detach_body(body_name)
+        self.spec.detach_body(body)
         # Recompile model & data preserving the state
         self.model, self.data = self.spec.recompile(self.model, self.data)
 
@@ -147,27 +168,49 @@ class Simulation:
 
         self.logger.info(f"Running the simulation with model: {self.model_path}")
 
-        # set the control function
-        mujoco.set_mjcb_control(self.control)
+        for experiment in self.config.experiments:
+            self.run_experiment(experiment)
+
+    def run_experiment(self, experiment: ExperimentConfig):
+        self.logger.info(f"Initializing the experiment: {experiment.name}")
+
+        # add the test body to the model
+        test_body = self.add_body(self.config.bodies[experiment.test_body])
+
+        # initialize the renderer
+        renderer = Renderer(self.model, self.config.renderer)
 
         # set the initial control values
         total_v = self.config.body.total_v
-        self.data.ctrl[0:3] = total_v * 0, total_v * 1, 0
+        initial_control = experiment.initial_control
+        initial_body_v_w = total_v * normalize(np.array([initial_control.body_vx_w, initial_control.body_vy_w]))
+        self.data.ctrl[0:3] = *initial_body_v_w, initial_control.body_omega_w
 
-        # launch the viewer
+        # set the control function
+        mujoco.set_mjcb_control(self.control)
+
         with mujoco.viewer.launch_passive(
             self.model,
             self.data,
             key_callback=self.key_callback,
             show_left_ui=False,
         ) as viewer:
+            self.logger.info(f"Running the experiment: {experiment.name}")
+            start_time = self.data.time
             with viewer.lock():
                 viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
                 viewer.cam.trackbodyid = self.data.body(self.config.body.mj_body_name).id
             while viewer.is_running():
+                if self.data.time - start_time > experiment.timeout:
+                    self.logger.info(f"Timeout reached for experiment: {experiment.name}")
+                    break
+
                 if self.is_paused:
                     time.sleep(self.model.opt.timestep)
                     continue
+
+                # render the scene for the video
+                renderer.render(self.data)
 
                 # reset the sensor data cache
                 # noinspection PyPropertyAccess
@@ -187,3 +230,15 @@ class Simulation:
                 time_until_next_step = self.model.opt.timestep - (time.time() - step_start)
                 if time_until_next_step > 0 and self.config.track_time:
                     time.sleep(time_until_next_step)
+
+        # reset the control
+        mujoco.set_mjcb_control(None)
+
+        # export the video
+        renderer.export_video(self.config.project_path / "outputs" / "simulation.mp4")
+
+        # remove the test body from the model and reset the data
+        self.remove_body(test_body)
+        mujoco.mj_resetData(self.model, self.data)
+
+        self.logger.info(f"Finished experiment: {experiment.name}")

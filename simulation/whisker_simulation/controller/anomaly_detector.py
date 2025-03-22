@@ -14,7 +14,7 @@ class AnomalyDetector:
 
         self.logger = get_logger(__file__, log_level=controller.config.log_level)
         self.ctrl: Controller = controller
-        self.log_anomalies = self.ctrl.config.detect_anomalies
+        self.log_anomalies = self.ctrl.config.log_anomalies
         self.total_v = self.ctrl.config.body.total_v
         self.control_dt = self.ctrl.control_dt
 

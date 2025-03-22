@@ -1,10 +1,10 @@
 import numpy as np
 
-from whisker_simulation.config import Config, WhiskerId, Orientation
+from whisker_simulation.config import Config, WhiskerId, Orientation, ControlMessage
 from whisker_simulation.controller.anomaly_detector import AnomalyDetector
 from whisker_simulation.controller.body_motion import MotionController
 from whisker_simulation.controller.spline import Spline
-from whisker_simulation.models import ControllerState, ControlMessage, Motion, SensorData, WhiskerData
+from whisker_simulation.models import ControllerState, Motion, SensorData, WhiskerData
 from whisker_simulation.monitor import Monitor
 from whisker_simulation.utils import get_logger, normalize, rotate
 

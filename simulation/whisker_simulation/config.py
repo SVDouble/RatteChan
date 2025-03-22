@@ -4,12 +4,25 @@ from pathlib import Path
 from typing import Any, Literal, Self
 
 import numpy as np
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from whisker_simulation.utils import rotate
 
-__all__ = ["Config", "SplineConfig", "WhiskerConfig", "BodyConfig", "WhiskerId", "Orientation"]
+__all__ = [
+    "Config",
+    "SplineConfig",
+    "WhiskerConfig",
+    "BodyConfig",
+    "WhiskerId",
+    "Orientation",
+    "RendererConfig",
+    "ExperimentConfig",
+    "MujocoBodyConfig",
+    "MujocoGeomConfig",
+    "MujocoMeshConfig",
+    "ControlMessage",
+]
 
 np.set_printoptions(precision=3, suppress=True)
 
@@ -29,6 +42,7 @@ class MujocoMeshConfig(BaseModel):
 
 
 class MujocoGeomConfig(BaseModel):
+    name: str
     type: Literal["mesh"]
     mesh: MujocoMeshConfig
     pos: list[float]
@@ -47,6 +61,14 @@ class MujocoGeomConfig(BaseModel):
 class MujocoBodyConfig(BaseModel):
     name: str
     geoms: list[MujocoGeomConfig]
+
+
+class ControlMessage(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    body_vx_w: float
+    body_vy_w: float
+    body_omega_w: float
 
 
 class Orientation(IntEnum):
@@ -109,6 +131,23 @@ class BodyConfig(BaseSettings):
     mj_body_name: str = "platform"
 
 
+class RendererConfig(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="renderer_")
+
+    camera: str = "platform_cam"
+    width: int = 720
+    height: int = 512
+    fps: int = 30
+    duration: float | None = None
+
+
+class ExperimentConfig(BaseSettings):
+    name: str
+    test_body: str
+    initial_control: ControlMessage
+    timeout: float
+
+
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
         extra="ignore",
@@ -116,26 +155,29 @@ class Config(BaseSettings):
         env_file=Path(__file__).parents[1].resolve() / "simulation.env",
     )
 
-    # simulation setup
     project_path: Path = Path(__file__).parents[1].resolve()
     model_path: Path = project_path / "models/platform.xml"
     assets_path: Path = project_path / "assets"
     local_assets_path: Path = assets_path / "local"
-    control_rps: int = 30
-    track_time: bool = True
+    bodies: dict[str, MujocoBodyConfig] = Field(default_factory=dict)
 
-    test_body: MujocoBodyConfig | None = None
-
-    # recording setup
-    recording_duration: float = 160
-    recording_camera_fps: int = 30
-
-    show_gui: bool = True
-    use_monitor: bool = True
-    detect_anomalies: bool = False
+    # general setup
     debug: bool = False
     log_level: LogLevel = "INFO"
     generate_demo_assets: bool = True
+    log_anomalies: bool = False
+
+    # simulation setup
+    control_rps: int = 30
+    experiments: list[ExperimentConfig] = Field(default_factory=list)
+
+    # recording setup
+    renderer: RendererConfig = RendererConfig()
+
+    # viewer setup
+    show_gui: bool = True
+    use_monitor: bool = True
+    track_time: bool = True
 
     # controller parameters
     # the offsets need to be rotated as the body yaw is measured from the tip

@@ -14,7 +14,7 @@ def create_console(**kwargs) -> Console:
 
 
 def prettify(obj) -> str:
-    with open(os.devnull, 'w') as f:
+    with open(os.devnull, "w") as f:
         console = create_console(record=True, file=f)
         console.print(obj)
         return console.export_text()
