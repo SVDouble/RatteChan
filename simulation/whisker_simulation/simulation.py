@@ -8,7 +8,7 @@ import mujoco
 import mujoco.viewer
 from tqdm import tqdm
 
-from whisker_simulation.config import Config
+from whisker_simulation.config import Config, MujocoBodyConfig
 from whisker_simulation.controller import Controller
 from whisker_simulation.demo_assets import generate_demo_assets, has_demo_assets
 from whisker_simulation.models import SensorData
@@ -34,10 +34,13 @@ class Simulation:
         self._sensor_data_last_updated: float = 0
         self._sensor_data_cache: SensorData | None = None
 
-        self.model_path = str(config.model_path)
+        self.model_path = config.model_path
         # noinspection PyArgumentList
-        self.model = mujoco.MjModel.from_xml_path(self.model_path)
-        self.data = mujoco.MjData(self.model)
+        self.spec: mujoco.MjSpec = mujoco.MjSpec.from_file(str(self.model_path))
+        self.model: mujoco.MjModel = self.spec.compile()
+        self.data: mujoco.MjData = mujoco.MjData(self.model)
+        if self.config.test_body is not None:
+            self.add_dynamic_body(config.test_body)
         self.control_rps = config.control_rps
         self.monitor = self.get_monitor()
         self.preprocessor = DataPreprocessor(config)
@@ -120,6 +123,24 @@ class Simulation:
         if chr(keycode) == " ":
             self.is_paused = not self.is_paused
 
+    def add_dynamic_body(self, body_config: MujocoBodyConfig):
+        # Add a new body to the worldbody with a unique name
+        body = self.spec.worldbody.add_body()
+        body.name = body_config.name
+        # Add geoms to the body
+        for geom in body_config.geoms:
+            if geom.type == "mesh":
+                self.spec.add_mesh(**geom.mesh.to_kwargs())
+            body.add_geom(**geom.to_kwargs())
+        # Recompile model & data preserving the state
+        self.model, self.data = self.spec.recompile(self.model, self.data)
+
+    def remove_dynamic_body(self, body_name: str):
+        # Locate the body by its unique name and delete it if present
+        self.spec.detach_body(body_name)
+        # Recompile model & data preserving the state
+        self.model, self.data = self.spec.recompile(self.model, self.data)
+
     def run(self):
         if self.config.debug:
             self.logger.info(prettify(self.config))
@@ -164,5 +185,5 @@ class Simulation:
 
                 # Rudimentary time keeping, will drift relative to wall clock.
                 time_until_next_step = self.model.opt.timestep - (time.time() - step_start)
-                if time_until_next_step > 0:
+                if time_until_next_step > 0 and self.config.track_time:
                     time.sleep(time_until_next_step)

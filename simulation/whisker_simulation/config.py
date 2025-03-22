@@ -1,10 +1,10 @@
 from enum import IntEnum
 from functools import cached_property
 from pathlib import Path
-from typing import Literal, Self
+from typing import Any, Literal, Self
 
 import numpy as np
-from pydantic import ConfigDict, Field, computed_field
+from pydantic import BaseModel, Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from whisker_simulation.utils import rotate
@@ -15,6 +15,38 @@ np.set_printoptions(precision=3, suppress=True)
 
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 type WhiskerId = Literal["r0", "l0"]
+
+
+class MujocoMeshConfig(BaseModel):
+    name: str
+    file: Path
+    scale: list[float]
+
+    def to_kwargs(self) -> dict[str, Any]:
+        kwargs = self.model_dump(exclude={"file"})
+        kwargs["file"] = str(self.file)
+        return kwargs
+
+
+class MujocoGeomConfig(BaseModel):
+    type: Literal["mesh"]
+    mesh: MujocoMeshConfig
+    pos: list[float]
+    euler: list[float]
+    rgba: list[float]
+
+    def to_kwargs(self) -> dict[str, Any]:
+        import mujoco
+
+        kwargs = self.model_dump(exclude={"mesh", "type"})
+        kwargs["meshname"] = self.mesh.name
+        kwargs["type"] = mujoco.mjtGeom.mjGEOM_MESH
+        return kwargs
+
+
+class MujocoBodyConfig(BaseModel):
+    name: str
+    geoms: list[MujocoGeomConfig]
 
 
 class Orientation(IntEnum):
@@ -78,14 +110,21 @@ class BodyConfig(BaseSettings):
 
 
 class Config(BaseSettings):
-    model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
+    model_config = SettingsConfigDict(
+        extra="ignore",
+        arbitrary_types_allowed=True,
+        env_file=Path(__file__).parents[1].resolve() / "simulation.env",
+    )
 
     # simulation setup
     project_path: Path = Path(__file__).parents[1].resolve()
-    model_path: Path = project_path / "models/whisker.xml"
+    model_path: Path = project_path / "models/platform.xml"
     assets_path: Path = project_path / "assets"
     local_assets_path: Path = assets_path / "local"
     control_rps: int = 30
+    track_time: bool = True
+
+    test_body: MujocoBodyConfig | None = None
 
     # recording setup
     recording_duration: float = 160
