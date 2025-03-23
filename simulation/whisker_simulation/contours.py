@@ -7,41 +7,75 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import cKDTree
 
-__all__ = ["extract_contours", "plot_contours", "Contour"]
+__all__ = ["extract_contours", "plot_contours", "Contour", "ObjectContour"]
 
 
 class Contour:
-    def __init__(self, xy: np.ndarray, hierarchy: np.ndarray | None = None):
+    def __init__(self, xy: np.ndarray):
         self.xy: np.ndarray = xy
-        self.hierarchy: np.ndarray | None = hierarchy
 
     @cached_property
     def kdtree(self) -> cKDTree:
         # KDTree for fast nearest neighbor search
         return cKDTree(self.xy)
 
-    def transform(self, f):
+    def transform(self, f) -> Self:
         self.xy = f(self.xy)
         if "kdtree" in self.__dict__:  # Invalidate cached property
             # noinspection PyPropertyAccess
             del self.kdtree
         return self
 
-    def approximate(self, eps: float = 1e-3):
+    def approximate(self, eps: float = 1e-3) -> Self:
         self.transform(partial(cv2.approxPolyDP, eps=eps, closed=True))
         return self
 
-    def mean_distance_to(self, contour: Self) -> float:
+    def contour_distance_mean(self, contour: Self) -> float:
         if not isinstance(contour, Contour):
             raise TypeError("Expected Contour instance as argument")
         dist_ref, _ = contour.kdtree.query(self.xy)
         return float(np.mean(dist_ref))
 
-    def distance_to(self, point: np.ndarray) -> float:
+    def contour_distance_std(self, contour: Self) -> float:
+        if not isinstance(contour, Contour):
+            raise TypeError("Expected Contour instance as argument")
+        dist_ref, _ = contour.kdtree.query(self.xy)
+        return float(np.std(dist_ref))
+
+    def distance(self, point: np.ndarray) -> float:
         return float(self.kdtree.query(point)[0])
 
 
-def get_compound_contours(frame: np.ndarray, dilate_threshold: int = 1) -> list[Contour]:
+class ObjectContour(Contour):
+    def __init__(
+        self,
+        xy: np.ndarray,
+        *,
+        index: int,
+        hierarchy: np.ndarray,
+        contour_map: dict[int, Self],
+        obj_mask: np.ndarray,
+    ):
+        super().__init__(xy)
+        self.index: int = index
+        self.hierarchy: np.ndarray = hierarchy
+        self.obj_mask: np.ndarray = obj_mask
+        self.contour_map: dict[int, Self] = contour_map
+
+    def outer_contour(self) -> Self:
+        idx = self.index
+        # climb until no parent
+        while (parent := self.hierarchy[idx, 3]) != -1:
+            idx = parent
+        return self.contour_map[idx]
+
+    def inner_contour(self) -> Self | None:
+        outer = self.outer_contour()
+        child = self.hierarchy[outer.index, 2]  # first child of outer
+        return self.contour_map.get(child)
+
+
+def get_compound_contours(frame: np.ndarray, dilate_threshold: int = 1) -> list[ObjectContour]:
     h, w, _ = frame.shape
     # Get unique labels (each pixel is an (objid, objtype) pair)
     flat = frame.reshape(-1, 2)
@@ -108,6 +142,7 @@ def get_compound_contours(frame: np.ndarray, dilate_threshold: int = 1) -> list[
         # Get minimal bounding rectangle for the group
         min_y, min_x = all_coords.min(axis=0)
         max_y, max_x = all_coords.max(axis=0)
+        offset = np.array([min_x, min_y])
         # Create a small binary mask for just these points
         mask = np.zeros((max_y - min_y + 1, max_x - min_x + 1), dtype=np.uint8)
         shifted = all_coords - np.array([min_y, min_x])
@@ -123,12 +158,14 @@ def get_compound_contours(frame: np.ndarray, dilate_threshold: int = 1) -> list[
         contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
         if not contours:
             continue
-        for cnt, h in zip(contours, hierarchy[0], strict=True):
+        assert hierarchy.shape[0] == 1, "Expected a single object hierarchy"
+        contour_map = {}
+        for i, cnt in enumerate(contours):
             cnt = cnt.squeeze(1)
             # Offset back to original image coordinates
-            cnt[:, 0] += min_x
-            cnt[:, 1] += min_y
-            compound_contours.append(Contour(cnt, h))
+            cnt[:] += offset
+            contour_map[i] = ObjectContour(cnt, index=i, hierarchy=hierarchy[0], contour_map=contour_map, obj_mask=mask)
+        compound_contours.extend(contour_map.values())
     return compound_contours
 
 
@@ -151,7 +188,7 @@ def pixel_to_world(
     return pts_world
 
 
-def extract_contours(frame: np.ndarray, center: np.ndarray, width: float, height: float):
+def extract_contours(frame: np.ndarray, center: np.ndarray, width: float, height: float) -> list[ObjectContour]:
     compound_contours = get_compound_contours(frame, dilate_threshold=1)
     transform = partial(pixel_to_world, center=center, world_width=width, world_height=height, image_shape=frame.shape)
     return [contour.transform(transform) for contour in compound_contours]

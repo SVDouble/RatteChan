@@ -1,11 +1,14 @@
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import mujoco
 import mujoco.viewer
 import numpy as np
 
 from whisker_simulation.config import Config, WhiskerId
-from whisker_simulation.contours import Contour
+from whisker_simulation.contours import Contour, ObjectContour
 from whisker_simulation.models import SensorData
+from whisker_simulation.utils import format_mean_std
 
 __all__ = ["Monitor"]
 
@@ -183,19 +186,49 @@ class Monitor:
         plt.show()
         f.savefig(self.config.local_assets_path / "deflection_profile.pdf", backend="pdf")
 
-    def summarize_experiment(self, stats: list[tuple[WhiskerId, Contour, Contour, float]]):
-        plt.figure()
-        for wsk_id, ist_cnt, soll_cnt, mean_d in stats:
-            plt.plot(
-                soll_cnt.xy[:, 0],
-                soll_cnt.xy[:, 1],
-                label=f"Desired Whisker {wsk_id.upper()} Contour, d={mean_d:.4f}",
-            )
-            plt.plot(ist_cnt.xy[:, 0], ist_cnt.xy[:, 1], label=f"Whisker {wsk_id.upper()} Tip Trajectory")
+    def summarize_experiment(self, *, stats: list[tuple[WhiskerId, Contour, ObjectContour]], plot_path: Path):
+        fig, ax = plt.subplots(figsize=(6, 4), dpi=300)
+        swap = False
+        for _, _, soll_cnt in stats:
+            outer = soll_cnt.outer_contour()
+            # decide whether to swap axes based on outer contour’s bounding box
+            h = outer.xy[:, 1].max() - outer.xy[:, 1].min()
+            w = outer.xy[:, 0].max() - outer.xy[:, 0].min()
+            swap = h > w
+        x, y = (1, 0) if swap else (0, 1)
 
-        plt.xlabel("X, m")
-        plt.ylabel("Y, m")
-        plt.title("Contour Reconstruction")
-        plt.legend()
-        plt.axis("equal")
+        for _, ist_cnt, soll_cnt in stats:
+            d_mean = ist_cnt.contour_distance_mean(soll_cnt)
+            d_std = ist_cnt.contour_distance_std(soll_cnt)
+            outer, inner = soll_cnt.outer_contour(), soll_cnt.inner_contour()
+
+            ax.fill(outer.xy[:, x], outer.xy[:, y], alpha=0.2)
+            if inner is not None:
+                ax.fill(inner.xy[:, x], inner.xy[:, y], color="white")
+
+            ax.plot(
+                soll_cnt.xy[:, x],
+                soll_cnt.xy[:, y],
+                label="Reference Contour",
+                linestyle="--",
+                linewidth=1,
+                zorder=2,
+            )
+            ax.plot(
+                ist_cnt.xy[:, x],
+                ist_cnt.xy[:, y],
+                label="Estimated Contour",
+                linewidth=1.5,
+                zorder=3,
+            )
+
+            mean, std = format_mean_std(d_mean * 1e3, d_std * 1e3)
+            text = rf"$\bar d \pm s_d = {mean} \pm {std}\,\mathrm{{mm}}$"
+            ax.text(0.5, 0.5, text, transform=ax.transAxes, ha="center", va="center")
+
+        ax.set_xlabel("Y Coordinate (m)" if swap else "X Coordinate (m)")
+        ax.set_ylabel("X Coordinate (m)" if swap else "Y Coordinate (m)")
+        ax.axis("equal")
+        ax.legend()
+        plt.savefig(str(plot_path), format=plot_path.suffix[1:], bbox_inches="tight")
         plt.show()

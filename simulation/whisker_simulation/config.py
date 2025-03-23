@@ -145,8 +145,8 @@ class RendererConfig(BaseSettings):
 
     # contour resolution
     test_camera: str = "test_body_cam"
-    test_camera_width: int = 2000
-    test_camera_height: int = 2000
+    test_camera_width: int = 4000
+    test_camera_height: int = 4000
 
 
 class Flag(StrEnum):
@@ -175,6 +175,7 @@ class Config(BaseSettings):
     )
 
     project_path: Path = Path(__file__).parents[1].resolve()
+    outputs_path: Path = project_path / "outputs"
     model_path: Path = project_path / "models/platform.xml"
     assets_path: Path = project_path / "assets"
     local_assets_path: Path = assets_path / "local"

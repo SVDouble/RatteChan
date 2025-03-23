@@ -17,7 +17,7 @@ from whisker_simulation.config import (
     MujocoMeshConfig,
     RendererConfig,
 )
-from whisker_simulation.contours import Contour, extract_contours, plot_contours
+from whisker_simulation.contours import Contour, ObjectContour, extract_contours, plot_contours
 from whisker_simulation.controller import Controller
 from whisker_simulation.demo_assets import generate_demo_assets, has_demo_assets
 from whisker_simulation.models import SensorData
@@ -280,7 +280,7 @@ class Simulation:
 
         # export the video
         timestamp = time.strftime("%Y%m%d-%H%M%S")
-        renderer.export_video(self.config.project_path / "outputs" / f"{exp_config.name}-{timestamp}.mp4")
+        renderer.export_video(self.config.outputs_path / f"{exp_config.name}-{timestamp}.mp4")
 
         # evaluate the experiment
         stats = []
@@ -290,16 +290,17 @@ class Simulation:
             wsk_time, wsk_tip = zip(*wsk_data, strict=True)
             wsk_time, wsk_tip = np.array(wsk_time), np.array(wsk_tip)
             wsk_contour = Contour(wsk_tip)
-            test_contour = min(contours, key=lambda cnt: wsk_contour.mean_distance_to(cnt))
-            mean_distance = wsk_contour.mean_distance_to(test_contour)
-            stats.append((wsk_id, wsk_contour, test_contour, mean_distance))
+            test_contour = min(contours, key=lambda cnt: wsk_contour.contour_distance_mean(cnt))
+            stats.append((wsk_id, wsk_contour, test_contour))
+            mean_distance = wsk_contour.contour_distance_mean(test_contour)
             self.logger.info(f"Whisker {wsk_id.upper()} mean absolute distance: {mean_distance:.4f}")
         if monitor:
-            monitor.summarize_experiment(stats)
+            plot_path = self.config.outputs_path / f"{exp_config.name}-{timestamp}.pdf"
+            monitor.summarize_experiment(stats=stats, plot_path=plot_path)
 
         self.logger.info(f"Finished experiment: {exp_config.name}")
 
-    def extract_true_contours(self, spec: mujoco.MjSpec):
+    def extract_true_contours(self, spec: mujoco.MjSpec) -> list[ObjectContour]:
         model = spec.compile()
         data = mujoco.MjData(model)
         mujoco.mj_forward(model, data)
@@ -313,6 +314,6 @@ class Simulation:
         camera = next(camera for camera in spec.cameras if camera.name == self.config.renderer.test_camera)
         center, fovy = camera.pos[:2], camera.fovy
         contours = extract_contours(frame, center=center, width=fovy, height=fovy)
-        if True or self.config.debug:
+        if self.config.debug:
             plot_contours(contours)
         return contours

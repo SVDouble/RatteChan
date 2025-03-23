@@ -6,7 +6,7 @@ from functools import lru_cache
 import numpy as np
 from rich.logging import Console, RichHandler
 
-__all__ = ["get_logger", "rotate", "normalize", "unwrap_pid_error", "import_class", "prettify"]
+__all__ = ["get_logger", "rotate", "normalize", "unwrap_pid_error", "import_class", "prettify", "format_mean_std"]
 
 
 def create_console(**kwargs) -> Console:
@@ -51,3 +51,18 @@ def import_class(class_str: str):
     module_name, class_name = class_str.rsplit(".", 1)
     module = importlib.import_module(module_name)
     return getattr(module, class_name)
+
+
+def format_mean_std(mean: float, std: float) -> tuple[str, str]:
+    # If uncertainty is zero, default to two decimals
+    if std == 0:
+        return f"{mean:.2f}", "0"
+    # Determine order of magnitude of std
+    exp = int(np.floor(np.log10(abs(std))))
+    first_digit = int(std / (10**exp))
+    # One significant figure for uncertainty unless first digit is 1 (then use two)
+    sig = 2 if first_digit == 1 else 1
+    decimals = -exp + (sig - 1)
+    mean_str = f"{mean:.{decimals}f}"
+    std_str = f"{std:.{decimals}f}"
+    return mean_str, std_str
