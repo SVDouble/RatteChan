@@ -183,29 +183,18 @@ class Monitor:
         plt.show()
         f.savefig(self.config.local_assets_path / "deflection_profile.pdf", backend="pdf")
 
-    def summarize_experiment(
-        self,
-        *,
-        tip_trajectories: dict[WhiskerId, list[tuple[float, np.ndarray]]],
-        contours: list[Contour],
-    ):
+    def summarize_experiment(self, stats: list[tuple[WhiskerId, Contour, Contour, float]]):
         plt.figure()
-        # Plot whisker tip trajectories
-        for wsk_id, wsk_data in tip_trajectories.items():
-            time, tip = zip(*wsk_data, strict=True)
-            time, tip = np.array(time), np.array(tip)
-            wsk_contour = Contour(tip)
-            test_contour = min(contours, key=lambda cnt: wsk_contour.mean_distance_to(cnt))
-            distance = wsk_contour.mean_distance_to(test_contour)
+        for wsk_id, ist_cnt, soll_cnt, mean_d in stats:
             plt.plot(
-                test_contour.xy[:, 0],
-                test_contour.xy[:, 1],
-                label=f"Desired Whisker {wsk_id.upper()} Contour, d={distance:.4f}",
+                soll_cnt.xy[:, 0],
+                soll_cnt.xy[:, 1],
+                label=f"Desired Whisker {wsk_id.upper()} Contour, d={mean_d:.4f}",
             )
-            plt.plot(tip[:, 0], tip[:, 1], label=f"Whisker {wsk_id.upper()} Tip Trajectory")
+            plt.plot(ist_cnt.xy[:, 0], ist_cnt.xy[:, 1], label=f"Whisker {wsk_id.upper()} Tip Trajectory")
 
-        plt.xlabel("X")
-        plt.ylabel("Y")
+        plt.xlabel("X, m")
+        plt.ylabel("Y, m")
         plt.title("Contour Reconstruction")
         plt.legend()
         plt.axis("equal")

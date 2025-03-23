@@ -48,7 +48,7 @@
         <geom type="plane" size="0 0 0.03" material="matplane" rgba="1 1 1 1" contype="0" conaffinity="0"/>
         <!-- Meshes to swipe the whisker against -->
         <body name="test_body">
-            <camera name="test_body_cam" pos="0 0 1" orthographic="true" fovy="3"/>
+            <camera name="test_body_cam" pos="0 0 1" orthographic="true" fovy="5"/>
             
             {%- if add_obj_complex -%}
             <geom type="mesh" mesh="object_complex_f1" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>

@@ -3,6 +3,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any, Literal, Self
 
+import glfw
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -25,6 +26,7 @@ __all__ = [
     "Flag",
 ]
 
+glfw.ERROR_REPORTING = "ignore"
 np.set_printoptions(precision=3, suppress=True)
 
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -162,6 +164,7 @@ class ExperimentConfig(BaseSettings):
     initial_control: ControlMessage
     timeout: float = 0
     min_loop_time: float = 5
+    loop_eps: float = 1e-2
 
 
 class Config(BaseSettings):

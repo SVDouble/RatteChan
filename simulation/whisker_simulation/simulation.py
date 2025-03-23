@@ -17,7 +17,7 @@ from whisker_simulation.config import (
     MujocoMeshConfig,
     RendererConfig,
 )
-from whisker_simulation.contours import extract_contours, plot_contours
+from whisker_simulation.contours import Contour, extract_contours, plot_contours
 from whisker_simulation.controller import Controller
 from whisker_simulation.demo_assets import generate_demo_assets, has_demo_assets
 from whisker_simulation.models import SensorData
@@ -230,7 +230,7 @@ class Simulation:
                 return False
             # TODO: think of a more robust completion criteria
             if any(
-                np.linalg.norm(trj[-1][1] - trj[0][1]) < self.config.spline.keypoint_distance
+                np.linalg.norm(trj[-1][1] - trj[0][1]) < exp_config.loop_eps
                 for trj in tip_trajectories.values()
                 if len(trj) > 1 and trj[-1][0] - trj[0][0] > exp_config.min_loop_time
             ):
@@ -282,9 +282,20 @@ class Simulation:
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         renderer.export_video(self.config.project_path / "outputs" / f"{exp_config.name}-{timestamp}.mp4")
 
-        # show the statistics
+        # evaluate the experiment
+        stats = []
+        self.logger.info(f"Experiment: {exp_config.name} results:")
+        self.logger.info(f"Running time: {experiment.data.time - start_time:.2f} seconds")
+        for wsk_id, wsk_data in tip_trajectories.items():
+            wsk_time, wsk_tip = zip(*wsk_data, strict=True)
+            wsk_time, wsk_tip = np.array(wsk_time), np.array(wsk_tip)
+            wsk_contour = Contour(wsk_tip)
+            test_contour = min(contours, key=lambda cnt: wsk_contour.mean_distance_to(cnt))
+            mean_distance = wsk_contour.mean_distance_to(test_contour)
+            stats.append((wsk_id, wsk_contour, test_contour, mean_distance))
+            self.logger.info(f"Whisker {wsk_id.upper()} mean absolute distance: {mean_distance:.4f}")
         if monitor:
-            monitor.summarize_experiment(tip_trajectories=tip_trajectories, contours=contours)
+            monitor.summarize_experiment(stats)
 
         self.logger.info(f"Finished experiment: {exp_config.name}")
 
@@ -298,6 +309,10 @@ class Simulation:
         renderer.enable_segmentation_rendering()
         renderer.update_scene(data, camera=self.config.renderer.test_camera)
         frame = renderer.render()
-        contours = extract_contours(frame, center=np.array([0, 0]), width=3, height=3)
-        plot_contours(contours)
+
+        camera = next(camera for camera in spec.cameras if camera.name == self.config.renderer.test_camera)
+        center, fovy = camera.pos[:2], camera.fovy
+        contours = extract_contours(frame, center=center, width=fovy, height=fovy)
+        if True or self.config.debug:
+            plot_contours(contours)
         return contours
