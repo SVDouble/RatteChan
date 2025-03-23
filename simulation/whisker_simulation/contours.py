@@ -1,12 +1,47 @@
+from functools import cached_property, partial
+from typing import Self
+
 import cv2
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.spatial import cKDTree
 
-__all__ = ["extract_contours", "plot_contours"]
+__all__ = ["extract_contours", "plot_contours", "Contour"]
 
 
-def get_compound_contours(frame: np.ndarray, dilate_threshold: int = 1, approximate: bool = False) -> list[np.ndarray]:
+class Contour:
+    def __init__(self, xy: np.ndarray, hierarchy: np.ndarray | None = None):
+        self.xy: np.ndarray = xy
+        self.hierarchy: np.ndarray | None = hierarchy
+
+    @cached_property
+    def kdtree(self) -> cKDTree:
+        # KDTree for fast nearest neighbor search
+        return cKDTree(self.xy)
+
+    def transform(self, f):
+        self.xy = f(self.xy)
+        if "kdtree" in self.__dict__:  # Invalidate cached property
+            # noinspection PyPropertyAccess
+            del self.kdtree
+        return self
+
+    def approximate(self, eps: float = 1e-3):
+        self.transform(partial(cv2.approxPolyDP, eps=eps, closed=True))
+        return self
+
+    def mean_distance_to(self, contour: Self) -> float:
+        if not isinstance(contour, Contour):
+            raise TypeError("Expected Contour instance as argument")
+        dist_ref, _ = contour.kdtree.query(self.xy)
+        return float(np.mean(dist_ref))
+
+    def distance_to(self, point: np.ndarray) -> float:
+        return float(self.kdtree.query(point)[0])
+
+
+def get_compound_contours(frame: np.ndarray, dilate_threshold: int = 1) -> list[Contour]:
     h, w, _ = frame.shape
     # Get unique labels (each pixel is an (objid, objtype) pair)
     flat = frame.reshape(-1, 2)
@@ -85,19 +120,15 @@ def get_compound_contours(frame: np.ndarray, dilate_threshold: int = 1, approxim
         # plt.gca().invert_yaxis()  # match image coordinates
         # plt.show()
 
-        cnts, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-        if not cnts:
+        contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+        if not contours:
             continue
-        for cnt in cnts:
-            if approximate:
-                # Approximate the contour with a custom epsilon
-                eps = 1e-3
-                cnt = cv2.approxPolyDP(cnt, eps, closed=True)
+        for cnt, h in zip(contours, hierarchy[0], strict=True):
             cnt = cnt.squeeze(1)
             # Offset back to original image coordinates
             cnt[:, 0] += min_x
             cnt[:, 1] += min_y
-            compound_contours.append(cnt)
+            compound_contours.append(Contour(cnt, h))
     return compound_contours
 
 
@@ -122,16 +153,18 @@ def pixel_to_world(
 
 def extract_contours(frame: np.ndarray, center: np.ndarray, width: float, height: float):
     compound_contours = get_compound_contours(frame, dilate_threshold=1)
-    world_contours = [pixel_to_world(cnt, center, width, height, frame.shape) for cnt in compound_contours]
-    return world_contours
+    transform = partial(pixel_to_world, center=center, world_width=width, world_height=height, image_shape=frame.shape)
+    return [contour.transform(transform) for contour in compound_contours]
 
 
-def plot_contours(contours: list[np.ndarray]):
+def plot_contours(contours: list[Contour | np.ndarray]):
     # Plot the world contours with legend (only contour points are plotted)
     plt.figure(figsize=(10, 8))
     legend_entries = []
     rng = np.random.default_rng(42)
     for i, cnt in enumerate(contours, start=1):
+        if isinstance(cnt, Contour):
+            cnt = cnt.xy
         # Generate a vivid random color
         color = rng.uniform(0, 1, 3)
         plt.plot(cnt[:, 0], cnt[:, 1], color=color, linewidth=2)

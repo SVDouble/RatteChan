@@ -160,7 +160,8 @@ class ExperimentConfig(BaseSettings):
     name: str
     flags: set[Flag]
     initial_control: ControlMessage
-    timeout: float
+    timeout: float = 0
+    min_loop_time: float = 5
 
 
 class Config(BaseSettings):

@@ -1,8 +1,10 @@
+import matplotlib.pyplot as plt
 import mujoco
 import mujoco.viewer
 import numpy as np
 
-from whisker_simulation.config import Config
+from whisker_simulation.config import Config, WhiskerId
+from whisker_simulation.contours import Contour
 from whisker_simulation.models import SensorData
 
 __all__ = ["Monitor"]
@@ -180,3 +182,31 @@ class Monitor:
         plt.colorbar(label="Whisker Deflection")
         plt.show()
         f.savefig(self.config.local_assets_path / "deflection_profile.pdf", backend="pdf")
+
+    def summarize_experiment(
+        self,
+        *,
+        tip_trajectories: dict[WhiskerId, list[tuple[float, np.ndarray]]],
+        contours: list[Contour],
+    ):
+        plt.figure()
+        # Plot whisker tip trajectories
+        for wsk_id, wsk_data in tip_trajectories.items():
+            time, tip = zip(*wsk_data, strict=True)
+            time, tip = np.array(time), np.array(tip)
+            wsk_contour = Contour(tip)
+            test_contour = min(contours, key=lambda cnt: wsk_contour.mean_distance_to(cnt))
+            distance = wsk_contour.mean_distance_to(test_contour)
+            plt.plot(
+                test_contour.xy[:, 0],
+                test_contour.xy[:, 1],
+                label=f"Desired Whisker {wsk_id.upper()} Contour, d={distance:.4f}",
+            )
+            plt.plot(tip[:, 0], tip[:, 1], label=f"Whisker {wsk_id.upper()} Tip Trajectory")
+
+        plt.xlabel("X")
+        plt.ylabel("Y")
+        plt.title("Contour Reconstruction")
+        plt.legend()
+        plt.axis("equal")
+        plt.show()

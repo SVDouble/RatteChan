@@ -1,4 +1,5 @@
 import time
+from collections import defaultdict
 from functools import cached_property
 from pathlib import Path
 
@@ -195,6 +196,8 @@ class Simulation:
         for experiment in self.config.experiments:
             self.run_experiment(experiment)
 
+        self.logger.info("Simulation finished")
+
     def run_experiment(self, exp_config: ExperimentConfig):
         self.logger.info(f"Initializing the experiment: {exp_config.name}")
 
@@ -215,6 +218,25 @@ class Simulation:
         # set the control function
         mujoco.set_mjcb_control(experiment.control)
 
+        # define the stopping criteria
+        tip_trajectories = defaultdict(list)
+
+        def check_stopping_criteria():
+            if not experiment.is_healthy:
+                self.logger.info(f"Experiment: {exp_config.name} failed")
+                return False
+            if experiment.data.time - start_time > exp_config.timeout > 0:
+                self.logger.info(f"Timeout reached for experiment: {exp_config.name}")
+                return False
+            # TODO: think of a more robust completion criteria
+            if any(
+                np.linalg.norm(trj[-1][1] - trj[0][1]) < self.config.spline.keypoint_distance
+                for trj in tip_trajectories.values()
+                if len(trj) > 1 and trj[-1][0] - trj[0][0] > exp_config.min_loop_time
+            ):
+                return False
+            return True
+
         with mujoco.viewer.launch_passive(
             experiment.model,
             experiment.data,
@@ -227,10 +249,6 @@ class Simulation:
                 viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
                 viewer.cam.trackbodyid = experiment.data.body(self.config.body.mj_body_name).id
             while viewer.is_running():
-                if experiment.data.time - start_time > exp_config.timeout:
-                    self.logger.info(f"Timeout reached for experiment: {exp_config.name}")
-                    break
-
                 if self.is_paused:
                     time.sleep(experiment.model.opt.timestep)
                     continue
@@ -245,6 +263,13 @@ class Simulation:
                 # update the display
                 viewer.sync()
 
+                # check the stopping criteria
+                for wsk_id, wsk in experiment.sensor_data.whiskers.items():
+                    if wsk.is_deflected:
+                        tip_trajectories[wsk_id].append((experiment.data.time, wsk.tip_r_w))
+                if not check_stopping_criteria():
+                    break
+
                 # Rudimentary time keeping, will drift relative to wall clock.
                 time_until_next_step = experiment.model.opt.timestep - (time.time() - step_start)
                 if time_until_next_step > 0 and self.config.track_time:
@@ -256,6 +281,10 @@ class Simulation:
         # export the video
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         renderer.export_video(self.config.project_path / "outputs" / f"{exp_config.name}-{timestamp}.mp4")
+
+        # show the statistics
+        if monitor:
+            monitor.summarize_experiment(tip_trajectories=tip_trajectories, contours=contours)
 
         self.logger.info(f"Finished experiment: {exp_config.name}")
 
