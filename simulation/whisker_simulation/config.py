@@ -1,4 +1,4 @@
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Literal, Self
@@ -22,6 +22,7 @@ __all__ = [
     "MujocoGeomConfig",
     "MujocoMeshConfig",
     "ControlMessage",
+    "Flag",
 ]
 
 np.set_printoptions(precision=3, suppress=True)
@@ -134,18 +135,30 @@ class BodyConfig(BaseSettings):
 class RendererConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="renderer_")
 
-    camera: str = "platform_cam"
-    width: int = 720
-    height: int = 512
+    platform_camera: str = "platform_cam"
+    width: int = 1280
+    height: int = 720
     fps: int = 30
     duration: float | None = None
+
+    # contour resolution
+    test_camera: str = "test_body_cam"
+    test_camera_width: int = 2000
+    test_camera_height: int = 2000
+
+
+class Flag(StrEnum):
+    USE_PLATFORM = "use_platform"
+
+    ADD_OBJ_WALL = "add_obj_wall"
+    ADD_OBJ_BOX = "add_obj_box"
+    ADD_OBJ_TUNNEL = "add_obj_tunnel"
+    ADD_OBJ_COMPLEX = "add_obj_complex"
 
 
 class ExperimentConfig(BaseSettings):
     name: str
-    test_body: str | None = None
-    assets_xml: str | None = None
-    objects_xml: str | None = None
+    flags: set[Flag]
     initial_control: ControlMessage
     timeout: float
 
@@ -161,7 +174,6 @@ class Config(BaseSettings):
     model_path: Path = project_path / "models/platform.xml"
     assets_path: Path = project_path / "assets"
     local_assets_path: Path = assets_path / "local"
-    bodies: dict[str, MujocoBodyConfig] = Field(default_factory=dict)
 
     # general setup
     debug: bool = False

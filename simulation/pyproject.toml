@@ -11,6 +11,7 @@ dependencies = [
     "mediapy>=1.2.2",
     "mujoco>=3.2.7",
     "numpy>=2.2.3",
+    "opencv-python>=4.11.0.86",
     "pydantic>=2.10.6",
     "pydantic-settings>=2.7.1",
     "rich>=13.9.4",

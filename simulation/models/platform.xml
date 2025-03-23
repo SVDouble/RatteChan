@@ -8,7 +8,23 @@
         <material name="matplane" reflectance="0" texture="texplane" texrepeat="20 20" texuniform="true"/>
         <mesh name="platform" vertex="-6 0 0  6 0 0  1.5 18 0  -1.5 18 0  -6 0 1  6 0 1  1.5 18 1  -1.5 18 1"
               scale="0.01 0.01 0.02"/>
-        {{ assets if assets }}
+
+        {%- if add_obj_wall -%}
+        <mesh name="cube" vertex="0 0 0  1 0 0  1 1 0  0 1 0  0 0 1  1 0 1  1 1 1  0 1 1" scale="0.3 0.01 0.1"/>
+        {%- endif -%}
+        
+        {%- if add_obj_complex -%}
+        <mesh name="object_complex_f1" file="assets/object_complex_f1.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="object_complex_f2" file="assets/object_complex_f2.stl" scale="0.001 0.001 0.001"/>
+        {%- endif -%}
+        
+        {%- if add_obj_tunnel -%}
+        <model name="walls" file="assets/local/walls.xml"/>
+        {%- endif -%}
+        
+        {%- if custom_assets -%}
+        {{ custom_assets }}
+        {%- endif -%}
     </asset>
 
     <extension>
@@ -31,14 +47,39 @@
         <!-- Visible ground plane -->
         <geom type="plane" size="0 0 0.03" material="matplane" rgba="1 1 1 1" contype="0" conaffinity="0"/>
         <!-- Meshes to swipe the whisker against -->
-        {%- if objects -%}
-        <body>
-            {{ objects }}
+        <body name="test_body">
+            <camera name="test_body_cam" pos="0 0 1" orthographic="true" fovy="3"/>
+            
+            {%- if add_obj_complex -%}
+            <geom type="mesh" mesh="object_complex_f1" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>
+            <geom type="mesh" mesh="object_complex_f2" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>
+            {%- endif -%}
+            
+            {%- if add_obj_boxes -%}
+            <geom type="box" size="0.2 0.2 0.03" pos="0.32 -0.2 0.05" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>
+            <geom type="box" size="0.2 0.2 0.03" pos="-0.42 0.2 0.05" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>
+            {%- endif -%}
+            
+            {%- if add_obj_wall -%}
+            <geom type="mesh" mesh="cube" pos="0.15 0.2 0" euler="0 0 100" rgba="0.2 0.5 0.1 1"/>
+            {%- endif -%}
+            
+            {%- if add_obj_tunnel -%}
+            <body pos="-0.5 1 0" euler="0 0 -90">
+                <attach model="walls" body="wall1" prefix="wall1_"/>
+                <attach model="walls" body="wall2" prefix="wall2_"/>
+            </body>
+            {%- endif -%}
+            
+            {%- if custom_objects -%}
+            {{ custom_objects }}
+            {%- endif -%}
         </body>
-        {%- endif -%}
+        
         <!-- Whisker assembly: base with attached moving parts -->
+        {%- if use_platform -%}
         <body name="platform" pos="0 0 0.05">
-            <geom type="mesh" mesh="platform" rgba=".4 .8 .6 .5" mass="0.5"/>
+            <geom type="mesh" mesh="platform" rgba=".4 .8 .6 0.5" mass="0.5"/>
 
             <!-- Slide joints for x and y movement -->
             <!-- Make sure the joint are positioned at the COM, so the coordinates mae sense -->
@@ -49,7 +90,7 @@
             <!-- Hinge joint for rotation -->
             <joint name="body_yaw_w" type="hinge" pos="0 0.072 0" axis="0 0 1" armature="0.01" ref="90"/>
 
-            <camera name="platform_cam" pos="0 0.25 0.05" xyaxes="1 0 0 0 0 -1"/>
+            <camera name="platform_cam" pos="0 0.072 0.75"/>
 
             <!-- Whisker attached to the base -->
             <body name="wsk_r0" pos="0.030 0.125 0.01" axisangle="0 0 1 -15">
@@ -94,8 +135,10 @@
                 </composite>
             </body>
         </body>
+        {%- endif -%}
     </worldbody>
 
+    {%- if use_platform -%}
     <!-- Actuators: define how joints are controlled -->
     <actuator>
         <velocity joint="body_x_w" name="body_vx"/>
@@ -115,5 +158,6 @@
         <jointpos joint="wsk_r0_defl" name="wsk_r0_defl"/>
         <jointpos joint="wsk_l0_defl" name="wsk_l0_defl"/>
     </sensor>
+    {%- endif -%}
 
 </mujoco>

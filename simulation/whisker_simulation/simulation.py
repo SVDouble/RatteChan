@@ -10,11 +10,13 @@ import numpy as np
 from whisker_simulation.config import (
     Config,
     ExperimentConfig,
+    Flag,
     MujocoBodyConfig,
     MujocoGeomConfig,
     MujocoMeshConfig,
     RendererConfig,
 )
+from whisker_simulation.contours import extract_contours, plot_contours
 from whisker_simulation.controller import Controller
 from whisker_simulation.demo_assets import generate_demo_assets, has_demo_assets
 from whisker_simulation.models import SensorData
@@ -45,7 +47,7 @@ class Renderer:
 
     def render(self, data: mujoco.MjData):
         if len(self.frames) < data.time * self.config.fps:
-            self.mj_renderer.update_scene(data, camera=self.config.camera)
+            self.mj_renderer.update_scene(data, camera=self.config.platform_camera)
             self.frames.append(self.mj_renderer.render())
 
     def export_video(self, path: Path):
@@ -70,8 +72,6 @@ class Experiment:
             monitor=monitor,
         )
         self.is_healthy: bool = True
-
-        self.test_body = self.add_body(self.config.bodies[exp_config.test_body]) if exp_config.test_body else None
         self.set_initial_control()
 
     @cached_property
@@ -174,11 +174,17 @@ class Simulation:
         if chr(keycode) == " ":
             self.is_paused = not self.is_paused
 
-    def _get_mujoco_spec(self, path: Path, assets: str | None = None, objects: str | None = None) -> mujoco.MjSpec:
+    def _get_mujoco_spec(
+        self,
+        path: Path,
+        flags: set[Flag],
+    ) -> mujoco.MjSpec:
         with open(path) as f:
             template = self.environment.from_string(f.read())
         # noinspection PyArgumentList
-        return mujoco.MjSpec.from_string(xml=template.render(assets=assets, objects=objects))
+        return mujoco.MjSpec.from_string(
+            xml=template.render(**{flag.value: True for flag in flags}),
+        )
 
     def run(self):
         if self.config.debug:
@@ -193,11 +199,17 @@ class Simulation:
         self.logger.info(f"Initializing the experiment: {exp_config.name}")
 
         # create the experiment
-        spec = self._get_mujoco_spec(self.model_path, assets=exp_config.assets_xml, objects=exp_config.objects_xml)
+        spec = self._get_mujoco_spec(self.model_path, exp_config.flags)
         monitor = Monitor(config=self.config) if self.config.use_monitor else None
         experiment = Experiment(config=self.config, spec=spec, monitor=monitor, exp_config=exp_config)
 
+        # extract the true test body contours
+        contours = self.extract_true_contours(
+            self._get_mujoco_spec(self.model_path, exp_config.flags - {Flag.USE_PLATFORM})
+        )
+
         # initialize the renderer
+        mujoco.mj_forward(experiment.model, experiment.data)
         renderer = Renderer(experiment.model, self.config.renderer)
 
         # set the control function
@@ -246,3 +258,17 @@ class Simulation:
         renderer.export_video(self.config.project_path / "outputs" / f"{exp_config.name}-{timestamp}.mp4")
 
         self.logger.info(f"Finished experiment: {exp_config.name}")
+
+    def extract_true_contours(self, spec: mujoco.MjSpec):
+        model = spec.compile()
+        data = mujoco.MjData(model)
+        mujoco.mj_forward(model, data)
+
+        width, height = self.config.renderer.test_camera_width, self.config.renderer.test_camera_height
+        renderer = mujoco.Renderer(model, width=width, height=height)
+        renderer.enable_segmentation_rendering()
+        renderer.update_scene(data, camera=self.config.renderer.test_camera)
+        frame = renderer.render()
+        contours = extract_contours(frame, center=np.array([0, 0]), width=3, height=3)
+        plot_contours(contours)
+        return contours
