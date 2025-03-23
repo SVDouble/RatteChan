@@ -150,12 +150,20 @@ class RendererConfig(BaseSettings):
 
 
 class Flag(StrEnum):
+    # TODO: add single whisker option
     USE_PLATFORM = "use_platform"
 
-    ADD_OBJ_WALL = "add_obj_wall"
-    ADD_OBJ_BOX = "add_obj_box"
-    ADD_OBJ_TUNNEL = "add_obj_tunnel"
+    # For swiping policy testing
+    ADD_OBJ_CIRCLE = "add_obj_circle"
+    ADD_OBJ_ROUNDED_RECTANGLE = "add_obj_rounded_rectangle"
     ADD_OBJ_COMPLEX = "add_obj_complex"
+
+    # For retrieval policy testing
+    ADD_OBJ_BOX = "add_obj_box"
+    ADD_OBJ_WALL = "add_obj_wall"
+
+    # For tunnel policy resting
+    ADD_OBJ_TUNNEL = "add_obj_tunnel"
 
 
 class ExperimentConfig(BaseSettings):

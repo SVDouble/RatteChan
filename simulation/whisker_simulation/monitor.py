@@ -185,7 +185,7 @@ class Monitor:
         plt.title("Deflection Profile of the Deflection Model")
         plt.colorbar(label="Whisker Deflection")
         plt.show()
-        f.savefig(self.config.local_assets_path / "deflection_profile.pdf", backend="pdf")
+        f.savefig(self.config.outputs_path / "deflection_profile.pdf", backend="pdf")
 
     def summarize_experiment(self, *, stats: list[tuple[WhiskerId, Contour, ObjectContour]], plot_path: Path):
         fig, ax = plt.subplots(figsize=(6, 4), dpi=300)
@@ -220,7 +220,7 @@ class Monitor:
             ax.plot(
                 ist_cnt.xy[:, x],
                 ist_cnt.xy[:, y],
-                label=r"Estimated Contour ($|d - \bar d| \leq s_d$)",
+                label=rf"Estimated Contour{"\n"}($|d - \bar d| \leq s_d$)",
                 linewidth=1.5,
                 color="green",
                 alpha=0.6,
@@ -238,7 +238,7 @@ class Monitor:
                 ax.plot(
                     ist_cnt.xy[idx, x],
                     ist_cnt.xy[idx, y],
-                    label=(r"Estimated Contour ($|d - \bar d| > s_d$)" if not has_added_label else None),
+                    label=(rf"Estimated Contour{"\n"}($|d - \bar d| > s_d$)" if not has_added_label else None),
                     linewidth=1.5,
                     color="red",
                     alpha=0.6,
@@ -253,6 +253,12 @@ class Monitor:
         ax.set_xlabel("Y Coordinate (m)" if swap else "X Coordinate (m)")
         ax.set_ylabel("X Coordinate (m)" if swap else "Y Coordinate (m)")
         ax.axis("equal")
-        ax.legend()
+
+        # Shrink current axis by 30%
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
+        # Put a legend to the right of the current axis
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), fancybox=True, shadow=True, ncol=1)
+
         plt.savefig(str(plot_path), format=plot_path.suffix[1:], bbox_inches="tight")
         plt.show()

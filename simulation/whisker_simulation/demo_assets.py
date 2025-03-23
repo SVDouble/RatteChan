@@ -1,6 +1,7 @@
 import math
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -64,7 +65,7 @@ def create_walls_from_curve(
         R = np.array([[math.cos(theta), -math.sin(theta)], [math.sin(theta), math.cos(theta)]])
         segments.append((R @ corners_local.T).T + mid)
     # Add extra wall segment only if the curve is closed (i.e. first and last points nearly coincide).
-    if np.linalg.norm(resampled[0] - resampled[-1]) < 1e-5:
+    if np.linalg.norm(resampled[0] - resampled[-1]) < 1e-1:
         p0, p1 = resampled[-1], resampled[0]
         mid = (p0 + p1) / 2
         dx, dy = p1 - p0
@@ -424,13 +425,55 @@ def generate_squiggly_circles(base_radius=1.0, sine_amp=0.1, sine_freq=5, gap_pe
     return outer, inner
 
 
-def has_demo_assets(config: Config) -> bool:
-    return config.local_assets_path.exists() and (config.local_assets_path / "walls.xml").exists()
+# Generate rectangle with rounded corners and slight noise to prevent duplicates
+def generate_rounded_rectangle(w, h, r, num_points_corner=50, num_points_edge=20, epsilon=1e-6):
+    r = min(r, w / 2, h / 2)
+    theta = np.linspace(0, np.pi / 2, num_points_corner, endpoint=False)
+
+    corners = [
+        (w / 2 - r, h / 2 - r, 0),
+        (-w / 2 + r, h / 2 - r, np.pi / 2),
+        (-w / 2 + r, -h / 2 + r, np.pi),
+        (w / 2 - r, -h / 2 + r, 3 * np.pi / 2),
+    ]
+
+    points = []
+    for i, (cx, cy, angle_offset) in enumerate(corners):
+        # Rounded corner points
+        corner_x = cx + r * np.cos(theta + angle_offset)
+        corner_y = cy + r * np.sin(theta + angle_offset)
+        points.append(np.column_stack((corner_x, corner_y)))
+
+        # Straight edge points
+        next_cx, next_cy, next_angle = corners[(i + 1) % 4]
+        next_corner_start_x = next_cx + r * np.cos(next_angle)
+        next_corner_start_y = next_cy + r * np.sin(next_angle)
+
+        edge_x = np.linspace(corner_x[-1], next_corner_start_x, num_points_edge + 2, endpoint=False)[1:]
+        edge_y = np.linspace(corner_y[-1], next_corner_start_y, num_points_edge + 2, endpoint=False)[1:]
+        points.append(np.column_stack((edge_x, edge_y)))
+
+    # Stack all points and add small random noise
+    all_points = np.vstack(points)
+    noise = np.random.uniform(-epsilon, epsilon, all_points.shape)
+    return all_points + noise
 
 
-def generate_demo_assets(config: Config):
-    config.local_assets_path.mkdir(exist_ok=True)
+def generate_rounded_rectangle_model(output: Path):
+    rectangle = generate_rounded_rectangle(w=0.5, h=1, r=0.1)
+    generate_mujoco_xml(
+        curves=[rectangle],
+        resolution=0.01,
+        wall_thickness=0.02,
+        wall_height=0.1,
+        color="0.2 0.5 0.1 1",
+        model_name=output.name,
+        body_names=["c0"],
+        output_file=str(output),
+    )
 
+
+def generate_tunnel_model(output: Path):
     outer, inner = generate_squiggly_circles(gap_percent=25)
     outer = remove_curve_segment(outer, 0, 20)
     outer = wrap_cutouts(outer, inner, 0.1, 1.5)
@@ -442,10 +485,28 @@ def generate_demo_assets(config: Config):
         wall_thickness=0.02,
         wall_height=0.1,
         color="0.2 0.5 0.1 1",
-        model_name="walls",
-        body_names=["wall1", "wall2"],
-        output_file=str(config.local_assets_path / "walls.xml"),
+        model_name=output.name,
+        body_names=["c0", "c1"],
+        output_file=str(output),
     )
+
+
+assets = {
+    "rounded_rectangle": generate_rounded_rectangle_model,
+    "tunnel": generate_tunnel_model,
+}
+
+
+def has_demo_assets(config: Config) -> bool:
+    return config.local_assets_path.exists() and all(
+        (config.local_assets_path / f"{model}.xml").exists() for model in assets.keys()
+    )
+
+
+def generate_demo_assets(config: Config):
+    config.local_assets_path.mkdir(exist_ok=True)
+    for model_name, generator in assets.items():
+        generator(config.local_assets_path / f"{model_name}.xml")
 
 
 if __name__ == "__main__":
