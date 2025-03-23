@@ -166,6 +166,9 @@ class ExperimentConfig(BaseSettings):
     min_loop_time: float = 5
     loop_eps: float = 1e-2
 
+    def __str__(self) -> str:
+        return f"Experiment('{self.name}')"
+
 
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
@@ -192,6 +195,7 @@ class Config(BaseSettings):
 
     # recording setup
     renderer: RendererConfig = RendererConfig()
+    export_video: bool = False
 
     # viewer setup
     show_gui: bool = True

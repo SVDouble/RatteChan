@@ -30,20 +30,10 @@ class Contour:
         self.transform(partial(cv2.approxPolyDP, eps=eps, closed=True))
         return self
 
-    def contour_distance_mean(self, contour: Self) -> float:
+    def contour_distance(self, contour: Self) -> np.ndarray:
         if not isinstance(contour, Contour):
             raise TypeError("Expected Contour instance as argument")
-        dist_ref, _ = contour.kdtree.query(self.xy)
-        return float(np.mean(dist_ref))
-
-    def contour_distance_std(self, contour: Self) -> float:
-        if not isinstance(contour, Contour):
-            raise TypeError("Expected Contour instance as argument")
-        dist_ref, _ = contour.kdtree.query(self.xy)
-        return float(np.std(dist_ref))
-
-    def distance(self, point: np.ndarray) -> float:
-        return float(self.kdtree.query(point)[0])
+        return contour.kdtree.query(self.xy)[0]
 
 
 class ObjectContour(Contour):

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import mujoco
 import mujoco.viewer
 import numpy as np
+from scipy.ndimage import label
 
 from whisker_simulation.config import Config, WhiskerId
 from whisker_simulation.contours import Contour, ObjectContour
@@ -198,14 +199,15 @@ class Monitor:
         x, y = (1, 0) if swap else (0, 1)
 
         for _, ist_cnt, soll_cnt in stats:
-            d_mean = ist_cnt.contour_distance_mean(soll_cnt)
-            d_std = ist_cnt.contour_distance_std(soll_cnt)
+            d = ist_cnt.contour_distance(soll_cnt)
+            d_mean, d_std = float(np.mean(d)), float(np.std(d))
             outer, inner = soll_cnt.outer_contour(), soll_cnt.inner_contour()
 
             ax.fill(outer.xy[:, x], outer.xy[:, y], alpha=0.2)
             if inner is not None:
                 ax.fill(inner.xy[:, x], inner.xy[:, y], color="white")
 
+            # Plot the reference contour
             ax.plot(
                 soll_cnt.xy[:, x],
                 soll_cnt.xy[:, y],
@@ -214,13 +216,35 @@ class Monitor:
                 linewidth=1,
                 zorder=2,
             )
+            # Plot the estimated contour
             ax.plot(
                 ist_cnt.xy[:, x],
                 ist_cnt.xy[:, y],
-                label="Estimated Contour",
+                label=r"Estimated Contour ($|d - \bar d| \leq s_d$)",
                 linewidth=1.5,
+                color="green",
+                alpha=0.6,
                 zorder=3,
             )
+            # Plot the outliers in the estimated contour
+            mask = np.abs(d - d_mean) > d_std
+            labeled, num = label(mask)  # label contiguous True runs
+            min_run = len(d) // 100
+            has_added_label = False
+            for i in range(1, num + 1):
+                if (labeled == i).sum() < min_run:
+                    continue
+                idx = np.where(labeled == i)[0]
+                ax.plot(
+                    ist_cnt.xy[idx, x],
+                    ist_cnt.xy[idx, y],
+                    label=(r"Estimated Contour ($|d - \bar d| > s_d$)" if not has_added_label else None),
+                    linewidth=1.5,
+                    color="red",
+                    alpha=0.6,
+                    zorder=4,
+                )
+                has_added_label = True
 
             mean, std = format_mean_std(d_mean * 1e3, d_std * 1e3)
             text = rf"$\bar d \pm s_d = {mean} \pm {std}\,\mathrm{{mm}}$"

@@ -199,7 +199,8 @@ class Simulation:
         self.logger.info("Simulation finished")
 
     def run_experiment(self, exp_config: ExperimentConfig):
-        self.logger.info(f"Initializing the experiment: {exp_config.name}")
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        self.logger.info(f"{exp_config}: initializing...")
 
         # create the experiment
         spec = self._get_mujoco_spec(self.model_path, exp_config.flags)
@@ -207,6 +208,7 @@ class Simulation:
         experiment = Experiment(config=self.config, spec=spec, monitor=monitor, exp_config=exp_config)
 
         # extract the true test body contours
+        self.logger.info(f"{exp_config}: extracting the true test body contours...")
         contours = self.extract_true_contours(
             self._get_mujoco_spec(self.model_path, exp_config.flags - {Flag.USE_PLATFORM})
         )
@@ -223,10 +225,10 @@ class Simulation:
 
         def check_stopping_criteria():
             if not experiment.is_healthy:
-                self.logger.info(f"Experiment: {exp_config.name} failed")
+                self.logger.info(f"{exp_config}: experiment has failed")
                 return False
             if experiment.data.time - start_time > exp_config.timeout > 0:
-                self.logger.info(f"Timeout reached for experiment: {exp_config.name}")
+                self.logger.info(f"{exp_config}: timeout has been reached")
                 return False
             # TODO: think of a more robust completion criteria
             if any(
@@ -243,7 +245,7 @@ class Simulation:
             key_callback=self.key_callback,
             show_left_ui=False,
         ) as viewer:
-            self.logger.info(f"Running the experiment: {exp_config.name}")
+            self.logger.info(f"{exp_config}: running the simulation...")
             start_time = experiment.data.time
             with viewer.lock():
                 viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
@@ -255,7 +257,8 @@ class Simulation:
 
                 step_start = time.time()
                 # render the scene for the video
-                renderer.render(experiment.data)
+                if self.config.export_video:
+                    renderer.render(experiment.data)
                 # step the experiment
                 experiment.step()
                 # call the monitor to draw the trajectories
@@ -275,30 +278,33 @@ class Simulation:
                 if time_until_next_step > 0 and self.config.track_time:
                     time.sleep(time_until_next_step)
 
+        self.logger.info(f"{exp_config}: simulation has finished")
+
         # reset the control
         mujoco.set_mjcb_control(None)
 
         # export the video
-        timestamp = time.strftime("%Y%m%d-%H%M%S")
-        renderer.export_video(self.config.outputs_path / f"{exp_config.name}-{timestamp}.mp4")
+        if self.config.export_video:
+            self.logger.info(f"{exp_config}: exporting the simulation video...")
+            renderer.export_video(self.config.outputs_path / f"{exp_config.name}-{timestamp}.mp4")
 
         # evaluate the experiment
         stats = []
-        self.logger.info(f"Experiment: {exp_config.name} results:")
+        self.logger.info(f"{exp_config}: results are the following:")
         self.logger.info(f"Running time: {experiment.data.time - start_time:.2f} seconds")
         for wsk_id, wsk_data in tip_trajectories.items():
             wsk_time, wsk_tip = zip(*wsk_data, strict=True)
             wsk_time, wsk_tip = np.array(wsk_time), np.array(wsk_tip)
             wsk_contour = Contour(wsk_tip)
-            test_contour = min(contours, key=lambda cnt: wsk_contour.contour_distance_mean(cnt))
+            test_contour = min(contours, key=lambda cnt: np.mean(wsk_contour.contour_distance(cnt)))
             stats.append((wsk_id, wsk_contour, test_contour))
-            mean_distance = wsk_contour.contour_distance_mean(test_contour)
-            self.logger.info(f"Whisker {wsk_id.upper()} mean absolute distance: {mean_distance:.4f}")
+            d_mean = np.mean(wsk_contour.contour_distance(test_contour))
+            self.logger.info(f"Whisker {wsk_id.upper()} mean absolute distance: {d_mean:.4f}")
         if monitor:
             plot_path = self.config.outputs_path / f"{exp_config.name}-{timestamp}.pdf"
             monitor.summarize_experiment(stats=stats, plot_path=plot_path)
 
-        self.logger.info(f"Finished experiment: {exp_config.name}")
+        self.logger.info(f"{exp_config}: completed")
 
     def extract_true_contours(self, spec: mujoco.MjSpec) -> list[ObjectContour]:
         model = spec.compile()
