@@ -6,13 +6,9 @@
                  height="256"
                  mark="cross" markrgb="0.8 0.8 0.8"/>
         <material name="matplane" reflectance="0" texture="texplane" texrepeat="20 20" texuniform="true"/>
-
-        <mesh name="cube" vertex="0 0 0  1 0 0  1 1 0  0 1 0  0 0 1  1 0 1  1 1 1  0 1 1" scale="0.3 0.01 0.1"/>
         <mesh name="platform" vertex="-6 0 0  6 0 0  1.5 18 0  -1.5 18 0  -6 0 1  6 0 1  1.5 18 1  -1.5 18 1"
               scale="0.01 0.01 0.02"/>
-<!--        <mesh name="object_complex_f1" file="../assets/object_complex_f1.stl" scale="0.001 0.001 0.001"/>-->
-<!--        <mesh name="object_complex_f2" file="../assets/object_complex_f2.stl" scale="0.001 0.001 0.001"/>-->
-        <model name="walls" file="../assets/local/walls.xml"/>
+        {{ assets if assets }}
     </asset>
 
     <extension>
@@ -34,6 +30,12 @@
         <light ambient=".8 .8 .8" pos="0 0 10" dir="0 0 -1" castshadow="false"/>
         <!-- Visible ground plane -->
         <geom type="plane" size="0 0 0.03" material="matplane" rgba="1 1 1 1" contype="0" conaffinity="0"/>
+        <!-- Meshes to swipe the whisker against -->
+        {%- if objects -%}
+        <body>
+            {{ objects }}
+        </body>
+        {%- endif -%}
         <!-- Whisker assembly: base with attached moving parts -->
         <body name="platform" pos="0 0 0.05">
             <geom type="mesh" mesh="platform" rgba=".4 .8 .6 .5" mass="0.5"/>

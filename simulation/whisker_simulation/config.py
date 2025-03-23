@@ -143,7 +143,9 @@ class RendererConfig(BaseSettings):
 
 class ExperimentConfig(BaseSettings):
     name: str
-    test_body: str
+    test_body: str | None = None
+    assets_xml: str | None = None
+    objects_xml: str | None = None
     initial_control: ControlMessage
     timeout: float
 

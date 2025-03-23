@@ -22,6 +22,11 @@ class Trajectory:
         self.prev_kp: np.ndarray | None = None
         self.n_kp: int = 0
 
+    def reset(self):
+        self.kp = None
+        self.prev_kp = None
+        self.n_kp = 0
+
     def add_keypoint(self, keypoint: np.ndarray):
         last_point = self.kp if self.kp is not None else self.prev_kp
         if last_point is not None and np.linalg.norm(keypoint - last_point) < self.keypoint_distance:
@@ -89,6 +94,13 @@ class Monitor:
         self.wsk_r0_tip_trajectory = Trajectory(color=np.array([0, 1, 0, 1]), kp_d=0.005)
         self.wsk_l0_tip_trajectory = Trajectory(color=np.array([1, 0, 0, 1]), kp_d=0.005)
         # self.spline_kps: dict[str, list[tuple[float, np.ndarray]]] = defaultdict(list)
+
+    def reset(self):
+        self.keypoint_history = []
+        self.first_keypoint = None
+        self.body_trajectory.reset()
+        self.wsk_r0_tip_trajectory.reset()
+        self.wsk_l0_tip_trajectory.reset()
 
     def add_keypoint(self, name: str, time: float, keypoint: np.ndarray):
         if self.first_keypoint is None:

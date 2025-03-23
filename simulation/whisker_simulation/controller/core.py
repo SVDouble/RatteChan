@@ -1,6 +1,6 @@
 import numpy as np
 
-from whisker_simulation.config import Config, WhiskerId, Orientation, ControlMessage
+from whisker_simulation.config import Config, ControlMessage, Orientation, WhiskerId
 from whisker_simulation.controller.anomaly_detector import AnomalyDetector
 from whisker_simulation.controller.body_motion import MotionController
 from whisker_simulation.controller.spline import Spline
@@ -176,7 +176,7 @@ class Controller:
         # At this point we have a spline to work with
         # This means that exploration has ended and the state should be updated
         self.logger.debug(f"Spline '{self.spline}' has been defined")
-        if self.config.debug:
+        if self.config.debug and self.monitor:
             self.monitor.draw_spline(self.spline, title="Exploration End", wsk=self.wsk.r_w)
         assert self.desired_next_state is not None
         self.state = self.desired_next_state
@@ -224,7 +224,7 @@ class Controller:
             tgt_body_yaw_w=spline_angle + self.config.body.tilt * self.wsk.orientation.value,
         )
 
-        if self.config.debug and np.array_equiv(self.spline.keypoints[-1], self.wsk.tip_r_w):
+        if self.config.debug and np.array_equiv(self.spline.keypoints[-1], self.wsk.tip_r_w) and self.monitor:
             ds = self.spline.keypoint_distance * self.spline.n_keypoints
             poi = {
                 "wsk": self.wsk.r_w,
@@ -281,7 +281,7 @@ class Controller:
             tgt_wsk_yaw_w = tgt_body_yaw_w + self.wsk.config.angle_from_body
             tgt_wsk_r_w = tgt_tip_r_w - rotate(self.wsk.neutral_defl_offset, tgt_wsk_yaw_w)
 
-            if self.config.debug:
+            if self.config.debug and self.monitor:
                 space = np.linspace(0, 2 * np.pi, 100)
                 self.monitor.draw_spline(
                     prev_spline,
@@ -335,7 +335,7 @@ class Controller:
                 self.tgt_orient = tgt_orient.flip()
                 return None
 
-            if self.config.debug:
+            if self.config.debug and self.monitor:
                 self.monitor.draw_spline(
                     prev_spline,
                     title="Reaching Over The Edge",
@@ -385,16 +385,17 @@ class Controller:
         # Push the target base position further along the spline so that the tip always reaches the edge
         tgt_wsk_r_w += (self.wsk.length / 8) * spl_tangent_n
 
-        self.monitor.draw_spline(
-            self.spline,
-            title="The other side of the edge",
-            wsk=self.wsk.r_w,
-            tip=self.wsk.tip_r_w,
-            tgt_wsk_r_w=tgt_wsk_r_w,
-            tgt_tip_r_w=tgt_tip_r_w,
-            spl_tangent=spl_end_w + spl_tangent_n * np.linalg.norm(spl_end_w - spl_start_w) * 2,
-            spl_normal=spl_end_w + spl_normal_n * np.linalg.norm(spl_end_w - spl_start_w) * 2,
-        )
+        if self.monitor:
+            self.monitor.draw_spline(
+                self.spline,
+                title="The other side of the edge",
+                wsk=self.wsk.r_w,
+                tip=self.wsk.tip_r_w,
+                tgt_wsk_r_w=tgt_wsk_r_w,
+                tgt_tip_r_w=tgt_tip_r_w,
+                spl_tangent=spl_end_w + spl_tangent_n * np.linalg.norm(spl_end_w - spl_start_w) * 2,
+                spl_normal=spl_end_w + spl_normal_n * np.linalg.norm(spl_end_w - spl_start_w) * 2,
+            )
 
         # 3. Reset the spline and the tip estimator
         self.spline.reset()

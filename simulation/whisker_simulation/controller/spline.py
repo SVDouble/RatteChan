@@ -51,7 +51,7 @@ class Spline:
         if has_new_point:
             self.keypoints.append(keypoint.copy())
             self.prev_data = data
-            if self.track and len(self) > 2:
+            if self.track and len(self) > 2 and self.monitor:
                 self.monitor.add_keypoint(self.name, data.time, keypoint.copy())
         if len(self) < self.n_keypoints:
             return has_new_point
