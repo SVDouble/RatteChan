@@ -1,5 +1,4 @@
 import time
-from collections import defaultdict
 from functools import cached_property
 from pathlib import Path
 
@@ -191,12 +190,17 @@ class Simulation:
         if self.config.debug:
             self.logger.info(prettify(self.config))
 
-        self.logger.info(f"Running the simulation with model: {self.model_path}")
+        self.logger.info(f"Simulation: selected the model '{self.model_path}'")
 
         for experiment in self.config.experiments:
+            if experiment.category in self.config.skip_categories:
+                self.logger.info(f"Simulation: skipping {experiment}")
+                continue
+            self.logger.info(f"Simulation: executing {experiment}")
             self.run_experiment(experiment)
+            self.logger.info(f"Simulation: finished {experiment}")
 
-        self.logger.info("Simulation finished")
+        self.logger.info("Simulation: done")
 
     def run_experiment(self, exp_config: ExperimentConfig):
         timestamp = time.strftime("%Y%m%d-%H%M%S")
@@ -221,7 +225,7 @@ class Simulation:
         mujoco.set_mjcb_control(experiment.control)
 
         # define the stopping criteria
-        tip_trajectories = defaultdict(list)
+        tip_trajectories = experiment.controller.tip_trajectories
 
         def check_stopping_criteria():
             if not experiment.is_healthy:
@@ -267,9 +271,6 @@ class Simulation:
                 viewer.sync()
 
                 # check the stopping criteria
-                for wsk_id, wsk in experiment.sensor_data.whiskers.items():
-                    if wsk.is_deflected:
-                        tip_trajectories[wsk_id].append((experiment.data.time, wsk.tip_r_w))
                 if not check_stopping_criteria():
                     break
 

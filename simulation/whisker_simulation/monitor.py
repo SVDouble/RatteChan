@@ -91,40 +91,17 @@ class Monitor:
         self.config = config
 
         # contains pairs (time, (x, y))
-        self.keypoint_history = []
-        self.first_keypoint = None
         self.distance_eps = 1e-2
         self.rendering_distance = 1e-2
 
         self.body_trajectory = Trajectory(color=np.array([1, 1, 0, 1]), kp_d=0.005)
         self.wsk_r0_tip_trajectory = Trajectory(color=np.array([0, 1, 0, 1]), kp_d=0.005)
         self.wsk_l0_tip_trajectory = Trajectory(color=np.array([1, 0, 0, 1]), kp_d=0.005)
-        # self.spline_kps: dict[str, list[tuple[float, np.ndarray]]] = defaultdict(list)
 
     def reset(self):
-        self.keypoint_history = []
-        self.first_keypoint = None
         self.body_trajectory.reset()
         self.wsk_r0_tip_trajectory.reset()
         self.wsk_l0_tip_trajectory.reset()
-
-    def add_keypoint(self, name: str, time: float, keypoint: np.ndarray):
-        if self.first_keypoint is None:
-            self.first_keypoint = (time, keypoint)
-        self.keypoint_history.append((time, keypoint))
-        if np.linalg.norm(keypoint - self.first_keypoint[1]) < self.distance_eps and time - self.first_keypoint[0] > 10:
-            self.plot_keypoints()
-            self.keypoint_history = [(time, keypoint)]
-            self.first_keypoint = (time, keypoint)
-
-    def plot_keypoints(self):
-        import matplotlib.pyplot as plt
-
-        times, points = zip(*self.keypoint_history, strict=True)
-        x, y = zip(*points, strict=True)
-        plt.plot(x, y)
-        plt.axis("equal")
-        plt.show()
 
     def draw_spline(self, spline, *, title: str, **kwargs: np.ndarray):
         import matplotlib.pyplot as plt
@@ -203,7 +180,7 @@ class Monitor:
             d_mean, d_std = float(np.mean(d)), float(np.std(d))
             outer, inner = soll_cnt.outer_contour(), soll_cnt.inner_contour()
 
-            ax.fill(outer.xy[:, x], outer.xy[:, y], alpha=0.2)
+            ax.fill(outer.xy[:, x], outer.xy[:, y], color="C0", alpha=0.2)
             if inner is not None:
                 ax.fill(inner.xy[:, x], inner.xy[:, y], color="white")
 
@@ -214,15 +191,16 @@ class Monitor:
                 label="Reference Contour",
                 linestyle="--",
                 linewidth=1,
+                color="C0",
                 zorder=2,
             )
             # Plot the estimated contour
             ax.plot(
                 ist_cnt.xy[:, x],
                 ist_cnt.xy[:, y],
-                label=rf"Estimated Contour{"\n"}($|d - \bar d| \leq s_d$)",
+                label=rf"Estimated Contour{'\n'}($|d - \bar d| \leq s_d$)",
                 linewidth=1.5,
-                color="green",
+                color="C2",
                 alpha=0.6,
                 zorder=3,
             )
@@ -232,15 +210,16 @@ class Monitor:
             min_run = len(d) // 100
             has_added_label = False
             for i in range(1, num + 1):
+                # noinspection PyUnresolvedReferences
                 if (labeled == i).sum() < min_run:
                     continue
                 idx = np.where(labeled == i)[0]
                 ax.plot(
                     ist_cnt.xy[idx, x],
                     ist_cnt.xy[idx, y],
-                    label=(rf"Estimated Contour{"\n"}($|d - \bar d| > s_d$)" if not has_added_label else None),
+                    label=(rf"Estimated Contour{'\n'}($|d - \bar d| > s_d$)" if not has_added_label else None),
                     linewidth=1.5,
-                    color="red",
+                    color="C3",
                     alpha=0.6,
                     zorder=4,
                 )
@@ -258,7 +237,7 @@ class Monitor:
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
         # Put a legend to the right of the current axis
-        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), fancybox=True, shadow=True, ncol=1)
+        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5), fancybox=True, shadow=True, ncol=1)
 
         plt.savefig(str(plot_path), format=plot_path.suffix[1:], bbox_inches="tight")
         plt.show()

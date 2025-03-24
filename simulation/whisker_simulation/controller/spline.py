@@ -7,17 +7,15 @@ from scipy.interpolate import BSpline
 
 from whisker_simulation.config import SplineConfig
 from whisker_simulation.models import SensorData
-from whisker_simulation.monitor import Monitor
 from whisker_simulation.utils import get_logger
 
 __all__ = ["Spline"]
 
 
 class Spline:
-    def __init__(self, *, name: str, config: SplineConfig, monitor: Monitor, track: bool = True):
+    def __init__(self, *, name: str, config: SplineConfig):
         self.name = name
         self.config = config
-        self.monitor = monitor
         self.logger = get_logger(__file__, log_level=config.log_level)
 
         # spline parameters
@@ -31,9 +29,6 @@ class Spline:
         self.keypoints = deque(maxlen=self.n_keypoints + self.n_history)
         self.spl: BSpline | None = None
         self.prev_data: SensorData | None = None
-
-        # monitor parameters
-        self.track = track
 
     def add_keypoint(self, *, keypoint: np.ndarray, data: SensorData) -> bool:
         has_new_point = False
@@ -51,8 +46,6 @@ class Spline:
         if has_new_point:
             self.keypoints.append(keypoint.copy())
             self.prev_data = data
-            if self.track and len(self) > 2 and self.monitor:
-                self.monitor.add_keypoint(self.name, data.time, keypoint.copy())
         if len(self) < self.n_keypoints:
             return has_new_point
         if not has_new_point:
@@ -79,14 +72,13 @@ class Spline:
             # update the spline
             self._update()
 
-    def reset(self, track: bool = True) -> None:
+    def reset(self) -> None:
         self.keypoints.clear()
         self.spl = None
         self.prev_data = None
-        self.track = track
 
     def copy(self) -> Self:
-        spl = self.__class__(name=self.name, config=self.config, monitor=self.monitor, track=self.track)
+        spl = self.__class__(name=self.name, config=self.config)
         spl.keypoints = self.keypoints.copy()
         spl.prev_data = self.prev_data.model_copy(deep=True) if self.prev_data else None
         spl._update()

@@ -62,8 +62,8 @@ def create_walls_from_curve(
         theta = math.radians(angle)
         dx_half, dy_half = effective_length / 2, wall_thickness / 2
         corners_local = np.array([[dx_half, dy_half], [-dx_half, dy_half], [-dx_half, -dy_half], [dx_half, -dy_half]])
-        R = np.array([[math.cos(theta), -math.sin(theta)], [math.sin(theta), math.cos(theta)]])
-        segments.append((R @ corners_local.T).T + mid)
+        r = np.array([[math.cos(theta), -math.sin(theta)], [math.sin(theta), math.cos(theta)]])
+        segments.append((r @ corners_local.T).T + mid)
     # Add extra wall segment only if the curve is closed (i.e. first and last points nearly coincide).
     if np.linalg.norm(resampled[0] - resampled[-1]) < 1e-1:
         p0, p1 = resampled[-1], resampled[0]
@@ -86,8 +86,8 @@ def create_walls_from_curve(
         theta = math.radians(angle)
         dx_half, dy_half = effective_length / 2, wall_thickness / 2
         corners_local = np.array([[dx_half, dy_half], [-dx_half, dy_half], [-dx_half, -dy_half], [dx_half, -dy_half]])
-        R = np.array([[math.cos(theta), -math.sin(theta)], [math.sin(theta), math.cos(theta)]])
-        segments.append((R @ corners_local.T).T + mid)
+        r = np.array([[math.cos(theta), -math.sin(theta)], [math.sin(theta), math.cos(theta)]])
+        segments.append((r @ corners_local.T).T + mid)
     return geoms, resampled, segments
 
 
@@ -206,8 +206,8 @@ def resample_by_arclength(points: np.ndarray, n_samples: int) -> tuple[np.ndarra
       S is a (n_samples,) array of uniform arc-length parameters from [0..L].
       XY is a (n_samples,2) array of coordinates resampled from 'points'.
     """
-    L = segment_arclength(points)
-    if L < 1e-12 or len(points) < 2:
+    l = segment_arclength(points)
+    if l < 1e-12 or len(points) < 2:
         return np.array([0.0]), points.copy()
     # Original cumulative length
     diffs = np.diff(points, axis=0)

@@ -160,6 +160,7 @@ class Flag(StrEnum):
 
     # For retrieval policy testing
     ADD_OBJ_BOX = "add_obj_box"
+    ADD_OBJ_PRISM = "add_obj_prism"
     ADD_OBJ_WALL = "add_obj_wall"
 
     # For tunnel policy resting
@@ -168,6 +169,7 @@ class Flag(StrEnum):
 
 class ExperimentConfig(BaseSettings):
     name: str
+    category: str = "default"
     flags: set[Flag]
     initial_control: ControlMessage
     timeout: float = 0
@@ -200,6 +202,7 @@ class Config(BaseSettings):
     # simulation setup
     control_rps: int = 30
     experiments: list[ExperimentConfig] = Field(default_factory=list)
+    skip_categories: set[str] = Field(default_factory=set)
 
     # recording setup
     renderer: RendererConfig = RendererConfig()

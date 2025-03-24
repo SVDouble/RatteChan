@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import numpy as np
 
 from whisker_simulation.config import Config, ControlMessage, Orientation, WhiskerId
@@ -24,10 +26,10 @@ class Controller:
         self.data = self.prev_data = initial_data
         self.motion: Motion = Motion(data=self.data, prev_data=self.prev_data)
         self.splines: dict[WhiskerId, Spline] = {
-            wsk_id: Spline(name=wsk_id, config=self.config.spline, monitor=self.monitor)
-            for wsk_id in self.data.whiskers
+            wsk_id: Spline(name=wsk_id, config=self.config.spline) for wsk_id in self.data.whiskers
         }
-        self.midpoint_spline = Spline(name="midpoint", config=self.config.spline, monitor=self.monitor, track=False)
+        self.midpoint_spline = Spline(name="midpoint", config=self.config.spline)
+        self.tip_trajectories = defaultdict(list)
 
         # single-whisker control
         self.active_wsk_id: WhiskerId | None = None
@@ -97,7 +99,13 @@ class Controller:
         self.prev_data, self.data = self.data, new_data
         self.motion = Motion(data=self.data, prev_data=self.prev_data)
 
+        # update the tip trajectories
         whiskers = self.data.whiskers
+        for wsk_id, wsk in whiskers.items():
+            if wsk.is_deflected and self.splines[wsk_id] and not self.is_wsk_locked:
+                self.tip_trajectories[wsk_id].append((self.data.time, wsk.tip_r_w))
+
+        # check the tunneling condition
         left_wsk, right_wsk = whiskers["l0"], whiskers["r0"]
         both_wsk_deflected = left_wsk.is_deflected and right_wsk.is_deflected
         any_wsk_deflected = left_wsk.is_deflected or right_wsk.is_deflected
@@ -301,8 +309,11 @@ class Controller:
                 tgt_body_yaw_w=tgt_body_yaw_w,
             )
 
-        # 2. Reset the spline
-        self.spline.reset(track=False)
+        # 2. Reset the spline and remove all the trajectory points up to the edge
+        self.spline.reset()
+        trajectory = self.tip_trajectories[self.active_wsk_id]
+        while trajectory and np.linalg.norm(edge - trajectory[-1][1]) > self.config.spline.keypoint_distance:
+            trajectory.pop()
 
         # 3. Set the desired next state and the exploration instructions
         has_reached_surface = False
@@ -368,7 +379,7 @@ class Controller:
         # 0. Calculate the spline orientation (flip the direction, as we were moving backwards)
         orient = self.tgt_orient.flip()
         self.spline.stabilize()
-        spl_start_w, spl_end_w = self.spline(1), self.spline(0)
+        spl_start_w, spl_end_w = self.spline(0.5), self.spline(0)
         spl_tangent_n = normalize(spl_end_w - spl_start_w)
         spl_normal_n = rotate(spl_tangent_n, -orient.value * np.pi / 2)
         spl_tangent_angle = np.arctan2(spl_tangent_n[1], spl_tangent_n[0])

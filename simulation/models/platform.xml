@@ -13,19 +13,23 @@
         <model name="rounded_rectangle" file="assets/local/rounded_rectangle.xml"/>
         {%- endif -%}
 
-        {%- if add_obj_wall -%}
-        <mesh name="cube" vertex="0 0 0  1 0 0  1 1 0  0 1 0  0 0 1  1 0 1  1 1 1  0 1 1" scale="0.3 0.01 0.1"/>
-        {%- endif -%}
-        
         {%- if add_obj_complex -%}
         <mesh name="object_complex_f1" file="assets/object_complex_f1.stl" scale="0.001 0.001 0.001"/>
         <mesh name="object_complex_f2" file="assets/object_complex_f2.stl" scale="0.001 0.001 0.001"/>
         {%- endif -%}
-        
+
+        {%- if add_obj_prism -%}
+        <mesh name="prism" vertex="0 0 0  0.5 0.8660 0  1 0 0  0 0 1  0.5 0.8660 1  1 0 1" scale="0.5 0.5 0.1"/>
+        {%- endif -%}
+
+        {%- if add_obj_wall -%}
+        <mesh name="cube" vertex="0 0 0  1 0 0  1 1 0  0 1 0  0 0 1  1 0 1  1 1 1  0 1 1" scale="0.3 0.01 0.1"/>
+        {%- endif -%}
+
         {%- if add_obj_tunnel -%}
         <model name="tunnel" file="assets/local/tunnel.xml"/>
         {%- endif -%}
-        
+
         {%- if custom_assets -%}
         {{ custom_assets }}
         {%- endif -%}
@@ -63,33 +67,36 @@
                 <attach model="rounded_rectangle" body="c0" prefix="rounded_rectangle_c0_"/>
             </body>
             {%- endif -%}
-            
+
             {%- if add_obj_complex -%}
             <geom type="mesh" mesh="object_complex_f1" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>
             <geom type="mesh" mesh="object_complex_f2" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>
             {%- endif -%}
-            
-            {%- if add_obj_boxes -%}
-            <geom type="box" size="0.2 0.2 0.03" pos="0.32 -0.2 0.05" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>
-            <geom type="box" size="0.2 0.2 0.03" pos="-0.42 0.2 0.05" euler="0 0 -10" rgba="0.2 0.5 0.1 1"/>
+
+            {%- if add_obj_box -%}
+            <geom type="box" size="0.2 0.2 0.03" pos="0.32 0.2 0.05" euler="0 0 10" rgba="0.2 0.5 0.1 1"/>
             {%- endif -%}
-            
+
+            {%- if add_obj_prism -%}
+            <geom type="mesh" mesh="prism" pos="0.15 0.2 0" euler="0 0 45" rgba="0.2 0.5 0.1 1"/>
+            {%- endif -%}
+
             {%- if add_obj_wall -%}
             <geom type="mesh" mesh="cube" pos="0.15 0.2 0" euler="0 0 100" rgba="0.2 0.5 0.1 1"/>
             {%- endif -%}
-            
+
             {%- if add_obj_tunnel -%}
             <body pos="-0.5 1 0" euler="0 0 -90">
                 <attach model="tunnel" body="c0" prefix="tunnel_c0_"/>
                 <attach model="tunnel" body="c1" prefix="tunnel_c1_"/>
             </body>
             {%- endif -%}
-            
+
             {%- if custom_objects -%}
             {{ custom_objects }}
             {%- endif -%}
         </body>
-        
+
         <!-- Whisker assembly: base with attached moving parts -->
         {%- if use_platform -%}
         <body name="platform" pos="0 0 0.05">

@@ -24,6 +24,8 @@ line-length = 120
 lint.select = ["E", "F", "W", "C", "N", "B"]
 # Disallow all relative imports.
 lint.flake8-tidy-imports.ban-relative-imports = "all"
+# Skip "function is too complex" and "ambiguous variable name"
+lint.ignore = ["C901", "E741"]
 
 [dependency-groups]
 dev = [
