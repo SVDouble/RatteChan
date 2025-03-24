@@ -31,6 +31,7 @@ class Controller:
         self.midpoint_spline = Spline(name="midpoint", config=self.config.spline)
         self.midpoint_spline.keypoint_distance = self.config.spline.keypoint_distance * 5
         self.tip_trajectories = defaultdict(list)
+        self.body_trajectory = []
 
         # single-whisker control
         self.active_wsk_id: WhiskerId | None = None
@@ -100,12 +101,13 @@ class Controller:
         self.prev_data, self.data = self.data, new_data
         self.motion = Motion(data=self.data, prev_data=self.prev_data)
 
-        # update the tip trajectories
+        # update the trajectories
         whiskers = self.data.whiskers
         for wsk_id, wsk in whiskers.items():
             is_valid = wsk.is_deflected and self.splines[wsk_id] and not self.is_wsk_locked
             trajectory = self.tip_trajectories[wsk_id]
             trajectory.append((self.data.time, wsk.tip_r_w, is_valid))
+        self.body_trajectory.append((self.data.time, self.data.body.r_w))
 
         # check the tunneling condition
         left_wsk, right_wsk = whiskers["l0"], whiskers["r0"]
@@ -311,11 +313,13 @@ class Controller:
                 tgt_body_yaw_w=tgt_body_yaw_w,
             )
 
-        # 2. Reset the spline and remove all the trajectory points up to the edge
+        # 2. Reset the spline and invalidate all trajectory points up to the edge
         self.spline.reset()
         trajectory = self.tip_trajectories[self.active_wsk_id]
-        while trajectory and np.linalg.norm(edge - trajectory[-1][1]) > self.config.spline.keypoint_distance:
-            trajectory.pop()
+        index = len(trajectory) - 1
+        while index >= 0 and np.linalg.norm(edge - trajectory[index][1]) > self.config.spline.keypoint_distance:
+            trajectory[index][2] = False
+            index -= 1
 
         # 3. Set the desired next state and the exploration instructions
         has_reached_surface = False
@@ -432,10 +436,16 @@ class Controller:
     def policy_tunneling(self) -> ControlMessage | None:
         if not self.midpoint_spline:
             return None
-        spl_start_w, spl_end_w = self.midpoint_spline(0.75), self.midpoint_spline(1.25)
+        spl_start_w, spl_end_w = self.midpoint_spline(0.5), self.midpoint_spline(1)
         spl_tangent_n = normalize(spl_end_w - spl_start_w)
+        wsk_l0, wsk_r0 = self.data.whiskers["l0"], self.data.whiskers["r0"]
+        # let the whiskers pull the target body position normally depending on the deflection
+        pull_l = -(wsk_l0.defl - wsk_l0.config.tgt_defl_abs) / wsk_l0.config.tgt_defl_abs
+        pull_r = (wsk_r0.defl - wsk_r0.config.tgt_defl_abs) / wsk_r0.config.tgt_defl_abs
+        total_pull = np.clip(pull_l + pull_r, -1, 1)
+        tgt_body_dr_w = spl_tangent_n + total_pull / 2 * rotate(spl_tangent_n, np.pi / 2)
         return self.motion_ctrl.steer_body(
             motion=self.motion,
-            tgt_body_dr_w=spl_tangent_n,
+            tgt_body_dr_w=tgt_body_dr_w,
             tgt_body_yaw_w=np.arctan2(spl_tangent_n[1], spl_tangent_n[0]),
         )

@@ -426,9 +426,9 @@ def generate_curved_tunnel(base_radius=1.0, sine_amp=0.1, sine_freq=5, gap_perce
 
 
 def generate_curved_tunnel_model(output: Path):
-    outer, inner = generate_curved_tunnel(gap_percent=25)
-    outer = remove_curve_segment(outer, 0, 20)
-    outer = wrap_cutouts(outer, inner, 0.1, 1.5)
+    outer, inner = generate_curved_tunnel(gap_percent=22)
+    outer = remove_curve_segment(outer, 6, 10)
+    outer = wrap_cutouts(outer, inner, 0.1, 1.3)
 
     # Generate curves and plot them.
     generate_mujoco_xml(
@@ -521,7 +521,7 @@ def generate_smooth_tunnel_model(output: Path):
     )
 
 
-def generate_zigzag_tunnel(run=0.5, d=0.225, num_segments=6, zig_angle_deg=40, zag_angle_deg=-30):
+def generate_zigzag_tunnel(run=0.5, d=0.225, num_segments=6, zig_angle_deg=30, zag_angle_deg=-20):
     angles_rad = np.radians([zig_angle_deg, zag_angle_deg])
     points = [np.array([0.0, 0.0])]
     current_angle = 0.0

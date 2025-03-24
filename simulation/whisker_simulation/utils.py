@@ -6,7 +6,16 @@ from functools import lru_cache
 import numpy as np
 from rich.logging import Console, RichHandler
 
-__all__ = ["get_logger", "rotate", "normalize", "unwrap_pid_error", "import_class", "prettify", "format_mean_std"]
+__all__ = [
+    "get_logger",
+    "rotate",
+    "normalize",
+    "unwrap_pid_error",
+    "import_class",
+    "prettify",
+    "format_mean_std",
+    "combine_mean_std",
+]
 
 
 def create_console(**kwargs) -> Console:
@@ -73,3 +82,15 @@ def format_mean_std(mean: float | np.floating, std: float | np.floating) -> tupl
     std_str = f"{std_rounded:.0f}" if decimals <= 0 else f"{std_rounded:.{decimals}f}"
 
     return mean_str, std_str
+
+
+def combine_mean_std(experiments: list[tuple[int, np.floating, np.floating]]) -> tuple[int, np.floating, np.floating]:
+    ns, means, stds = zip(*experiments, strict=True)
+    ns, means, stds = np.array(ns), np.array(means), np.array(stds)
+
+    total_n = np.sum(ns)
+    combined_mean = np.sum(ns * means) / total_n
+    combined_var = np.sum(ns * (stds**2 + (means - combined_mean) ** 2)) / total_n
+    combined_std = np.sqrt(combined_var)
+
+    return total_n, combined_mean, combined_std

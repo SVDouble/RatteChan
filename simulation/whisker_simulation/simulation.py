@@ -280,7 +280,8 @@ class Simulation:
                 # step the experiment
                 experiment.step()
                 # call the monitor to draw the trajectories
-                monitor.on_simulation_step(viewer, experiment.sensor_data)
+                with viewer.lock():
+                    monitor.on_simulation_step(viewer, experiment.sensor_data)
                 # update the display
                 viewer.sync()
 
@@ -324,8 +325,13 @@ class Simulation:
             d_mean, d_std = format_mean_std(np.mean(d), np.std(d))
             self.logger.info(f"Whisker {wsk_id.upper()} mean absolute distance: {d_mean} (std={d_std})")
         if monitor:
-            plot_path = self.config.outputs_path / f"{exp_config.name}-{timestamp}.pdf"
-            monitor.summarize_experiment(stats=stats, plot_path=plot_path)
+            body_xy = np.vstack([entry[1] for entry in experiment.controller.body_trajectory])
+            monitor.summarize_experiment(
+                stats=stats,
+                exp_config=exp_config,
+                plot_path=self.config.outputs_path / f"{exp_config.name}-{timestamp}.pdf",
+                body_xy=body_xy,
+            )
 
         self.logger.info(f"{exp_config}: completed")
 

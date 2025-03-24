@@ -100,17 +100,17 @@
             </body>
             {%- endif -%}
 
+            {%- if add_obj_curved_tunnel -%}
+            <body pos="-0.55 1 0" euler="0 0 -85">
+                <attach model="curved_tunnel" body="c0" prefix="curved_tunnel_c0_"/>
+                <attach model="curved_tunnel" body="c1" prefix="curved_tunnel_c1_"/>
+            </body>
+            {%- endif -%}
+
             {%- if add_obj_zigzag_tunnel -%}
             <body pos="0 0.2 0" euler="0 0 40">
                 <attach model="zigzag_tunnel" body="c0" prefix="zigzag_tunnel_c0_"/>
                 <attach model="zigzag_tunnel" body="c1" prefix="zigzag_tunnel_c1_"/>
-            </body>
-            {%- endif -%}
-
-            {%- if add_obj_curved_tunnel -%}
-            <body pos="-0.5 1 0" euler="0 0 -90">
-                <attach model="curved_tunnel" body="c0" prefix="curved_tunnel_c0_"/>
-                <attach model="curved_tunnel" body="c1" prefix="curved_tunnel_c1_"/>
             </body>
             {%- endif -%}
 

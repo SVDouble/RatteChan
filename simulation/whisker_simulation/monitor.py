@@ -5,10 +5,12 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 from scipy.ndimage import label
+from scipy.spatial import cKDTree
 
-from whisker_simulation.config import Config
+from whisker_simulation.config import Config, ExperimentConfig
+from whisker_simulation.contours import Contour
 from whisker_simulation.models import SensorData, Stats
-from whisker_simulation.utils import format_mean_std
+from whisker_simulation.utils import combine_mean_std, format_mean_std
 
 __all__ = ["Monitor"]
 
@@ -163,7 +165,17 @@ class Monitor:
         plt.show()
         f.savefig(self.config.outputs_path / "deflection_profile.pdf", backend="pdf")
 
-    def summarize_experiment(self, *, stats: list[Stats], plot_path: Path):
+    def summarize_experiment(
+        self,
+        *,
+        stats: list[Stats],
+        exp_config: ExperimentConfig,
+        plot_path: Path,
+        body_xy: np.ndarray,
+    ):
+        if not stats:
+            return
+
         fig, ax = plt.subplots(figsize=(6, 4), dpi=300)
         swap = False
         for stat in stats:
@@ -173,12 +185,14 @@ class Monitor:
             w = ref_outer_contour.xy[:, 0].max() - ref_outer_contour.xy[:, 0].min()
             swap = h / w > 1.25
         x, y = (1, 0) if swap else (0, 1)
+        metrics = []
 
         for i, stat in enumerate(stats):
             ref_contour = stat.ref_contour
             est_d = ref_contour.distance_to_points(stat.est_xy)
             valid_d = est_d[stat.est_mask]
             d_mean, d_std = np.mean(valid_d), np.std(valid_d)
+            metrics.append((len(valid_d), d_mean, d_std))
             ref_outer_contour, ref_inner_contour = ref_contour.outer_contour(), ref_contour.inner_contour()
 
             ax.fill(ref_outer_contour.xy[:, x], ref_outer_contour.xy[:, y], color="C0", alpha=0.2)
@@ -189,9 +203,9 @@ class Monitor:
             ax.plot(
                 ref_contour.xy[:, x],
                 ref_contour.xy[:, y],
-                label="Reference Contour",
+                label=("Reference Contour" if i == 0 else None),
                 linestyle="--",
-                linewidth=2,
+                linewidth=1,
                 color="C0",
                 zorder=2,
             )
@@ -211,7 +225,7 @@ class Monitor:
             ax.plot(
                 est_xy[:, x],
                 est_xy[:, y],
-                label=rf"Estimated Contour{'\n'}($|d - \bar d| \leq s_d$)",
+                label=(rf"Estimated Contour{'\n'}($|d - \bar d| \leq s_d$)" if i == 0 else None),
                 linewidth=1.5,
                 color="C2",
                 alpha=0.8,
@@ -224,16 +238,65 @@ class Monitor:
             ax.plot(
                 outliers_xy[:, x],
                 outliers_xy[:, y],
-                label=rf"Estimated Contour{'\n'}($|d - \bar d| > s_d$)",
+                label=(rf"Estimated Contour{'\n'}($|d - \bar d| > s_d$)" if i == 0 else None),
                 linewidth=1.5,
                 color="C3",
                 alpha=0.8,
                 zorder=4,
             )
 
-            mean, std = format_mean_std(d_mean * 1e3, d_std * 1e3)
-            text = rf"$\bar d \pm s_d = {mean} \pm {std}\,\mathrm{{mm}}$"
-            ax.text(0.5, 0.5 - i * 0.1, text, transform=ax.transAxes, ha="center", va="center")
+        # Combine the metrics
+        _, combined_mean, combined_std = combine_mean_std(metrics)
+        mean, std = format_mean_std(combined_mean * 1e3, combined_std * 1e3)
+        text = rf"$\bar d \pm s_d = {mean} \pm {std}\,\mathrm{{mm}}$"
+        px, py = exp_config.metrics_placement
+        ax.text(px, py, text, transform=ax.transAxes, ha="center", va="center")
+
+        # handle the tunneling case: both whiskers are deflected at the same time
+        if len(stats) == 2:
+            # Compute the centerline (an estimate)
+            side_a, side_b = stats[0].ref_contour.xy, stats[1].ref_contour.xy
+            d_ab, idx_ab = stats[1].ref_contour.kdtree.query(side_a)
+            cl_a = (side_a + side_b[idx_ab]) / 2
+            d_ba, idx_ba = cKDTree(side_b[idx_ab]).query(side_a)
+            cl_b = (side_b[idx_ab] + side_a[idx_ba]) / 2
+            cl = (cl_a + cl_b) / 2
+            cl_contour = Contour(cl)
+
+            # Estimate the average distance to the centerline
+            tunnel_mask = stats[0].est_mask & stats[1].est_mask
+            cl_d = cl_contour.distance_to_points(body_xy)
+            cl_mean_d = np.mean(cl_d[tunnel_mask])
+            cl_std_d = np.std(cl_d[tunnel_mask])
+
+            # Plot the centerline
+            ax.plot(
+                cl[:, x],
+                cl[:, y],
+                label="Tunnel Centerline",
+                linewidth=1,
+                color="C4",
+                alpha=1,
+                zorder=4,
+            )
+
+            # Plot the midpoints where the tunneling occurs
+            valid_body_xy = body_xy.copy()
+            valid_body_xy[~tunnel_mask] = np.nan
+            ax.plot(
+                valid_body_xy[:, x],
+                valid_body_xy[:, y],
+                label="Platform COM",
+                linewidth=1.5,
+                color="C5",
+                alpha=0.8,
+                zorder=5,
+            )
+
+            # Add the metrics for the tunneling case
+            mean, std = format_mean_std(cl_mean_d * 1e3, cl_std_d * 1e3)
+            text = rf"$\bar d_{{\mathrm{{mid}}}} \pm s_{{d_{{\mathrm{{mid}}}}}} = {mean} \pm {std}\,\mathrm{{mm}}$"
+            ax.text(px, py - 0.05, text, transform=ax.transAxes, ha="center", va="center")
 
         ax.set_xlabel("Y Coordinate (m)" if swap else "X Coordinate (m)")
         ax.set_ylabel("X Coordinate (m)" if swap else "Y Coordinate (m)")
