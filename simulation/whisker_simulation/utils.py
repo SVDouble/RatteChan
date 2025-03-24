@@ -53,7 +53,7 @@ def import_class(class_str: str):
     return getattr(module, class_name)
 
 
-def format_mean_std(mean: float, std: float) -> tuple[str, str]:
+def format_mean_std(mean: float | np.floating, std: float | np.floating) -> tuple[str, str]:
     if std == 0:
         return f"{mean:.2f}", "0"
 

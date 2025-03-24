@@ -177,6 +177,7 @@ class ExperimentConfig(BaseSettings):
     timeout: float = 0
     min_loop_time: float = 5
     loop_eps: float = 1e-2
+    characteristic_length: float = 3.0
 
     def __str__(self) -> str:
         return f"Experiment('{self.name}')"

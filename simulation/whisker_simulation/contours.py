@@ -30,10 +30,8 @@ class Contour:
         self.transform(partial(cv2.approxPolyDP, eps=eps, closed=True))
         return self
 
-    def contour_distance(self, contour: Self) -> np.ndarray:
-        if not isinstance(contour, Contour):
-            raise TypeError("Expected Contour instance as argument")
-        return contour.kdtree.query(self.xy)[0]
+    def distance_to_points(self, points: np.ndarray) -> np.ndarray:
+        return self.kdtree.query(points)[0]
 
 
 class ObjectContour(Contour):

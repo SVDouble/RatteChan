@@ -6,9 +6,8 @@ import mujoco.viewer
 import numpy as np
 from scipy.ndimage import label
 
-from whisker_simulation.config import Config, WhiskerId
-from whisker_simulation.contours import Contour, ObjectContour
-from whisker_simulation.models import SensorData
+from whisker_simulation.config import Config
+from whisker_simulation.models import SensorData, Stats
 from whisker_simulation.utils import format_mean_std
 
 __all__ = ["Monitor"]
@@ -113,8 +112,8 @@ class Monitor:
         if spline.spl is None:
             return
 
-        cmap = plt.get_cmap("Set1")
-        plt.rcParams["axes.prop_cycle"] = plt.cycler(color=[cmap(i) for i in range(cmap.N)])
+        # cmap = plt.get_cmap("Set1")
+        # plt.rcParams["axes.prop_cycle"] = plt.cycler(color=[cmap(i) for i in range(cmap.N)])
         plt.figure()
 
         spline_points = spline(np.linspace(0, 1, 100))
@@ -164,70 +163,77 @@ class Monitor:
         plt.show()
         f.savefig(self.config.outputs_path / "deflection_profile.pdf", backend="pdf")
 
-    def summarize_experiment(self, *, stats: list[tuple[WhiskerId, Contour, ObjectContour]], plot_path: Path):
+    def summarize_experiment(self, *, stats: list[Stats], plot_path: Path):
         fig, ax = plt.subplots(figsize=(6, 4), dpi=300)
         swap = False
-        for _, _, soll_cnt in stats:
-            outer = soll_cnt.outer_contour()
+        for stat in stats:
+            ref_outer_contour = stat.ref_contour.outer_contour()
             # decide whether to swap axes based on outer contour’s bounding box
-            h = outer.xy[:, 1].max() - outer.xy[:, 1].min()
-            w = outer.xy[:, 0].max() - outer.xy[:, 0].min()
-            swap = h > w
+            h = ref_outer_contour.xy[:, 1].max() - ref_outer_contour.xy[:, 1].min()
+            w = ref_outer_contour.xy[:, 0].max() - ref_outer_contour.xy[:, 0].min()
+            swap = h / w > 1.25
         x, y = (1, 0) if swap else (0, 1)
 
-        for _, ist_cnt, soll_cnt in stats:
-            d = ist_cnt.contour_distance(soll_cnt)
-            d_mean, d_std = float(np.mean(d)), float(np.std(d))
-            outer, inner = soll_cnt.outer_contour(), soll_cnt.inner_contour()
+        for i, stat in enumerate(stats):
+            ref_contour = stat.ref_contour
+            est_d = ref_contour.distance_to_points(stat.est_xy)
+            valid_d = est_d[stat.est_mask]
+            d_mean, d_std = np.mean(valid_d), np.std(valid_d)
+            ref_outer_contour, ref_inner_contour = ref_contour.outer_contour(), ref_contour.inner_contour()
 
-            ax.fill(outer.xy[:, x], outer.xy[:, y], color="C0", alpha=0.2)
-            if inner is not None:
-                ax.fill(inner.xy[:, x], inner.xy[:, y], color="white")
+            ax.fill(ref_outer_contour.xy[:, x], ref_outer_contour.xy[:, y], color="C0", alpha=0.2)
+            if ref_inner_contour is not None:
+                ax.fill(ref_inner_contour.xy[:, x], ref_inner_contour.xy[:, y], color="white")
 
             # Plot the reference contour
             ax.plot(
-                soll_cnt.xy[:, x],
-                soll_cnt.xy[:, y],
+                ref_contour.xy[:, x],
+                ref_contour.xy[:, y],
                 label="Reference Contour",
                 linestyle="--",
-                linewidth=1,
+                linewidth=2,
                 color="C0",
                 zorder=2,
             )
-            # Plot the estimated contour
+
+            # Find the outliers in the estimated contour
+            mask = np.abs(est_d - d_mean) > d_std
+            labeled, num = label(mask)
+            min_run_length = len(est_d) // 100
+
+            outliers_mask = np.isin(
+                labeled, [i for i in range(1, num + 1) if np.sum(labeled == i) >= min_run_length]
+            ).flatten()
+
+            # Plot the estimated contour, make sure that the gaps are not plotted
+            est_xy = stat.est_xy.copy()
+            est_xy[~stat.est_mask | outliers_mask] = np.nan
             ax.plot(
-                ist_cnt.xy[:, x],
-                ist_cnt.xy[:, y],
+                est_xy[:, x],
+                est_xy[:, y],
                 label=rf"Estimated Contour{'\n'}($|d - \bar d| \leq s_d$)",
                 linewidth=1.5,
                 color="C2",
-                alpha=0.6,
+                alpha=0.8,
                 zorder=3,
             )
+
             # Plot the outliers in the estimated contour
-            mask = np.abs(d - d_mean) > d_std
-            labeled, num = label(mask)  # label contiguous True runs
-            min_run = len(d) // 100
-            has_added_label = False
-            for i in range(1, num + 1):
-                # noinspection PyUnresolvedReferences
-                if (labeled == i).sum() < min_run:
-                    continue
-                idx = np.where(labeled == i)[0]
-                ax.plot(
-                    ist_cnt.xy[idx, x],
-                    ist_cnt.xy[idx, y],
-                    label=(rf"Estimated Contour{'\n'}($|d - \bar d| > s_d$)" if not has_added_label else None),
-                    linewidth=1.5,
-                    color="C3",
-                    alpha=0.6,
-                    zorder=4,
-                )
-                has_added_label = True
+            outliers_xy = stat.est_xy.copy()
+            outliers_xy[~stat.est_mask | ~outliers_mask] = np.nan
+            ax.plot(
+                outliers_xy[:, x],
+                outliers_xy[:, y],
+                label=rf"Estimated Contour{'\n'}($|d - \bar d| > s_d$)",
+                linewidth=1.5,
+                color="C3",
+                alpha=0.8,
+                zorder=4,
+            )
 
             mean, std = format_mean_std(d_mean * 1e3, d_std * 1e3)
             text = rf"$\bar d \pm s_d = {mean} \pm {std}\,\mathrm{{mm}}$"
-            ax.text(0.5, 0.5, text, transform=ax.transAxes, ha="center", va="center")
+            ax.text(0.5, 0.5 - i * 0.1, text, transform=ax.transAxes, ha="center", va="center")
 
         ax.set_xlabel("Y Coordinate (m)" if swap else "X Coordinate (m)")
         ax.set_ylabel("X Coordinate (m)" if swap else "Y Coordinate (m)")

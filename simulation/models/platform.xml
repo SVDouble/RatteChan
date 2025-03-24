@@ -94,7 +94,7 @@
             {%- endif -%}
 
             {%- if add_obj_smooth_tunnel -%}
-            <body pos="0 0.2 0" euler="0 0 40">
+            <body pos="0 0.2 0" euler="0 0 70">
                 <attach model="smooth_tunnel" body="c0" prefix="smooth_tunnel_c0_"/>
                 <attach model="smooth_tunnel" body="c1" prefix="smooth_tunnel_c1_"/>
             </body>
@@ -131,7 +131,7 @@
             <joint name="body_y_w" type="slide" pos="0 0.072 0" axis="0 1 0" armature="0.1" ref="0.072"/>
             <joint name="body_z_w" type="slide" pos="0 0.072 0" axis="0 0 1" armature="0.1" ref="0.06"/>
             <!-- Hinge joint for rotation -->
-            <joint name="body_yaw_w" type="hinge" pos="0 0.072 0" axis="0 0 1" armature="0.01" ref="90"/>
+            <joint name="body_yaw_w" type="hinge" pos="0 0.072 0" axis="0 0 1" armature="0.02" ref="90"/>
 
             <camera name="platform_cam" pos="0 0.072 0.75"/>
 

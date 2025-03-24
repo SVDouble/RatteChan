@@ -6,6 +6,7 @@ import numpy as np
 from pydantic import BaseModel, ConfigDict, computed_field
 
 from whisker_simulation.config import BodyConfig, Config, Orientation, WhiskerConfig, WhiskerId
+from whisker_simulation.contours import ObjectContour
 from whisker_simulation.preprocessor import DataPreprocessor
 from whisker_simulation.utils import import_class, rotate
 
@@ -17,6 +18,7 @@ __all__ = [
     "BodyData",
     "BodyMotion",
     "WhiskerMotion",
+    "Stats",
 ]
 
 
@@ -238,3 +240,13 @@ class Motion(BaseModel):
             body_motion=self.body,
             dt=self.dt,
         )
+
+
+class Stats(BaseModel):
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+
+    whisker_id: WhiskerId
+    ref_contour: ObjectContour
+    est_time: np.ndarray
+    est_xy: np.ndarray
+    est_mask: np.ndarray

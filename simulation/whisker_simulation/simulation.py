@@ -17,13 +17,13 @@ from whisker_simulation.config import (
     MujocoMeshConfig,
     RendererConfig,
 )
-from whisker_simulation.contours import Contour, ObjectContour, extract_contours, plot_contours
+from whisker_simulation.contours import ObjectContour, extract_contours, plot_contours
 from whisker_simulation.controller import Controller
 from whisker_simulation.demo_assets import generate_demo_assets, has_demo_assets
-from whisker_simulation.models import SensorData
+from whisker_simulation.models import SensorData, Stats
 from whisker_simulation.monitor import Monitor
 from whisker_simulation.preprocessor import DataPreprocessor
-from whisker_simulation.utils import get_logger, normalize, prettify
+from whisker_simulation.utils import format_mean_std, get_logger, normalize, prettify
 
 
 class Renderer:
@@ -216,8 +216,10 @@ class Simulation:
 
         # extract the true test body contours
         self.logger.info(f"{exp_config}: extracting the true test body contours...")
+
         contours = self.extract_true_contours(
-            self._get_mujoco_spec(self.model_path, exp_config.flags - {Flag.USE_PLATFORM})
+            self._get_mujoco_spec(self.model_path, exp_config.flags - {Flag.USE_PLATFORM}),
+            characteristic_length=exp_config.characteristic_length,
         )
 
         # initialize the renderer
@@ -228,7 +230,8 @@ class Simulation:
         mujoco.set_mjcb_control(experiment.control)
 
         # define the stopping criteria
-        tip_trajectories = experiment.controller.tip_trajectories
+        trajectories = experiment.controller.tip_trajectories
+        trj_first_valid_ids = {}
 
         def check_stopping_criteria():
             if not experiment.is_healthy:
@@ -237,12 +240,20 @@ class Simulation:
             if experiment.data.time - start_time > exp_config.timeout > 0:
                 self.logger.info(f"{exp_config}: timeout has been reached")
                 return False
-            # TODO: think of a more robust completion criteria
-            if any(
-                np.linalg.norm(trj[-1][1] - trj[0][1]) < exp_config.loop_eps
-                for trj in tip_trajectories.values()
-                if len(trj) > 1 and trj[-1][0] - trj[0][0] > exp_config.min_loop_time
-            ):
+            for trj_id, trj in trajectories.items():
+                if len(trj) < 2:
+                    continue
+                first_valid_idx = trj_first_valid_ids.get(trj_id, None)
+                if first_valid_idx is None:
+                    first_valid_idx = next((i for i, (_, _, valid) in enumerate(trj) if valid), None)
+                if first_valid_idx is None:
+                    continue
+                trj_first_valid_ids[trj_id] = first_valid_idx
+                if np.linalg.norm(trj[-1][1] - trj[first_valid_idx][1]) > exp_config.loop_eps:
+                    continue
+                if trj[-1][0] - trj[first_valid_idx][0] < exp_config.min_loop_time:
+                    continue
+                # we found a loop of sufficient size
                 return False
             return True
 
@@ -292,21 +303,37 @@ class Simulation:
         stats = []
         self.logger.info(f"{exp_config}: results are the following:")
         self.logger.info(f"Running time: {experiment.data.time - start_time:.2f} seconds")
-        for wsk_id, wsk_data in tip_trajectories.items():
-            wsk_time, wsk_tip = zip(*wsk_data, strict=True)
-            wsk_time, wsk_tip = np.array(wsk_time), np.array(wsk_tip)
-            wsk_contour = Contour(wsk_tip)
-            test_contour = min(contours, key=lambda cnt: np.mean(wsk_contour.contour_distance(cnt)))
-            stats.append((wsk_id, wsk_contour, test_contour))
-            d_mean = np.mean(wsk_contour.contour_distance(test_contour))
-            self.logger.info(f"Whisker {wsk_id.upper()} mean absolute distance: {d_mean:.4f}")
+        for wsk_id, wsk_data in trajectories.items():
+            est_time, est_xy, est_mask = zip(*wsk_data, strict=True)
+            est_time, est_xy, est_mask = np.array(est_time), np.array(est_xy), np.array(est_mask, dtype=bool)
+            if est_mask.sum() == 0:
+                self.logger.info(f"Whisker {wsk_id.upper()} has no valid points")
+                continue
+            est_valid_xy = est_xy[est_mask]
+            ref_contour = min(contours, key=lambda cnt: np.mean(cnt.distance_to_points(est_valid_xy)))
+            stats.append(
+                Stats(
+                    whisker_id=wsk_id,
+                    est_time=est_time,
+                    est_xy=est_xy,
+                    est_mask=est_mask,
+                    ref_contour=ref_contour,
+                )
+            )
+            d = ref_contour.distance_to_points(est_valid_xy)
+            d_mean, d_std = format_mean_std(np.mean(d), np.std(d))
+            self.logger.info(f"Whisker {wsk_id.upper()} mean absolute distance: {d_mean} (std={d_std})")
         if monitor:
             plot_path = self.config.outputs_path / f"{exp_config.name}-{timestamp}.pdf"
             monitor.summarize_experiment(stats=stats, plot_path=plot_path)
 
         self.logger.info(f"{exp_config}: completed")
 
-    def extract_true_contours(self, spec: mujoco.MjSpec) -> list[ObjectContour]:
+    def extract_true_contours(self, spec: mujoco.MjSpec, characteristic_length: float) -> list[ObjectContour]:
+        camera = next(camera for camera in spec.cameras if camera.name == self.config.renderer.test_camera)
+        camera.fovy = characteristic_length
+        center, fovy = camera.pos[:2], camera.fovy
+
         model = spec.compile()
         data = mujoco.MjData(model)
         mujoco.mj_forward(model, data)
@@ -317,8 +344,6 @@ class Simulation:
         renderer.update_scene(data, camera=self.config.renderer.test_camera)
         frame = renderer.render()
 
-        camera = next(camera for camera in spec.cameras if camera.name == self.config.renderer.test_camera)
-        center, fovy = camera.pos[:2], camera.fovy
         contours = extract_contours(frame, center=center, width=fovy, height=fovy)
         if self.config.debug:
             plot_contours(contours)

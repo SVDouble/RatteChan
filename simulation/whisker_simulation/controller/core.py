@@ -29,6 +29,7 @@ class Controller:
             wsk_id: Spline(name=wsk_id, config=self.config.spline) for wsk_id in self.data.whiskers
         }
         self.midpoint_spline = Spline(name="midpoint", config=self.config.spline)
+        self.midpoint_spline.keypoint_distance = self.config.spline.keypoint_distance * 5
         self.tip_trajectories = defaultdict(list)
 
         # single-whisker control
@@ -102,8 +103,9 @@ class Controller:
         # update the tip trajectories
         whiskers = self.data.whiskers
         for wsk_id, wsk in whiskers.items():
-            if wsk.is_deflected and self.splines[wsk_id] and not self.is_wsk_locked:
-                self.tip_trajectories[wsk_id].append((self.data.time, wsk.tip_r_w))
+            is_valid = wsk.is_deflected and self.splines[wsk_id] and not self.is_wsk_locked
+            trajectory = self.tip_trajectories[wsk_id]
+            trajectory.append((self.data.time, wsk.tip_r_w, is_valid))
 
         # check the tunneling condition
         left_wsk, right_wsk = whiskers["l0"], whiskers["r0"]
@@ -430,7 +432,7 @@ class Controller:
     def policy_tunneling(self) -> ControlMessage | None:
         if not self.midpoint_spline:
             return None
-        spl_start_w, spl_end_w = self.midpoint_spline(0), self.midpoint_spline(1)
+        spl_start_w, spl_end_w = self.midpoint_spline(0.75), self.midpoint_spline(1.25)
         spl_tangent_n = normalize(spl_end_w - spl_start_w)
         return self.motion_ctrl.steer_body(
             motion=self.motion,
