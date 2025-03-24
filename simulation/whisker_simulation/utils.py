@@ -54,15 +54,22 @@ def import_class(class_str: str):
 
 
 def format_mean_std(mean: float, std: float) -> tuple[str, str]:
-    # If uncertainty is zero, default to two decimals
     if std == 0:
         return f"{mean:.2f}", "0"
-    # Determine order of magnitude of std
+
+    # Determine rounding exponent
     exp = int(np.floor(np.log10(abs(std))))
     first_digit = int(std / (10**exp))
-    # One significant figure for uncertainty unless first digit is 1 (then use two)
     sig = 2 if first_digit == 1 else 1
     decimals = -exp + (sig - 1)
-    mean_str = f"{mean:.{decimals}f}"
-    std_str = f"{std:.{decimals}f}"
+
+    # Round to nearest significant digit
+    rounding_factor = 10 ** (-decimals)
+    mean_rounded = rounding_factor * round(mean / rounding_factor)
+    std_rounded = rounding_factor * round(std / rounding_factor)
+
+    # Format without scientific notation
+    mean_str = f"{mean_rounded:.0f}" if decimals <= 0 else f"{mean_rounded:.{decimals}f}"
+    std_str = f"{std_rounded:.0f}" if decimals <= 0 else f"{std_rounded:.{decimals}f}"
+
     return mean_str, std_str

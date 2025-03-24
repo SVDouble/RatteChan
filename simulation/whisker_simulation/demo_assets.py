@@ -414,7 +414,7 @@ def generate_sine_wave():
 
 
 # Generate squiggly circle curves: an outer curve with sine-modulated radius and an inner curve offset by gap_percent.
-def generate_squiggly_circles(base_radius=1.0, sine_amp=0.1, sine_freq=5, gap_percent=20, num_points=500):
+def generate_curved_tunnel(base_radius=1.0, sine_amp=0.1, sine_freq=5, gap_percent=20, num_points=500):
     theta = np.linspace(0, 2 * np.pi, num_points, endpoint=False)  # angular positions
     r_outer = base_radius + sine_amp * np.sin(sine_freq * theta)  # sine-modulated outer radius
     outer = np.column_stack((r_outer * np.cos(theta), r_outer * np.sin(theta)))  # outer curve coordinates
@@ -423,6 +423,24 @@ def generate_squiggly_circles(base_radius=1.0, sine_amp=0.1, sine_freq=5, gap_pe
         ((r_outer - gap) * np.cos(theta), (r_outer - gap) * np.sin(theta))
     )  # inner curve with constant width
     return outer, inner
+
+
+def generate_curved_tunnel_model(output: Path):
+    outer, inner = generate_curved_tunnel(gap_percent=25)
+    outer = remove_curve_segment(outer, 0, 20)
+    outer = wrap_cutouts(outer, inner, 0.1, 1.5)
+
+    # Generate curves and plot them.
+    generate_mujoco_xml(
+        curves=[outer, inner],
+        resolution=0.01,
+        wall_thickness=0.02,
+        wall_height=0.1,
+        color="0.2 0.5 0.1 1",
+        model_name=output.stem,
+        body_names=["c0", "c1"],
+        output_file=str(output),
+    )
 
 
 # Generate rectangle with rounded corners and slight noise to prevent duplicates
@@ -467,25 +485,82 @@ def generate_rounded_rectangle_model(output: Path):
         wall_thickness=0.02,
         wall_height=0.1,
         color="0.2 0.5 0.1 1",
-        model_name=output.name,
+        model_name=output.stem,
         body_names=["c0"],
         output_file=str(output),
     )
 
 
-def generate_tunnel_model(output: Path):
-    outer, inner = generate_squiggly_circles(gap_percent=25)
-    outer = remove_curve_segment(outer, 0, 20)
-    outer = wrap_cutouts(outer, inner, 0.1, 1.5)
+def generate_sine_tunnel(length=3, amp=0.5, freq=4, d=0.225, num_points=500, mod_func=np.sin):
+    x = np.linspace(0, length, num_points)
+    y = amp * mod_func(freq * x)
 
-    # Generate curves and plot them.
+    # Compute derivatives to get normals
+    dy_dx = np.gradient(y, x)
+    normals = np.column_stack((-dy_dx, np.ones_like(dy_dx)))
+    normals /= np.linalg.norm(normals, axis=1, keepdims=True)
+
+    # Offset by constant distance d/2 to get walls
+    outer = np.column_stack((x, y)) + (d / 2) * normals
+    inner = np.column_stack((x, y)) - (d / 2) * normals
+
+    return outer, inner
+
+
+def generate_smooth_tunnel_model(output: Path):
+    outer, inner = generate_sine_tunnel()
     generate_mujoco_xml(
         curves=[outer, inner],
         resolution=0.01,
         wall_thickness=0.02,
         wall_height=0.1,
         color="0.2 0.5 0.1 1",
-        model_name=output.name,
+        model_name=output.stem,
+        body_names=["c0", "c1"],
+        output_file=str(output),
+    )
+
+
+def generate_zigzag_tunnel(run=0.5, d=0.25, num_segments=6, zig_angle_deg=40, zag_angle_deg=-30):
+    angles_rad = np.radians([zig_angle_deg, zag_angle_deg])
+    points = [np.array([0.0, 0.0])]
+    current_angle = 0.0
+
+    # Generate zigzag centerline points
+    for i in range(num_segments):
+        current_angle += angles_rad[i % 2]
+        direction = np.array([np.cos(current_angle), np.sin(current_angle)])
+        points.append(points[-1] + run * direction)
+
+    points = np.array(points)
+
+    # Compute segment directions and normals
+    directions = np.diff(points, axis=0)
+    segment_normals = np.column_stack([-directions[:, 1], directions[:, 0]])
+    segment_normals /= np.linalg.norm(segment_normals, axis=1, keepdims=True)
+
+    # Compute offset points for each vertex
+    normals_avg = np.zeros_like(points)
+    normals_avg[0] = segment_normals[0]
+    normals_avg[-1] = segment_normals[-1]
+    normals_avg[1:-1] = segment_normals[:-1] + segment_normals[1:]
+    normals_avg /= np.linalg.norm(normals_avg, axis=1, keepdims=True)
+
+    outer = points + (d / 2) * normals_avg
+    inner = points - (d / 2) * normals_avg
+
+    return outer, inner
+
+
+def generate_zigzag_tunnel_model(output: Path):
+    outer, inner = generate_zigzag_tunnel()
+    generate_mujoco_xml(
+        curves=[outer, inner],
+        resolution=0.2,
+        wall_thickness=0.02,
+        wall_height=0.1,
+        color="0.2 0.5 0.1 1",
+        model_name=output.stem,
         body_names=["c0", "c1"],
         output_file=str(output),
     )
@@ -493,7 +568,9 @@ def generate_tunnel_model(output: Path):
 
 assets = {
     "rounded_rectangle": generate_rounded_rectangle_model,
-    "tunnel": generate_tunnel_model,
+    "smooth_tunnel": generate_smooth_tunnel_model,
+    "zigzag_tunnel": generate_zigzag_tunnel_model,
+    "curved_tunnel": generate_curved_tunnel_model,
 }
 
 

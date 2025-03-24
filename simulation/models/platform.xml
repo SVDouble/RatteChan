@@ -26,8 +26,16 @@
         <mesh name="cube" vertex="0 0 0  1 0 0  1 1 0  0 1 0  0 0 1  1 0 1  1 1 1  0 1 1" scale="0.3 0.01 0.1"/>
         {%- endif -%}
 
-        {%- if add_obj_tunnel -%}
-        <model name="tunnel" file="assets/local/tunnel.xml"/>
+        {%- if add_obj_smooth_tunnel -%}
+        <model name="smooth_tunnel" file="assets/local/smooth_tunnel.xml"/>
+        {%- endif -%}
+
+        {%- if add_obj_zigzag_tunnel -%}
+        <model name="zigzag_tunnel" file="assets/local/zigzag_tunnel.xml"/>
+        {%- endif -%}
+
+        {%- if add_obj_curved_tunnel -%}
+        <model name="curved_tunnel" file="assets/local/curved_tunnel.xml"/>
         {%- endif -%}
 
         {%- if custom_assets -%}
@@ -85,10 +93,24 @@
             <geom type="mesh" mesh="cube" pos="0.15 0.2 0" euler="0 0 100" rgba="0.2 0.5 0.1 1"/>
             {%- endif -%}
 
-            {%- if add_obj_tunnel -%}
+            {%- if add_obj_smooth_tunnel -%}
+            <body pos="0 0.2 0" euler="0 0 40">
+                <attach model="smooth_tunnel" body="c0" prefix="smooth_tunnel_c0_"/>
+                <attach model="smooth_tunnel" body="c1" prefix="smooth_tunnel_c1_"/>
+            </body>
+            {%- endif -%}
+
+            {%- if add_obj_zigzag_tunnel -%}
+            <body pos="0 0.2 0" euler="0 0 40">
+                <attach model="zigzag_tunnel" body="c0" prefix="zigzag_tunnel_c0_"/>
+                <attach model="zigzag_tunnel" body="c1" prefix="zigzag_tunnel_c1_"/>
+            </body>
+            {%- endif -%}
+
+            {%- if add_obj_curved_tunnel -%}
             <body pos="-0.5 1 0" euler="0 0 -90">
-                <attach model="tunnel" body="c0" prefix="tunnel_c0_"/>
-                <attach model="tunnel" body="c1" prefix="tunnel_c1_"/>
+                <attach model="curved_tunnel" body="c0" prefix="curved_tunnel_c0_"/>
+                <attach model="curved_tunnel" body="c1" prefix="curved_tunnel_c1_"/>
             </body>
             {%- endif -%}
 

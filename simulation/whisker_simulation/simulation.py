@@ -1,5 +1,6 @@
+import threading
 import time
-from functools import cached_property
+from functools import cached_property, partial
 from pathlib import Path
 
 import jinja2
@@ -170,9 +171,11 @@ class Simulation:
         self.environment = jinja2.Environment()
         self.is_paused: bool = False
 
-    def key_callback(self, keycode):
+    def key_callback(self, keycode, *, experiment: Experiment):
         if chr(keycode) == " ":
             self.is_paused = not self.is_paused
+        if chr(keycode) == "/":
+            threading.Timer(0.5, lambda: setattr(experiment, "is_healthy", False)).start()
 
     def _get_mujoco_spec(
         self,
@@ -246,7 +249,7 @@ class Simulation:
         with mujoco.viewer.launch_passive(
             experiment.model,
             experiment.data,
-            key_callback=self.key_callback,
+            key_callback=partial(self.key_callback, experiment=experiment),
             show_left_ui=False,
         ) as viewer:
             self.logger.info(f"{exp_config}: running the simulation...")
@@ -254,7 +257,7 @@ class Simulation:
             with viewer.lock():
                 viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
                 viewer.cam.trackbodyid = experiment.data.body(self.config.body.mj_body_name).id
-            while viewer.is_running():
+            while viewer.is_running() and check_stopping_criteria():
                 if self.is_paused:
                     time.sleep(experiment.model.opt.timestep)
                     continue
@@ -269,10 +272,6 @@ class Simulation:
                 monitor.on_simulation_step(viewer, experiment.sensor_data)
                 # update the display
                 viewer.sync()
-
-                # check the stopping criteria
-                if not check_stopping_criteria():
-                    break
 
                 # Rudimentary time keeping, will drift relative to wall clock.
                 time_until_next_step = experiment.model.opt.timestep - (time.time() - step_start)

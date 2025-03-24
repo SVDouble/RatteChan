@@ -164,7 +164,9 @@ class Flag(StrEnum):
     ADD_OBJ_WALL = "add_obj_wall"
 
     # For tunnel policy resting
-    ADD_OBJ_TUNNEL = "add_obj_tunnel"
+    ADD_OBJ_SMOOTH_TUNNEL = "add_obj_smooth_tunnel"
+    ADD_OBJ_ZIGZAG_TUNNEL = "add_obj_zigzag_tunnel"
+    ADD_OBJ_CURVED_TUNNEL = "add_obj_curved_tunnel"
 
 
 class ExperimentConfig(BaseSettings):
