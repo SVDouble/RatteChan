@@ -38,7 +38,7 @@ class Controller:
 
         # single-whisker control
         self.active_wsk_id: WhiskerId | None = None
-        self.is_wsk_locked: bool = False
+        self.is_retrieval_active: bool = False
         self.tgt_orient: Orientation = Orientation.NEUTRAL
         self.whisking_contact: np.ndarray | None = None
         self.whisking_tangent: np.ndarray | None = None
@@ -125,22 +125,23 @@ class Controller:
         tunneling_possible = both_wsk_deflected and left_wsk.defl * right_wsk.defl > 0
         if tunneling_possible and self.state != ControllerState.TUNNELING:
             self.active_wsk_id = None
-            self.is_wsk_locked = False
+            self.is_retrieval_active = False
             self.tgt_orient = Orientation.NEUTRAL
             self.state = ControllerState.TUNNELING
 
         if any_wsk_deflected and not tunneling_possible:
-            new_wsk_id = next(wsk_id for wsk_id, wsk in whiskers.items() if wsk.is_deflected)
             if self.state == ControllerState.TUNNELING:
-                # reset the splines of the other whiskers
-                for wsk_id in whiskers:
-                    if wsk_id != new_wsk_id:
-                        self.splines[wsk_id].reset()
-                self.active_wsk_id = new_wsk_id
-
                 self.tgt_orient = Orientation.NEUTRAL
                 self.state_after_exploration = ControllerState.SWIPING
                 self.state = ControllerState.EXPLORING
+            if self.state == ControllerState.EXPLORING and not self.is_retrieval_active:
+                new_active_wsk_id = next(wsk_id for wsk_id, wsk in whiskers.items() if wsk.is_deflected)
+                if self.active_wsk_id != new_active_wsk_id:
+                    # reset the splines of the other whiskers
+                    for wsk_id in whiskers:
+                        if wsk_id != new_active_wsk_id:
+                            self.splines[wsk_id].reset()
+                    self.active_wsk_id = new_active_wsk_id
 
         # update the splines
         self.midpoint_spline.add_keypoint(keypoint=(left_wsk.tip_r_w + right_wsk.tip_r_w) / 2, data=self.data)
@@ -166,7 +167,7 @@ class Controller:
                 return self.exploration_policy()
             case ControllerState.SWIPING:
                 # follow the surface
-                self.is_wsk_locked = False
+                self.is_retrieval_active = False
                 return self.policy_swiping()
             case ControllerState.WHISKING:
                 # pull the whisker back to the edge (simple linear movement)
@@ -174,7 +175,7 @@ class Controller:
             case ControllerState.DISENGAGED:
                 if self.prev_state == ControllerState.SWIPING:
                     # the whisker has disengaged, needs to swipe back
-                    self.is_wsk_locked = True
+                    self.is_retrieval_active = True
                     return self.policy_initiate_whisking()
                 if self.prev_state == ControllerState.WHISKING:
                     # we swiped the other side of the edge, now we rotate and engage
@@ -189,7 +190,7 @@ class Controller:
     def update_trajectories(self):
         whiskers = self.data.whiskers
         for wsk_id, wsk in whiskers.items():
-            is_valid = wsk.is_deflected and self.splines[wsk_id] and not self.is_wsk_locked
+            is_valid = wsk.is_deflected and self.splines[wsk_id] and not self.is_retrieval_active
             if wsk_id == self.active_wsk_id:
                 if self.active_edge_r_w is not None:
                     distance = (
