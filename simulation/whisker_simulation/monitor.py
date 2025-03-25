@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import matplotlib.text as mtext
 import mujoco
 import mujoco.viewer
 import numpy as np
@@ -13,6 +14,18 @@ from whisker_simulation.models import SensorData, Stats
 from whisker_simulation.utils import combine_mean_std, format_mean_std
 
 __all__ = ["Monitor"]
+
+
+class LegendTitle(object):
+    def __init__(self, text_props=None):
+        self.text_props = text_props or {}
+        super(LegendTitle, self).__init__()
+
+    def legend_artist(self, legend, orig_handle, fontsize, handlebox):
+        x0, y0 = handlebox.xdescent, handlebox.ydescent
+        title = mtext.Text(x0, y0, orig_handle, **self.text_props)
+        handlebox.add_artist(title)
+        return title
 
 
 class Trajectory:
@@ -170,6 +183,10 @@ class Monitor:
         exp_config: ExperimentConfig,
         plot_path: Path,
         body_xy: np.ndarray,
+        edges: np.ndarray | None,
+        contacts: np.ndarray | None,
+        include_platform_trajectory: bool = False,
+        preserve_axis_names: bool = False,
     ):
         if not stats:
             return
@@ -223,7 +240,7 @@ class Monitor:
             ax.plot(
                 est_xy[:, x],
                 est_xy[:, y],
-                label=(rf"Estimated Contour{'\n'}($|d - \bar d| \leq s_d$)" if i == 0 else None),
+                label=(r"for $|d - \bar d| \leq s_d$" if i == 0 else None),
                 linewidth=1.5,
                 color="C2",
                 alpha=0.8,
@@ -236,12 +253,21 @@ class Monitor:
             ax.plot(
                 outliers_xy[:, x],
                 outliers_xy[:, y],
-                label=(rf"Estimated Contour{'\n'}($|d - \bar d| > s_d$)" if i == 0 else None),
+                label=(r"for $|d - \bar d| > s_d$" if i == 0 else None),
                 linewidth=1.5,
                 color="C3",
                 alpha=0.8,
                 zorder=4,
             )
+
+            # Plot the start and end points
+            finite_est_xy = est_xy[np.all(np.isfinite(est_xy), axis=1)]
+            start, end = finite_est_xy[0], finite_est_xy[-1]
+            if np.linalg.norm(start - end) > self.distance_eps:
+                ax.scatter(start[x], start[y], marker="s", s=30, color="C0", label="Entry Point", zorder=6)
+                ax.scatter(end[x], end[y], marker="s", s=30, color="C1", label="Exit Point", zorder=6)
+            else:
+                ax.scatter(start[x], start[y], marker="s", s=30, color="C1", label="Entry/Exit Point", zorder=6)
 
         # Combine the metrics
         _, combined_mean, combined_std = combine_mean_std(metrics)
@@ -294,17 +320,64 @@ class Monitor:
             # Add the metrics for the tunneling case
             mean, std = format_mean_std(cl_mean_d * 1e3, cl_std_d * 1e3)
             text = rf"$\bar d_{{\mathrm{{mid}}}} \pm s_{{d_{{\mathrm{{mid}}}}}} = {mean} \pm {std}\,\mathrm{{mm}}$"
-            ax.text(px, py - 0.05, text, transform=ax.transAxes, ha="center", va="center")
+            py -= 0.05
+            ax.text(px, py, text, transform=ax.transAxes, ha="center", va="center")
 
+        # Plot the body trajectory
+        if include_platform_trajectory:
+            ax.plot(
+                body_xy[:, x],
+                body_xy[:, y],
+                label="Platform Trajectory",
+                linestyle=":",
+                linewidth=1.5,
+                color="C7",
+                zorder=1,
+            )
+
+        if contacts is not None:
+            # Plot the contacts
+            ax.scatter(
+                contacts[:, x],
+                contacts[:, y],
+                label="Retrieval Contact",
+                color="black",
+                marker="x",
+                s=25,
+                zorder=6,
+            )
+
+            # Add average contact retrieval distance as text
+            cr_d = np.linalg.norm(contacts - edges, axis=1)
+            cr_d_mean, cr_d_std = np.mean(cr_d), np.std(cr_d)
+            cr_d_mean, cr_d_std = format_mean_std(cr_d_mean * 1e3, cr_d_std * 1e3)
+            text = rf"$\bar d_{{\mathrm{{retr}}}} \pm s_{{d_{{\mathrm{{retr}}}}}} = {cr_d_mean} \pm {cr_d_std}\,\mathrm{{mm}}$"
+            py -= 0.05
+            ax.text(px, py, text, transform=ax.transAxes, ha="center", va="center")
+
+        if not preserve_axis_names:
+            swap = False
         ax.set_xlabel("Y Coordinate (m)" if swap else "X Coordinate (m)")
         ax.set_ylabel("X Coordinate (m)" if swap else "Y Coordinate (m)")
         ax.axis("equal")
 
-        # Shrink current axis by 30%
+        # Set the title
+        ax.set_title(exp_config.name)
+
+        # Built the legend
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
-        # Put a legend to the right of the current axis
-        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5), fancybox=True, shadow=True, ncol=1)
+        h, l = ax.get_legend_handles_labels()
+        ax.legend(
+            h[:1] + ["", ""] + h[1:3] + [""] + h[3:],
+            l[:1] + ["", "Estimated Contour"] + l[1:3] + [""] + l[3:],
+            loc="center left",
+            bbox_to_anchor=(1, 0.5),
+            fancybox=True,
+            shadow=True,
+            ncol=1,
+            handler_map={str: LegendTitle()},
+        )
 
         plt.savefig(str(plot_path), format=plot_path.suffix[1:], bbox_inches="tight")
         plt.show()

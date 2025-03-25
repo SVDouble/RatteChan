@@ -206,7 +206,6 @@ class Simulation:
         self.logger.info("Simulation: done")
 
     def run_experiment(self, exp_config: ExperimentConfig):
-        timestamp = time.strftime("%Y%m%d-%H%M%S")
         self.logger.info(f"{exp_config}: initializing...")
 
         # create the experiment
@@ -230,7 +229,7 @@ class Simulation:
         mujoco.set_mjcb_control(experiment.control)
 
         # define the stopping criteria
-        trajectories = experiment.controller.tip_trajectories
+        trajectories = experiment.controller.stat_tip_traj
         trj_first_valid_ids = {}
 
         def check_stopping_criteria():
@@ -298,7 +297,7 @@ class Simulation:
         # export the video
         if self.config.export_video:
             self.logger.info(f"{exp_config}: exporting the simulation video...")
-            renderer.export_video(self.config.outputs_path / f"{exp_config.name}-{timestamp}.mp4")
+            renderer.export_video(self.config.outputs_path / f"{exp_config.slug}.mp4")
 
         # evaluate the experiment
         stats = []
@@ -325,12 +324,19 @@ class Simulation:
             d_mean, d_std = format_mean_std(np.mean(d), np.std(d))
             self.logger.info(f"Whisker {wsk_id.upper()} mean absolute distance: {d_mean} (std={d_std})")
         if monitor:
-            body_xy = np.vstack([entry[1] for entry in experiment.controller.body_trajectory])
+            body_xy = np.vstack([entry[1] for entry in experiment.controller.stat_body_traj])
+            if experiment.controller.stat_retrievals:
+                edges, contacts = zip(*experiment.controller.stat_retrievals, strict=True)
+                edges, contacts = np.array(edges), np.array(contacts)
+            else:
+                edges, contacts = None, None
             monitor.summarize_experiment(
                 stats=stats,
                 exp_config=exp_config,
-                plot_path=self.config.outputs_path / f"{exp_config.name}-{timestamp}.pdf",
+                plot_path=self.config.outputs_path / f"{exp_config.slug}.pdf",
                 body_xy=body_xy,
+                edges=edges,
+                contacts=contacts,
             )
 
         self.logger.info(f"{exp_config}: completed")

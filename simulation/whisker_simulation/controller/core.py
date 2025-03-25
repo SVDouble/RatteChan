@@ -30,8 +30,11 @@ class Controller:
         }
         self.midpoint_spline = Spline(name="midpoint", config=self.config.spline)
         self.midpoint_spline.keypoint_distance = self.config.spline.keypoint_distance * 5
-        self.tip_trajectories = defaultdict(list)
-        self.body_trajectory = []
+
+        # stats
+        self.stat_tip_traj: dict[WhiskerId, tuple[float, np.ndarray, bool]] = defaultdict(list)
+        self.stat_body_traj: list[tuple[float, np.ndarray]] = []
+        self.stat_retrievals: list[tuple[np.ndarray, np.ndarray]] = []
 
         # single-whisker control
         self.active_wsk_id: WhiskerId | None = None
@@ -193,9 +196,9 @@ class Controller:
                         is_valid = False
                     else:
                         self.active_edge_r_w = self.active_edge_border = None
-            trajectory = self.tip_trajectories[wsk_id]
+            trajectory = self.stat_tip_traj[wsk_id]
             trajectory.append((self.data.time, wsk.tip_r_w, is_valid))
-        self.body_trajectory.append((self.data.time, self.data.body.r_w))
+        self.stat_body_traj.append((self.data.time, self.data.body.r_w))
 
     def exploration_policy(self) -> ControlMessage | None:
         def apply_instructions() -> ControlMessage | None:
@@ -350,7 +353,7 @@ class Controller:
 
         # 2. Reset the spline and invalidate all trajectory points up to the edge
         self.spline.reset()
-        trajectory = self.tip_trajectories[self.active_wsk_id]
+        trajectory = self.stat_tip_traj[self.active_wsk_id]
         index = len(trajectory) - 1
         eps = self.config.spline.keypoint_distance
         while index >= 0 and np.linalg.norm(edge - trajectory[index][1]) > eps:
@@ -373,6 +376,7 @@ class Controller:
                     return control_reach_over_the_edge()
                 self.whisking_tangent = normalize(edge - self.wsk.tip_r_w)
                 self.whisking_contact = self.wsk.tip_r_w
+                self.stat_retrievals.append((edge, self.wsk.tip_r_w))
 
             # keep track of the orientation
             nonlocal orient_sum

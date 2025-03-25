@@ -7,6 +7,7 @@ import glfw
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from slugify import slugify
 
 from whisker_simulation.utils import rotate
 
@@ -181,8 +182,12 @@ class ExperimentConfig(BaseSettings):
     characteristic_length: float
     metrics_placement: tuple[float, float] = (0.5, 0.5)
 
+    @property
+    def slug(self) -> str:
+        return slugify(self.name)
+
     def __str__(self) -> str:
-        return f"Experiment('{self.name}')"
+        return f"Experiment('{self.slug}')"
 
 
 class Config(BaseSettings):
