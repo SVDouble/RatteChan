@@ -26,6 +26,10 @@
         <mesh name="cube" vertex="0 0 0  1 0 0  1 1 0  0 1 0  0 0 1  1 0 1  1 1 1  0 1 1" scale="0.3 0.01 0.1"/>
         {%- endif -%}
 
+        {%- if add_obj_octagon -%}
+        <mesh name="octagon" vertex="1 0 0 0.7071 0.7071 0 0 1 0 -0.7071 0.7071 0 -1 0 0 -0.7071 -0.7071 0 0 -1 0 0.7071 -0.7071 0 1 0 1 0.7071 0.7071 1 0 1 1 -0.7071 0.7071 1 -1 0 1 -0.7071 -0.7071 1 0 -1 1 0.7071 -0.7071 1" scale="0.3 0.3 0.1"/>
+        {%- endif -%}
+
         {%- if add_obj_smooth_tunnel -%}
         <model name="smooth_tunnel" file="assets/local/smooth_tunnel.xml"/>
         {%- endif -%}
@@ -79,6 +83,10 @@
             {%- if add_obj_complex -%}
             <geom type="mesh" mesh="object_complex_f1" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>
             <geom type="mesh" mesh="object_complex_f2" pos="0.1 0.3 -0.125" euler="0 0 90" rgba="0.5 0.2 0.1 1"/>
+            {%- endif -%}
+
+            {%- if add_obj_octagon -%}
+            <geom type="mesh" mesh="octagon" pos="0.32 0.4 0" euler="0 0 0" rgba="0.2 0.5 0.1 1"/>
             {%- endif -%}
 
             {%- if add_obj_box -%}

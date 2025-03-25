@@ -159,6 +159,7 @@ class Flag(StrEnum):
     ADD_OBJ_COMPLEX = "add_obj_complex"
 
     # For retrieval policy testing
+    ADD_OBJ_OCTAGON = "add_obj_octagon"
     ADD_OBJ_BOX = "add_obj_box"
     ADD_OBJ_PRISM = "add_obj_prism"
     ADD_OBJ_WALL = "add_obj_wall"

@@ -189,7 +189,7 @@ class Controller:
             if wsk_id == self.active_wsk_id:
                 if self.active_edge_r_w is not None:
                     side = np.cross(self.active_edge_r_w - wsk.tip_r_w, self.active_edge_r_w + self.active_edge_border)
-                    if side * wsk.orientation <= 0:
+                    if side * self.tgt_orient.value >= 0:
                         is_valid = False
                     else:
                         self.active_edge_r_w = self.active_edge_border = None
@@ -295,7 +295,7 @@ class Controller:
 
         side_tangent = normalize(edge - self.spline(0))
         # define the distance from the edge to the desired contact point
-        radius = self.wsk.length / 4
+        radius = self.wsk.length / 3
         # define desired whisker tilt at the contact
         tilt = np.pi / 8
         # define the staring angle
@@ -364,6 +364,8 @@ class Controller:
         self.active_edge_r_w = edge
         self.active_edge_border = side_tangent
 
+        orient_sum = 0
+
         def initial_whisking_instructions() -> ControlMessage | None:
             if self.whisking_tangent is None:
                 if not self.wsk.is_deflected:
@@ -371,7 +373,10 @@ class Controller:
                     return control_reach_over_the_edge()
                 self.whisking_tangent = normalize(edge - self.wsk.tip_r_w)
                 self.whisking_contact = self.wsk.tip_r_w
-                self.tgt_orient = self.wsk.orientation
+
+            # keep track of the orientation
+            nonlocal orient_sum
+            orient_sum += self.wsk.orientation.value
 
             # whisking is finished - we need to switch to the reattaching policy
             if (
@@ -379,6 +384,7 @@ class Controller:
                 and self.state == ControllerState.WHISKING
                 and np.dot(self.wsk.tip_r_w - edge, self.whisking_tangent) > self.wsk.length / 8
             ):
+                self.tgt_orient = Orientation(1) if orient_sum > 0 else Orientation(-1)
                 self.state = ControllerState.DISENGAGED
 
             # if we have just landed here, switch the state
@@ -399,6 +405,8 @@ class Controller:
         return self.exploration_instructions()
 
     def policy_reattaching(self) -> ControlMessage | None:
+        assert self.tgt_orient != Orientation.NEUTRAL
+
         # 0. Calculate the spline orientation (flip the direction, as we were moving backwards)
         orient = self.tgt_orient.flip()
         edge, contact = self.whisking_edge, self.whisking_contact
@@ -412,7 +420,7 @@ class Controller:
 
         # 2. Calculate the target whisker position
         # Keep in mind that the current deflection is zero
-        tip_overshoot_normal = -self.wsk.length / 8
+        tip_overshoot_normal = -self.wsk.length / 4
         tip_overshoot_tangent = self.wsk.length / 4
         tgt_tip_r_w = edge + normal_n * tip_overshoot_normal + tangent_n * tip_overshoot_tangent
         tgt_wsk_r_w = tgt_tip_r_w - rotate(self.wsk.neutral_defl_offset, tgt_wsk_yaw_w)
@@ -439,7 +447,9 @@ class Controller:
 
         def reattach_instructions() -> ControlMessage | None:
             max_yaw_error = np.pi / 8
-            if max_yaw_error < (tgt_body_yaw_w - self.data.body.yaw_w) % (2 * np.pi) < 2 * np.pi - max_yaw_error:
+            if (max_yaw_error < (tgt_body_yaw_w - self.data.body.yaw_w) % (2 * np.pi) < 2 * np.pi - max_yaw_error) or (
+                abs(np.dot(tgt_wsk_r_w - self.wsk.r_w, normal_n)) > 2 * abs(tip_overshoot_normal)
+            ):
                 # the body yaw has not been set correctly, keep rotating
                 body_normal_offset = np.dot(tgt_body_r_w - self.data.body.r_w, normal_n) * normal_n
                 eps = self.config.spline.keypoint_distance
