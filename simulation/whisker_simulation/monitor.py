@@ -206,7 +206,7 @@ class Monitor:
         ref_contour_legend_text = "Reference Contour\n" + r"$C_{\text{ref}} = \{\mathbf{x}_i\}_{i=1}^N$"
         est_contour_legend_text = "Estimated Contour\n" + r"$C_{\text{est}} = \{\mathbf{y}_i\}_{i=1}^N$"
 
-        legend_separate_points = None
+        legend_display_points = None
 
         for i, stat in enumerate(stats):
             ref_contour = stat.ref_contour
@@ -269,13 +269,29 @@ class Monitor:
             # Plot the start and end points
             finite_est_xy = stat.est_xy[stat.est_mask & np.all(np.isfinite(stat.est_xy), axis=1)]
             start, end = finite_est_xy[0], finite_est_xy[-1]
-            if legend_separate_points is None:
-                legend_separate_points = np.linalg.norm(start - end) > self.distance_eps
-            if legend_separate_points:
-                ax.scatter(start[x], start[y], marker="s", s=30, color="C0", label="Entry Point", zorder=6)
-                ax.scatter(end[x], end[y], marker="s", s=30, color="C1", label="Exit Point", zorder=6)
-            else:
-                ax.scatter(start[x], start[y], marker="s", s=30, color="C1", label="Entry/Exit Point", zorder=6)
+            if legend_display_points is None:
+                legend_display_points = np.linalg.norm(start - end) > self.distance_eps or len(stats) > 1
+            if legend_display_points:
+                ax.scatter(
+                    start[x],
+                    start[y],
+                    marker="x",
+                    s=20,
+                    color="black",
+                    label=("Entry Point" if i == 0 else None),
+                    zorder=6,
+                )
+                ax.scatter(
+                    end[x],
+                    end[y],
+                    marker="x",
+                    s=20,
+                    color="red",
+                    label=("Exit Point" if i == 0 else None),
+                    zorder=6,
+                )
+            # else:
+            #     ax.scatter(start[x], start[y], marker="s", s=30, color="C1", label="Entry/Exit Point", zorder=6)
 
         # Combine the metrics
         _, combined_mean, combined_std = combine_mean_std(metrics)
@@ -344,26 +360,25 @@ class Monitor:
             )
 
         if contacts is not None:
-            # Plot the contacts
+            # Plot the edges
             ax.scatter(
-                contacts[:, x],
-                contacts[:, y],
-                label="Retrieval Contact\n" + r"$C_{\text{retr}} = \{\mathbf{r}_j\}_{j=1}^P \subseteq C_{\text{est}}$",
-                color="black",
+                edges[:, x],
+                edges[:, y],
+                label="Diseng. Points\n" + r"$E = \{\mathbf{e}_j\}_{j=1}^M \subseteq C_{\text{est}}$",
+                color="red",
                 marker="x",
                 s=20,
                 zorder=6,
             )
 
-            # Plot the edges
+            # Plot the contacts
             ax.scatter(
-                edges[:, x],
-                edges[:, y],
-                label="Edges\n" + r"$E = \{\mathbf{e}_j\}_{j=1}^M \subseteq C_{\text{est}}$",
+                contacts[:, x],
+                contacts[:, y],
+                label="Reatt. Points\n" + r"$C_{\text{retr}} = \{\mathbf{r}_j\}_{j=1}^P \subseteq C_{\text{est}}$",
                 color="black",
-                alpha=0,
-                marker="^",
-                s=10,
+                marker="x",
+                s=20,
                 zorder=6,
             )
 
@@ -392,16 +407,15 @@ class Monitor:
         ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
         h, l = ax.get_legend_handles_labels()
 
-        pa, pb = (3, 5) if legend_separate_points else (3, 4)
+        pa, pb = (3, 5) if legend_display_points else (3, 3)
         ax.legend(
-            (h[:1] + [""] + h[1:3] + [""] + h[pb:] + [""] + h[pa:pb]),
+            (h[:1] + ["", ""] + h[1:3] + h[pb:] + ([""] if contacts is not None else []) + h[pa:pb]),
             (
                 l[:1]
-                + [est_contour_legend_text]
+                + [est_contour_legend_text, r"$d_i = \|\mathbf{x}_i - \mathbf{y}_i\|$"]
                 + l[1:3]
-                + [r"$d_i = \|\mathbf{x}_i - \mathbf{y}_i\|$"]
                 + l[pb:]
-                + [r"$d_{\text{retr}, j} = \|\mathbf{r}_j - \mathbf{e}_j\|$"]
+                + ([r"$d_{\text{retr}, j} = \|\mathbf{r}_j - \mathbf{e}_j\|$"] if contacts is not None else [])
                 + l[pa:pb]
             ),
             loc="center left",

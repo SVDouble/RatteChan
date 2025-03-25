@@ -191,10 +191,14 @@ class Controller:
             is_valid = wsk.is_deflected and self.splines[wsk_id] and not self.is_wsk_locked
             if wsk_id == self.active_wsk_id:
                 if self.active_edge_r_w is not None:
-                    side = np.cross(self.active_edge_r_w - wsk.tip_r_w, self.active_edge_r_w + self.active_edge_border)
-                    if side * self.tgt_orient.value >= 0:
+                    distance = (
+                        np.cross(self.active_edge_r_w - wsk.tip_r_w, self.active_edge_border)
+                        / np.linalg.norm(self.active_edge_border)
+                        * self.tgt_orient.value
+                    )
+                    if distance <= 0:
                         is_valid = False
-                    else:
+                    elif self.state != ControllerState.WHISKING and distance > self.wsk.length / 4:
                         self.active_edge_r_w = self.active_edge_border = None
             trajectory = self.stat_tip_traj[wsk_id]
             trajectory.append((self.data.time, wsk.tip_r_w, is_valid))
@@ -364,8 +368,8 @@ class Controller:
         # 3. Set the desired next state and the exploration instructions
         self.whisking_tangent = None
         self.whisking_contact = None
-        self.active_edge_r_w = edge
-        self.active_edge_border = side_tangent
+        self.active_edge_r_w = None
+        self.active_edge_border = None
 
         orient_sum = 0
 
@@ -377,6 +381,9 @@ class Controller:
                 self.whisking_tangent = normalize(edge - self.wsk.tip_r_w)
                 self.whisking_contact = self.wsk.tip_r_w
                 self.stat_retrievals.append((edge, self.wsk.tip_r_w))
+
+                self.active_edge_r_w = edge
+                self.active_edge_border = side_tangent
 
             # keep track of the orientation
             nonlocal orient_sum
