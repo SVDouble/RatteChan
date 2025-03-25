@@ -185,7 +185,7 @@ class Monitor:
         body_xy: np.ndarray,
         edges: np.ndarray | None,
         contacts: np.ndarray | None,
-        include_platform_trajectory: bool = False,
+        include_full_platform_trajectory: bool = False,
         preserve_axis_names: bool = False,
     ):
         if not stats:
@@ -247,7 +247,7 @@ class Monitor:
                 est_xy[:, x],
                 est_xy[:, y],
                 label=(r"for $|d_i - \bar d| \leq \sigma_d$" if i == 0 else None),
-                linewidth=1.5,
+                linewidth=1,
                 color="C2",
                 alpha=0.8,
                 zorder=3,
@@ -260,7 +260,7 @@ class Monitor:
                 outliers_xy[:, x],
                 outliers_xy[:, y],
                 label=(r"for $|d_i - \bar d| > \sigma_d$" if i == 0 else None),
-                linewidth=1.5,
+                linewidth=1,
                 color="C3",
                 alpha=0.8,
                 zorder=4,
@@ -312,7 +312,7 @@ class Monitor:
             cl_contour = Contour(cl)
 
             # Estimate the average distance to the centerline
-            tunnel_mask = stats[0].est_mask & stats[1].est_mask
+            tunnel_mask = stats[0].est_mask | stats[1].est_mask
             cl_d = cl_contour.distance_to_points(body_xy)
             cl_mean_d = np.mean(cl_d[tunnel_mask])
             cl_std_d = np.std(cl_d[tunnel_mask])
@@ -321,10 +321,11 @@ class Monitor:
             ax.plot(
                 cl[:, x],
                 cl[:, y],
-                label="Tunnel Centerline",
+                label="Tunnel Axis\n" + r"$C_{\text{axis}} = \{\mathbf{a}_i\}_{i=1}^N$",
                 linewidth=1,
-                color="C4",
-                alpha=1,
+                linestyle="--",
+                color="C6",
+                alpha=0.8,
                 zorder=4,
             )
 
@@ -334,27 +335,27 @@ class Monitor:
             ax.plot(
                 valid_body_xy[:, x],
                 valid_body_xy[:, y],
-                label="Platform COM",
-                linewidth=1.5,
-                color="C5",
-                alpha=0.8,
+                label="Platform Trajectory\n" + r"$C_{\text{pl}} = \{\mathbf{p}_i\}_{i=1}^N$",
+                linewidth=1,
+                linestyle="-",
+                color="black",
                 zorder=5,
             )
 
             # Add the metrics for the tunneling case
             mean, std = format_mean_std(cl_mean_d * 1e3, cl_std_d * 1e3)
-            text = rf"$\bar d_{{\mathrm{{mid}}}} \pm \sigma_{{d_{{\mathrm{{mid}}}}}} = {mean} \pm {std}\,\mathrm{{mm}}$"
+            text = r"$\bar d_{\mathrm{axis}} \pm \sigma_{d_{\mathrm{axis}}}" + rf"= {mean} \pm {std}\,\mathrm{{mm}}$"
             py -= 0.05
             ax.text(px, py, text, transform=ax.transAxes, ha="center", va="center")
 
         # Plot the body trajectory
-        if include_platform_trajectory:
+        if include_full_platform_trajectory:
             ax.plot(
                 body_xy[:, x],
                 body_xy[:, y],
                 label="Platform Trajectory",
-                linestyle=":",
-                linewidth=1.5,
+                linestyle="--",
+                linewidth=1,
                 color="C7",
                 zorder=1,
             )
@@ -375,7 +376,7 @@ class Monitor:
             ax.scatter(
                 contacts[:, x],
                 contacts[:, y],
-                label="Reatt. Points\n" + r"$C_{\text{retr}} = \{\mathbf{r}_j\}_{j=1}^P \subseteq C_{\text{est}}$",
+                label="Reatt. Points\n" + r"$C_{\text{r}} = \{\mathbf{r}_j\}_{j=1}^P \subseteq C_{\text{est}}$",
                 color="black",
                 marker="x",
                 s=20,
@@ -387,8 +388,7 @@ class Monitor:
             cr_d_mean, cr_d_std = np.mean(cr_d), np.std(cr_d)
             cr_d_mean, cr_d_std = format_mean_std(cr_d_mean * 1e3, cr_d_std * 1e3)
             text = (
-                r"$\bar d_{\mathrm{retr}} \pm \sigma_{d_{\mathrm{retr}}}"
-                + rf"= {cr_d_mean} \pm {cr_d_std}\,\mathrm{{mm}}$"
+                r"$\bar d_{\mathrm{r}} \pm \sigma_{d_{\mathrm{r}}}" + rf"= {cr_d_mean} \pm {cr_d_std}\,\mathrm{{mm}}$"
             )
             py -= 0.05
             ax.text(px, py, text, transform=ax.transAxes, ha="center", va="center")
@@ -409,13 +409,22 @@ class Monitor:
 
         pa, pb = (3, 5) if legend_display_points else (3, 3)
         ax.legend(
-            (h[:1] + ["", ""] + h[1:3] + h[pb:] + ([""] if contacts is not None else []) + h[pa:pb]),
+            (
+                h[:1]
+                + ["", ""]
+                + h[1:3]
+                + h[pb:]
+                + ([""] if contacts is not None else [])
+                + ([""] if len(stats) > 1 else [])
+                + h[pa:pb]
+            ),
             (
                 l[:1]
                 + [est_contour_legend_text, r"$d_i = \|\mathbf{x}_i - \mathbf{y}_i\|$"]
                 + l[1:3]
                 + l[pb:]
-                + ([r"$d_{\text{retr}, j} = \|\mathbf{r}_j - \mathbf{e}_j\|$"] if contacts is not None else [])
+                + ([r"$d_{\text{r}, j} = \|\mathbf{r}_j - \mathbf{e}_j\|$"] if contacts is not None else [])
+                + ([r"$d_{\text{axis}, i} = \|\mathbf{p}_i - \mathbf{a}_i\|$"] if len(stats) > 1 else [])
                 + l[pa:pb]
             ),
             loc="center left",

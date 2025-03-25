@@ -491,7 +491,7 @@ def generate_rounded_rectangle_model(output: Path):
     )
 
 
-def generate_sine_tunnel(length=3, amp=0.1, freq=4, d=0.225, num_points=500, mod_func=np.sin):
+def generate_sine_tunnel(length=1.5, amp=0.1, freq=4, d=0.225, num_points=500, mod_func=np.sin):
     x = np.linspace(0, length, num_points)
     y = amp * mod_func(freq * x)
 
@@ -521,7 +521,7 @@ def generate_smooth_tunnel_model(output: Path):
     )
 
 
-def generate_zigzag_tunnel(run=0.5, d=0.225, num_segments=6, zig_angle_deg=30, zag_angle_deg=-20):
+def generate_zigzag_tunnel(run=0.25, d=0.225, num_segments=6, zig_angle_deg=20, zag_angle_deg=-20):
     angles_rad = np.radians([zig_angle_deg, zag_angle_deg])
     points = [np.array([0.0, 0.0])]
     current_angle = 0.0

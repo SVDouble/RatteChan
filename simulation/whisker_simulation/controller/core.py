@@ -131,15 +131,16 @@ class Controller:
 
         if any_wsk_deflected and not tunneling_possible:
             new_wsk_id = next(wsk_id for wsk_id, wsk in whiskers.items() if wsk.is_deflected)
-            if not self.is_wsk_locked and self.active_wsk_id != new_wsk_id:
+            if self.state == ControllerState.TUNNELING:
                 # reset the splines of the other whiskers
                 for wsk_id in whiskers:
                     if wsk_id != new_wsk_id:
                         self.splines[wsk_id].reset()
                 self.active_wsk_id = new_wsk_id
-            if self.state == ControllerState.TUNNELING:
-                self.tgt_orient = self.wsk.orientation
-                self.state = ControllerState.SWIPING
+
+                self.tgt_orient = Orientation.NEUTRAL
+                self.state_after_exploration = ControllerState.SWIPING
+                self.state = ControllerState.EXPLORING
 
         # update the splines
         self.midpoint_spline.add_keypoint(keypoint=(left_wsk.tip_r_w + right_wsk.tip_r_w) / 2, data=self.data)

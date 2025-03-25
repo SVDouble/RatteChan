@@ -116,7 +116,7 @@
             {%- endif -%}
 
             {%- if add_obj_zigzag_tunnel -%}
-            <body pos="0 0.2 0" euler="0 0 40">
+            <body pos="0 0.2 0" euler="0 0 60">
                 <attach model="zigzag_tunnel" body="c0" prefix="zigzag_tunnel_c0_"/>
                 <attach model="zigzag_tunnel" body="c1" prefix="zigzag_tunnel_c1_"/>
             </body>
