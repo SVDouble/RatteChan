@@ -111,21 +111,19 @@ class Monitor:
 
         spline: Spline
 
-        if spline.spl is None:
-            return
-
         # cmap = plt.get_cmap("Set1")
         # plt.rcParams["axes.prop_cycle"] = plt.cycler(color=[cmap(i) for i in range(cmap.N)])
         plt.figure()
 
-        spline_points = spline(np.linspace(0, 1, 100))
-        plt.plot(spline_points[0], spline_points[1], linestyle="-", label="Spline")
+        if spline:
+            spline_points = spline(np.linspace(0, 1, 100))
+            plt.plot(spline_points[0], spline_points[1], linestyle="-", label="Spline")
 
-        keypoints = np.array(spline.keypoints)
-        plt.scatter(keypoints[:, 0], keypoints[:, 1], label="Keypoints")
+            keypoints = np.array(spline.keypoints)
+            plt.scatter(keypoints[:, 0], keypoints[:, 1], label="Keypoints")
 
-        spl_end = spline(1)
-        plt.scatter(spl_end[0], spl_end[1], marker="*", s=100, label="Spline End")
+            spl_end = spline(1)
+            plt.scatter(spl_end[0], spl_end[1], marker="*", s=100, label="Spline End")
         for key, p in kwargs.items():
             if p.shape == (2,):
                 plt.scatter(p[0], p[1], marker="x", s=100, label=key.title())

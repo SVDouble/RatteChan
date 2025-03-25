@@ -42,7 +42,10 @@ class MotionController:
 
         # 3. Calculate the angular velocity
         body_omega_w = self.yaw_pid(yaw_error)
-        vx, vy = self.total_v * normalize(tgt_body_dr_w)
+        if np.array_equal(tgt_body_dr_w, np.zeros(2)):
+            vx, vy = 0, 0
+        else:
+            vx, vy = self.total_v * normalize(tgt_body_dr_w)
         return ControlMessage(body_vx_w=vx, body_vy_w=vy, body_omega_w=body_omega_w)
 
     def steer_wsk(
@@ -61,7 +64,12 @@ class MotionController:
             tgt_body_yaw_w=tgt_body_yaw_w,
             reverse=reverse,
         )
-        # 2. Account for the shift in the pivot point, as the body rotates around its center and not whisker base
+
+        # 2. Check that the body needs to move at all
+        if np.array_equal(tgt_wsk_dr_w, np.zeros(2)):
+            return ctrl
+
+        # 3. Account for the shift in the pivot point, as the body rotates around its center and not whisker base
         # Compute the correction term from the pivot shift: ω × (A - B)
         pivot_shift_w = wsk.body_offset_w  # TODO: shouldn't it be -wsk.body_offset_w?
         corr = ctrl.body_omega_w * np.array([pivot_shift_w[1], -pivot_shift_w[0]])

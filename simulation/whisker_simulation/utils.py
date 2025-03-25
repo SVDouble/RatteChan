@@ -39,10 +39,14 @@ def get_logger(module_name: str, *, log_level: str):
     return logger
 
 
-def rotate(v: np.ndarray, theta: float) -> np.ndarray:
-    # noinspection PyPep8Naming
-    r_matrix = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-    return r_matrix @ v
+def rotate(v: np.ndarray, theta: np.ndarray | float) -> np.ndarray:
+    theta = np.atleast_1d(theta)
+    cos_theta = np.cos(theta)
+    sin_theta = np.sin(theta)
+    r_matrix = np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
+    r_matrix = np.moveaxis(r_matrix, -1, 0)  # shape (N, 2, 2)
+    result = np.einsum("nij,j->ni", r_matrix, v)
+    return result[0] if result.shape[0] == 1 else result
 
 
 def normalize(v: np.ndarray) -> np.ndarray:

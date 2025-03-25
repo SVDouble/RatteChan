@@ -176,7 +176,7 @@ class ExperimentConfig(BaseSettings):
     initial_control: ControlMessage
     timeout: float = 0
     min_loop_time: float = 5
-    loop_eps: float = 1e-2
+    loop_eps: float = 5e-3
     characteristic_length: float
     metrics_placement: tuple[float, float] = (0.5, 0.5)
 
