@@ -295,7 +295,7 @@ class Controller:
 
         side_tangent = normalize(edge - self.spline(0))
         # define the distance from the edge to the desired contact point
-        radius = self.wsk.length / 3
+        radius = self.wsk.length / 6
         # define desired whisker tilt at the contact
         tilt = np.pi / 8
         # define the staring angle
