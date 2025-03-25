@@ -202,6 +202,12 @@ class Monitor:
         x, y = (1, 0) if swap else (0, 1)
         metrics = []
 
+        # Legend text
+        ref_contour_legend_text = "Reference Contour\n" + r"$C_{\text{ref}} = \{\mathbf{x}_i\}_{i=1}^N$"
+        est_contour_legend_text = "Estimated Contour\n" + r"$C_{\text{est}} = \{\mathbf{y}_i\}_{i=1}^N$"
+
+        legend_separate_points = None
+
         for i, stat in enumerate(stats):
             ref_contour = stat.ref_contour
             est_d = ref_contour.distance_to_points(stat.est_xy)
@@ -218,7 +224,7 @@ class Monitor:
             ax.plot(
                 ref_contour.xy[:, x],
                 ref_contour.xy[:, y],
-                label=("Reference Contour" if i == 0 else None),
+                label=(ref_contour_legend_text if i == 0 else None),
                 linestyle="--",
                 linewidth=1,
                 color="C0",
@@ -240,7 +246,7 @@ class Monitor:
             ax.plot(
                 est_xy[:, x],
                 est_xy[:, y],
-                label=(r"for $|d - \bar d| \leq s_d$" if i == 0 else None),
+                label=(r"for $|d_i - \bar d| \leq \sigma_d$" if i == 0 else None),
                 linewidth=1.5,
                 color="C2",
                 alpha=0.8,
@@ -253,7 +259,7 @@ class Monitor:
             ax.plot(
                 outliers_xy[:, x],
                 outliers_xy[:, y],
-                label=(r"for $|d - \bar d| > s_d$" if i == 0 else None),
+                label=(r"for $|d_i - \bar d| > \sigma_d$" if i == 0 else None),
                 linewidth=1.5,
                 color="C3",
                 alpha=0.8,
@@ -261,9 +267,11 @@ class Monitor:
             )
 
             # Plot the start and end points
-            finite_est_xy = est_xy[np.all(np.isfinite(est_xy), axis=1)]
+            finite_est_xy = stat.est_xy[stat.est_mask & np.all(np.isfinite(stat.est_xy), axis=1)]
             start, end = finite_est_xy[0], finite_est_xy[-1]
-            if np.linalg.norm(start - end) > self.distance_eps:
+            if legend_separate_points is None:
+                legend_separate_points = np.linalg.norm(start - end) > self.distance_eps
+            if legend_separate_points:
                 ax.scatter(start[x], start[y], marker="s", s=30, color="C0", label="Entry Point", zorder=6)
                 ax.scatter(end[x], end[y], marker="s", s=30, color="C1", label="Exit Point", zorder=6)
             else:
@@ -272,7 +280,7 @@ class Monitor:
         # Combine the metrics
         _, combined_mean, combined_std = combine_mean_std(metrics)
         mean, std = format_mean_std(combined_mean * 1e3, combined_std * 1e3)
-        text = rf"$\bar d \pm s_d = {mean} \pm {std}\,\mathrm{{mm}}$"
+        text = rf"$\bar d \pm \sigma_d = {mean} \pm {std}\,\mathrm{{mm}}$"
         px, py = exp_config.metrics_placement
         ax.text(px, py, text, transform=ax.transAxes, ha="center", va="center")
 
@@ -319,7 +327,7 @@ class Monitor:
 
             # Add the metrics for the tunneling case
             mean, std = format_mean_std(cl_mean_d * 1e3, cl_std_d * 1e3)
-            text = rf"$\bar d_{{\mathrm{{mid}}}} \pm s_{{d_{{\mathrm{{mid}}}}}} = {mean} \pm {std}\,\mathrm{{mm}}$"
+            text = rf"$\bar d_{{\mathrm{{mid}}}} \pm \sigma_{{d_{{\mathrm{{mid}}}}}} = {mean} \pm {std}\,\mathrm{{mm}}$"
             py -= 0.05
             ax.text(px, py, text, transform=ax.transAxes, ha="center", va="center")
 
@@ -340,10 +348,22 @@ class Monitor:
             ax.scatter(
                 contacts[:, x],
                 contacts[:, y],
-                label="Retrieval Contact",
+                label="Retrieval Contact\n" + r"$C_{\text{retr}} = \{\mathbf{r}_j\}_{j=1}^P \subseteq C_{\text{est}}$",
                 color="black",
                 marker="x",
-                s=25,
+                s=20,
+                zorder=6,
+            )
+
+            # Plot the edges
+            ax.scatter(
+                edges[:, x],
+                edges[:, y],
+                label="Edges\n" + r"$E = \{\mathbf{e}_j\}_{j=1}^M \subseteq C_{\text{est}}$",
+                color="black",
+                alpha=0,
+                marker="^",
+                s=10,
                 zorder=6,
             )
 
@@ -351,7 +371,10 @@ class Monitor:
             cr_d = np.linalg.norm(contacts - edges, axis=1)
             cr_d_mean, cr_d_std = np.mean(cr_d), np.std(cr_d)
             cr_d_mean, cr_d_std = format_mean_std(cr_d_mean * 1e3, cr_d_std * 1e3)
-            text = rf"$\bar d_{{\mathrm{{retr}}}} \pm s_{{d_{{\mathrm{{retr}}}}}} = {cr_d_mean} \pm {cr_d_std}\,\mathrm{{mm}}$"
+            text = (
+                r"$\bar d_{\mathrm{retr}} \pm \sigma_{d_{\mathrm{retr}}}"
+                + rf"= {cr_d_mean} \pm {cr_d_std}\,\mathrm{{mm}}$"
+            )
             py -= 0.05
             ax.text(px, py, text, transform=ax.transAxes, ha="center", va="center")
 
@@ -368,9 +391,19 @@ class Monitor:
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
         h, l = ax.get_legend_handles_labels()
+
+        pa, pb = (3, 5) if legend_separate_points else (3, 4)
         ax.legend(
-            h[:1] + ["", ""] + h[1:3] + [""] + h[3:],
-            l[:1] + ["", "Estimated Contour"] + l[1:3] + [""] + l[3:],
+            (h[:1] + [""] + h[1:3] + [""] + h[pb:] + [""] + h[pa:pb]),
+            (
+                l[:1]
+                + [est_contour_legend_text]
+                + l[1:3]
+                + [r"$d_i = \|\mathbf{x}_i - \mathbf{y}_i\|$"]
+                + l[pb:]
+                + [r"$d_{\text{retr}, j} = \|\mathbf{r}_j - \mathbf{e}_j\|$"]
+                + l[pa:pb]
+            ),
             loc="center left",
             bbox_to_anchor=(1, 0.5),
             fancybox=True,

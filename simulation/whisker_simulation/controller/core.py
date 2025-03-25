@@ -32,7 +32,7 @@ class Controller:
         self.midpoint_spline.keypoint_distance = self.config.spline.keypoint_distance * 5
 
         # stats
-        self.stat_tip_traj: dict[WhiskerId, tuple[float, np.ndarray, bool]] = defaultdict(list)
+        self.stat_tip_traj: dict[WhiskerId, list[tuple[float, np.ndarray, bool]]] = defaultdict(list)
         self.stat_body_traj: list[tuple[float, np.ndarray]] = []
         self.stat_retrievals: list[tuple[np.ndarray, np.ndarray]] = []
 
