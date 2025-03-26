@@ -184,7 +184,9 @@ class ExperimentConfig(BaseSettings):
 
     @property
     def slug(self) -> str:
-        return slugify(self.name, stopwords=["of", "with", "and", "policy", "estimation", "navigation", "contour"])
+        return slugify(
+            self.name, stopwords=["of", "with", "and", "at", "policy", "estimation", "navigation", "contour"]
+        )
 
     def __str__(self) -> str:
         return f"Experiment('{self.slug}')"
