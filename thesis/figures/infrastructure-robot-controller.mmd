@@ -1,0 +1,28 @@
+graph TD;
+    S[Sensor IO Module<br>with I2C and MQTT]
+    C[Controller]
+    M[MQTT Broker]
+    T[Telegraf]
+    I[InfluxDB]
+    G[Grafana]
+    P[Promtail]
+    L[Loki]
+    X[Traefik]
+    J[Simulation]
+    BR[Browser]
+
+    S -->|Publishes sensor data| M
+    M -->|Forwards control data| S
+    M -->|Forwards sensor data| C
+    M -->|Forwards sensor data| I
+    C -->|Publishes control data| M
+    C -->|Sends statistics| T
+    M -->|Forwards sensor and control data| J
+    T -->|Stores metrics| I
+    I -->|Provides historic data| G
+    M -->|Provides real-time<br>sensor data| G
+    P -->|Sends all container logs| L
+    L -->|Provides container logs| G
+    X -.->|Routes HTTP requests| G
+    X -.->|Routes HTTP requests| M
+    BR -->|Access Dashboard| G

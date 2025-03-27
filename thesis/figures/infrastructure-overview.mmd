@@ -1,0 +1,25 @@
+graph LR;
+    subgraph Platform with Whiskers
+        W1[Hall sensors,<br>left side]
+        W2[Hall sensors,<br>right side]
+        B1[I2C Bus 1]
+        B2[I2C Bus 2]
+    end
+
+    subgraph Actuator
+        R[Robotic Arm]
+    end
+
+    subgraph Robot Controller
+        S[Sensor IO Module<br>with I2C and MQTT]
+        C[Controller]
+    end
+
+    W1 -->|Sensor data| B2
+    W2 -->|Sensor data| B1
+
+    B1 <-->|Sensor data & settings<br>over I2C| S
+    B2 <-->|Sensor data & settings<br>over I2C| S
+    S -->|Forwards sensor data<br>over MQTT| C
+    S -->|Publishes control data<br>over MQTT| R
+    C -->|Publishes control data<br>over MQTT| S

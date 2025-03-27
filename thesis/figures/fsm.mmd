@@ -1,13 +1,15 @@
 stateDiagram-v2
+    Exploring: Exploration Policy
+    Swiping: Swiping Policy
+    Tunneling: Tunneling Policy
+    Retrieval: Retrieval Policy
+
     [*] --> Exploring
-    Exploring --> Swiping : Spline defined & <br>contact established
-    Exploring --> Tunneling : Both whiskers deflected (tunnel condition)
-    Tunneling --> Exploring : Tunnel condition ceases (exploration resumes)
-    Swiping --> Retrieval : Whisker detaches <br>(steep curve slope)
-    Retrieval --> Whisking : Contact reestablished
-    Whisking --> Swiping : Reattachment & new spline constructed
-    Swiping --> Tunneling : Both whiskers deflected (tunnel condition)
-    Tunneling --> Swiping : Tunnel condition ceases (only one deflected)
-    Retrieval --> Failure : Anomaly detected
-    Swiping --> Failure : Anomaly detected
-    Tunneling --> Failure : Anomaly detected
+
+    Exploring --> Swiping : 0-->1 Contacts & <br> Spline Defined
+    Exploring --> Tunneling : 0-->2 <br>Contacts
+    Tunneling --> Exploring : 2-->0 <br>Contacts
+    Tunneling --> Swiping : 2-->1 <br>Contacts
+    Swiping --> Retrieval : 1-->0 <br>Contacts
+    Retrieval --> Exploring : 0-->1 Contacts & <br> Edge Retrieved
+    Swiping --> Tunneling : 1-->2 <br>Contacts
