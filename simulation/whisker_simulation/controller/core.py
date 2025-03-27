@@ -494,7 +494,7 @@ class Controller:
         pull_l = -(wsk_l0.defl - wsk_l0.config.tgt_defl_abs) / wsk_l0.config.tgt_defl_abs
         pull_r = (wsk_r0.defl - wsk_r0.config.tgt_defl_abs) / wsk_r0.config.tgt_defl_abs
         total_pull = np.clip(pull_l + pull_r, -1, 1)
-        tgt_body_dr_w = spl_tangent_n + total_pull / 2 * rotate(spl_tangent_n, np.pi / 2)
+        tgt_body_dr_w = spl_tangent_n + total_pull / 2 * rotate(spl_tangent_n, np.pi / 2 * -wsk_r0.orientation.value)
         return self.motion_ctrl.steer_body(
             motion=self.motion,
             tgt_body_dr_w=tgt_body_dr_w,

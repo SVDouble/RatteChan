@@ -13,8 +13,8 @@
 
 %\setbeameroption{show notes}
 
-\graphicspath{{figures/}}%
-\addbibresource{source/literature.bib}%
+\graphicspath{{figures/}}
+\addbibresource{source/literature.bib}
 
 \title[Active Tactile Exploration Based on Whisker-Inspired Sensory Array]{Active Tactile Exploration Based on Whisker-Inspired Sensory Array}
 \def\PresentationType{\AIRlangGerEng{Abschlussvortrag}{Final Presentation}}
@@ -36,22 +36,47 @@
     \end{frame}
 
 
-    \section{Motivation}
+    \section{Introduction}
 
-    \subsection{Biological Whisker Structure}
-    \begin{frame}{Biological Whisker Structure}
-        - image of a cat's whisker
+    \subsection{Whisker Anatomy}
+    \begin{frame}{Introduction}{Whisker Anatomy}
+        \begin{figure}[htb]
+            \centering
+            \includegraphics[width=\textwidth]{figures/whisker-anatomy}
+            \caption{Representation of the vibrissae system and its function, from~\cite{IBARRACASTANEDA2022100034}}
+        \end{figure}
     \end{frame}
 
-    \subsection{Robotic Whisker Sensors}
-    \begin{frame}{Robotic Whisker Sensors}
-        - different types of robotic whisker sensors
+    \subsection{Motivation}
+    \begin{frame}{Introduction}{Motivation}
+        Prominent Whisker Sensor Use Cases according to~\cite{s22072705}:
+        \begin{itemize}
+            \item Biomimetic tactile: prosthetic feedback via impedance sensing.
+            \item Robotic spatial sensing: 3D object localization and environmental mapping.
+            \item Surface texture analysis: mapping surface details through whisking data.
+            \item Navigation in dark: autonomous whisking for low-light environments.
+            \item Underwater sensing: flow detection and vortex vibration control.
+        \end{itemize}
     \end{frame}
 
 
     \section{Related Work}
-    \begin{frame}{Similar Work}
-        - overview of the related work
+
+    \begin{frame}[c]{Related Work}{Robotic Whisker Sensors}
+        \begin{itemize}
+            \item Strain gauge: bending \to strain detection.
+            \item Magnetic (Hall): bending \to magnetic shift.
+            \item Optical: deflection \to light variation.
+        \end{itemize}
+        \begin{figure}[H]
+            \centering
+            \includegraphics[height=0.5\textheight]{figures/optical-whisker}
+            \caption{Picture of the 3D printed sea lion head with integrated optical whiskers, from \cite{optical-whisker}}
+        \end{figure}
+    \end{frame}
+
+    \begin{frame}
+        A frame with a magnetic whisker sensor in it.
     \end{frame}
 
 
@@ -60,7 +85,6 @@
     \subsection{Single Whisker Sensor}
 
     \begin{frame}[c]{Magnetically Transduced Whisker Sensor}
-        \centering
         \begin{columns}[c,onlytextwidth]
             \column{0.3\textwidth}
             \centering
@@ -84,14 +108,41 @@
     }
 
     \begin{frame}{Magnetic Sensor}
+        \begin{columns}[T,onlytextwidth]
+            \begin{column}[T]{0.6\textwidth}
+                \begin{minipage}[c][.8\textheight][c]{\linewidth}
+                    \begin{itemize}
+                        \item MLX90393 sensor is placed underneath the magnet glued to the suspension.
+                        \item Configured for measuring magnetic flux changes with a resolution of \(0.15 \mu T/LSB\).
+                        \item The sensor uses I2C communication protocol, acting as a slave.
+                        \item If multiple sensors are used, they are connected in a daisy chain.
+                    \end{itemize}
+                \end{minipage}
+            \end{column}
+            \begin{column}[T]{0.4\textwidth}
+                \begin{figure}[H]
+                    \centering
+                    \includegraphics[width=0.7\textwidth]{figures/mlx90393}
+                    \caption{MLX90393 sensor}
+                \end{figure}
+                \vskip-0.5cm
+                \begin{figure}[H]
+                    \centering
+                    \includegraphics[width=0.7\textwidth]{figures/i2c}
+                    \caption{I2C communication}
+                \end{figure}
+            \end{column}
+        \end{columns}
     \end{frame}
 
     \subsection{Whisker Sensor Array}
 
     \begin{frame}{Whisker Platform}
+        \textbf{<The CAD drawing of the parts goes here>}
+
         \begin{figure}[ht]
             \centering
-            \includegraphics[width=0.8\textheight]{figures/platform}
+            \includegraphics[width=0.6\textheight]{figures/platform}
             \caption{Three whisker attached to the left side and robotic arm mounted at the top}
         \end{figure}
     \end{frame}
@@ -142,6 +193,7 @@
         \end{columns}
     \end{frame}
 
+    \subsection{Body Motion}
     \begin{frame}{Body Motion}{Control Algorithm}
         \begin{algorithm}[H]
             \caption{Steer the Platform to Target Position and Orientation}
@@ -385,11 +437,42 @@
     \end{frame}
 
     \subsection{Tunneling Policy}
-    \begin{frame}{Swiping Policy Algorithm}
-        - code
+    \begin{frame}{Swiping Policy}{Control Algorithm}
+        \begin{algorithm}[H]
+            \caption{Tunneling Policy Control}
+            \begin{algorithmic}[1]
+                \State \(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, r}}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{r, body}} + \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{r}}^{t}) \cdot \mathrm{r.defl\_model}(\delta_{\mathrm{r}}^{t})\)
+                \State \(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, l}}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{l, body}} + \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{l}}^{t}) \cdot \mathrm{l.defl\_model}(\delta_{\mathrm{l}}^{t})\)
+                \State \(\mathrm{midpoint\_spline.add\_keypoint}\big((\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, r}}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, l}}^{t}) / 2\big)\)
+                \State If not \(\mathrm{midpoint\_spline.has\_enough\_points}\) Then Return \(\;^{\mathrm{w}}\boldsymbol{v}^{t}\), \(\;^{\mathrm{w}}\omega^{t}\) End If
+                \State
+                \State \(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t} \gets \mathrm{midpoint\_spline}(u\mathord{=}1) - \mathrm{midpoint\_spline}(u\mathord{=}0)\)
+                \State \(\;^{\mathrm{w}}\boldsymbol{n}_{\mathrm{spline}}^{t} \gets \boldsymbol{R}_{xy}^{2}(\pi/2 \cdot orient_\mathrm{r}^t)\cdot\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t}\)
+                \State \(\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t} \gets \mathrm{arctan2}(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t})\)
+                \State \(\mathrm{pull_{total}} \gets \mathrm{clip}\big(\frac{\delta_{\mathrm{r}}^{t} - \delta_{\mathrm{r, target}}}{\delta_{\mathrm{r, target}}} - \frac{\delta_{\mathrm{l}}^{t} - \delta_{\mathrm{l, target}}}{\delta_{\mathrm{l, target}}},\mathrm{\min}\mathord{=}-1, \mathrm{\max}\mathord{=}1\big)\)
+                \State \(\;^{\mathrm{w}}\boldsymbol{r}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t+1} + \;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t} + \mathrm{pull_{total}}/2 \cdot \;^{\mathrm{w}}\boldsymbol{n}_{\mathrm{spline}}^{t}\)
+                \State \((\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1}) \gets steer\_body(\;^{\mathrm{w}}\boldsymbol{r}^{t+1},\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t})\)
+                \State Return \(\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1}\)
+            \end{algorithmic}
+        \end{algorithm}
     \end{frame}
-    \begin{frame}{Swiping Policy Experiments}
-        - 2-3 examples
+    \begin{frame}{Tunneling Policy}{Simulation Results}
+        \begin{figure}[htb]
+            \centering
+            \includegraphics[width=0.7\textwidth]{figures/experiments/smooth-tunnel-swiping-tunneling}
+        \end{figure}
+    \end{frame}
+    \begin{frame}{Tunneling Policy}{Simulation Results}
+        \begin{figure}[htb]
+            \centering
+            \includegraphics[width=0.7\textwidth]{figures/experiments/zigzag-tunnel-swiping-tunneling}
+        \end{figure}
+    \end{frame}
+    \begin{frame}{Tunneling Policy}{Simulation Results}
+        \begin{figure}[htb]
+            \centering
+            \includegraphics[width=0.7\textwidth]{figures/experiments/round-tunnel-swiping-tunneling}
+        \end{figure}
     \end{frame}
 
     \subsection{Governing Policy}
@@ -430,14 +513,46 @@
 
     \section{Future Work}
     \begin{frame}{Future Work}
-        - testing on a real robotic arm (Franka Panda)
-        - SLAM
+        \begin{itemize}
+            \item Testing of the whisker control system with the Franka Emika Panda robotic arm
+            \item Addition of more whiskers to each side of the platform
+            \item Active exploration of unstructured environments
+            \item SLAM for navigation in cluttered environments
+            \item Integration of the whiskers into the robotic rat
+        \end{itemize}
     \end{frame}
 
 
     \section{Conclusion}
     \begin{frame}{Conclusion}
-        - summary of the work
+        \begin{columns}[T,onlytextwidth]
+            \begin{column}[T]{0.6\textwidth}
+                \begin{minipage}[c][.8\textheight][c]{\linewidth}
+                    \begin{enumerate}
+                        \item A \textbf{whisker array platform} for active tactile exploration was designed and assembled
+                        \item Control algorithms were implemented for:
+                        \begin{itemize}
+                            \item Contour reconstruction
+                            \item \textbf{Object retrieval}
+                            \item \textbf{Navigation in tunnels}
+                        \end{itemize}
+                        \item A \textbf{test framework with physics simulation} was developed for the whisker control system
+                        \item A \textbf{system infrastructure} was developed for real-time sensor data visualization and evaluation
+                    \end{enumerate}
+                \end{minipage}
+            \end{column}
+            \begin{column}[T]{0.4\textwidth}
+                \begin{figure}[H]
+                    \centering
+                    \includegraphics[width=0.7\textwidth]{figures/platform-two-whiskers}
+                \end{figure}
+                \vskip-0.5cm
+                \begin{figure}[H]
+                    \centering
+                    \includegraphics[width=0.7\textwidth]{figures/platform-in-tunnel}
+                \end{figure}
+            \end{column}
+        \end{columns}
     \end{frame}
 
 
