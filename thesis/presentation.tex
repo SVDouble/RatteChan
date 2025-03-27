@@ -47,9 +47,9 @@
         \end{figure}
     \end{frame}
 
-    \subsection{Motivation}
-    \begin{frame}{Introduction}{Motivation}
-        Prominent Whisker Sensor Use Cases according to~\cite{s22072705}:
+    \subsection{Whisker Sensor Applications}
+    \begin{frame}{Introduction}{Whisker Sensor Applications}
+        Prominent applications according to~\cite{s22072705}:
         \begin{itemize}
             \item Biomimetic tactile: prosthetic feedback via impedance sensing.
             \item Robotic spatial sensing: 3D object localization and environmental mapping.
@@ -59,10 +59,8 @@
         \end{itemize}
     \end{frame}
 
-
-    \section{Related Work}
-
-    \begin{frame}[c]{Related Work}{Robotic Whisker Sensors}
+    \subsection{Robotic Whisker Sensors}
+    \begin{frame}[c]{Introduction}{Robotic Whisker Sensors}
         \begin{itemize}
             \item Strain gauge: bending \to strain detection.
             \item Magnetic (Hall): bending \to magnetic shift.
@@ -75,8 +73,55 @@
         \end{figure}
     \end{frame}
 
+    \subsection{Problem Statement}
+    \begin{frame}[c]{Problem Statement}
+        \begin{columns}[T,onlytextwidth]
+            \begin{column}[T]{0.4\textwidth}
+                \only<1-3>{
+                    \textbf{Goals:}
+                    \begin{itemize}
+                        \item Full contour capture
+                        \item Precise contour reconstruction
+                        \item Navigation in tunnels
+                    \end{itemize}
+                }
+                \only<2-3>{
+                    \textbf{Assumptions:}
+                    \begin{itemize}
+                        \item Navigation and reconstruction in 2D
+                        \item Rigid stationary objects
+                        \item Contact at the tip
+                        \item Known whisker base position
+                    \end{itemize}
+                }
+            \end{column}
+            \only<3>{
+                \begin{column}[T]{0.2\textwidth}
+                    \begin{minipage}[c][.8\textheight][c]{\linewidth}
+                        \tikz[baseline=-\baselineskip]\draw[ultra thick,->] (0,0) -- ++ (2,0);
+                    \end{minipage}
+                \end{column}
+                \begin{column}[T]{0.4\textwidth}
+                    \begin{minipage}[c][.8\textheight][c]{\linewidth}
+                        \textbf{Policies:}
+                        \begin{itemize}
+                            \item Swiping Policy
+                            \item Retrieval Policy
+                            \item Tunneling Policy
+                            \item Governing Policy
+                        \end{itemize}
+                    \end{minipage}
+                \end{column}
+            }
+        \end{columns}
+    \end{frame}
+
+
+    \section{Related Work}
+
     \begin{frame}
         A frame with a magnetic whisker sensor in it.
+        \alert{TODO}
     \end{frame}
 
 
@@ -85,6 +130,7 @@
     \subsection{Single Whisker Sensor}
 
     \begin{frame}[c]{Magnetically Transduced Whisker Sensor}
+        % TODO: add a magnet picture
         \begin{columns}[c,onlytextwidth]
             \column{0.3\textwidth}
             \centering
@@ -123,7 +169,7 @@
                 \begin{figure}[H]
                     \centering
                     \includegraphics[width=0.7\textwidth]{figures/mlx90393}
-                    \caption{MLX90393 sensor}
+                    \caption{Adafruit MLX90393 sensor}
                 \end{figure}
                 \vskip-0.5cm
                 \begin{figure}[H]
@@ -138,7 +184,8 @@
     \subsection{Whisker Sensor Array}
 
     \begin{frame}{Whisker Platform}
-        \textbf{<The CAD drawing of the parts goes here>}
+        <The CAD drawing of the parts goes here>
+        \alert{TODO}
 
         \begin{figure}[ht]
             \centering
@@ -150,57 +197,29 @@
 
     \section{Control Algorithms: Theory and Practice}
 
-    \subsection{Problem Statement}
-    \begin{frame}[c]{Problem Statement}
-        \begin{columns}[T,onlytextwidth]
-            \begin{column}[T]{0.4\textwidth}
-                \only<1-3>{
-                    \textbf{Goals:}
-                    \begin{itemize}
-                        \item Capturing of the whole object
-                        \item Precise contour reconstruction
-                        \item Navigation in cluttered environments
-                    \end{itemize}
-                }
-                \only<2-3>{
-                    \textbf{Assumptions:}
-                    \begin{itemize}
-                        \item Navigation and reconstruction in 2D
-                        \item Rigid stationary objects
-                        \item Contact at the tip
-                        \item Known platform position
-                    \end{itemize}
-                }
-            \end{column}
-            \only<3>{
-                \begin{column}[T]{0.2\textwidth}
-                    \begin{minipage}[c][.8\textheight][c]{\linewidth}
-                        \tikz[baseline=-\baselineskip]\draw[ultra thick,->] (0,0) -- ++ (2,0);
-                    \end{minipage}
-                \end{column}
-                \begin{column}[T]{0.4\textwidth}
-                    \begin{minipage}[c][.8\textheight][c]{\linewidth}
-                        \textbf{Policies:}
-                        \begin{itemize}
-                            \item Swiping Policy
-                            \item Retrieval Policy
-                            \item Tunneling Policy
-                            \item Governing Policy
-                        \end{itemize}
-                    \end{minipage}
-                \end{column}
-            }
-        \end{columns}
+    \subsection{Body Motion}
+    \begin{frame}{Body Motion}{Control Variables}
+        \textbf{Control Inputs:}
+        \begin{itemize}
+            \item \(^{\mathrm{w}}\boldsymbol{r}^{t}\) -- platform position (world frame).
+            \item \(^{\mathrm{w}}\alpha^{t}\) -- platform orientation (world frame).
+            \item \(\delta_{\mathrm{wsk,i}}^{t}\) -- deflection of the whiskers for i
+        \end{itemize}
+
+        \textbf{Control Outputs:}
+        \begin{itemize}
+            \item \(^{\mathrm{w}}\boldsymbol{v}^{t}\) -- platform velocity (world frame).
+            \item \(^{\mathrm{w}}\omega^{t}\) -- platform angular velocity (world frame).
+        \end{itemize}
     \end{frame}
 
-    \subsection{Body Motion}
     \begin{frame}{Body Motion}{Control Algorithm}
         \begin{algorithm}[H]
             \caption{Steer the Platform to Target Position and Orientation}
             \begin{algorithmic}[1]
                 \State Require \(^{\mathrm{w}}\boldsymbol{r}^{t+1}\), \(\;^{\mathrm{w}}\alpha^{t+1}\)
                 \State \(^{\mathrm{w}}\omega^{t+1} \gets \mathrm{PID}(\;^{\mathrm{w}}\alpha^{t+1} - \;^{\mathrm{w}}\alpha^{t})\)
-                \State \(^{\mathrm{w}}\boldsymbol{v}^{t+1} \gets v_{\mathrm{total}} \cdot \dfrac{^{\mathrm{w}}\boldsymbol{r}^{t+1}}{\|^{\mathrm{w}}\boldsymbol{r}^{t+1}\|}\)
+                \State \(^{\mathrm{w}}\boldsymbol{v}^{t+1} \gets v_{\mathrm{total}} \cdot \dfrac{\;^{\mathrm{w}}\boldsymbol{r}^{t+1} - \;^{\mathrm{w}}\boldsymbol{r}^{t}}{\|^{\mathrm{w}}\boldsymbol{r}^{t+1} - \;^{\mathrm{w}}\boldsymbol{r}^{t}\|}\)
                 \State Return \(^{\mathrm{w}}\boldsymbol{v}^{t+1}\), \(^{\mathrm{w}}\omega^{t+1}\)
             \end{algorithmic}
             \label{alg:steer_platform}
@@ -234,7 +253,7 @@
                     \State
                     \State \(\;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip}}^{t} \gets \mathrm{wsk.defl\_model}(\delta_{\mathrm{wsk}}^{t})\)
                     \State \(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip}}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk, body}} + \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{wsk}}^{t}) \cdot \;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip}}^{t}\)
-                    \State \(\mathrm{wsk.spline.add\_keypoint}(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip}}^{t})\)
+                    \State \colorbox{yellow!40}{\(\mathrm{wsk.spline.add\_keypoint}(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip}}^{t})\)}
                     \State If not \(\mathrm{wsk.spline.has\_enough\_points()}\)
                     Then
                     \State \quad Return \(\;^{\mathrm{w}}\boldsymbol{v}^{t}\), \(\;^{\mathrm{w}}\omega^{t}\)
@@ -244,12 +263,12 @@
                 {
                     \setcounter{ALG@line}{10}
                     \State \(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t} \gets \dfrac{\mathrm{wsk.spline}(u\mathord{=}u_{k1}) - \mathrm{wsk.spline}(u\mathord{=}u_{k0})}{\|\mathrm{wsk.spline}(u\mathord{=}u_{k1}) - \mathrm{wsk.spline}(u\mathord{=}u_{k0})\|}\)
-                    \State \(\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t} \gets \mathrm{arctan2}(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t})\)
+                    \State \colorbox{cyan!40}{\(\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t} \gets \mathrm{arctan2}(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t})\)}
                     \State \(\;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip, target}}^{t} \gets \mathrm{wsk.defl\_model}\big(\delta_{\mathrm{wsk, target}} \cdot \operatorname{sgn}(\delta_{\mathrm{wsk}}^{t})\big)\)
                     \State \(\Delta\boldsymbol{r}_{tip}^{t} \gets \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{wsk}}^{t}) \cdot (\;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip, target}}^{t} - \;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip}}^{t})\)
                     \State \(\;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip, neutral}} \gets \mathrm{wsk.defl\_model}(0)\)
                     \State \(w_{\mathrm{defl}}^{t} \gets \dfrac{\|\Delta\boldsymbol{r}_{\mathrm{tip}}^{t}\|}{\|\;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip, target}}^{t} - \;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip, neutral}}\|}\)
-                    \State \(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t+1} \gets \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t} + w_{\mathrm{defl}}^{t} \cdot \dfrac{-\Delta\boldsymbol{r}_{\mathrm{tip}}^{t}}{\|\Delta\boldsymbol{r}_{\mathrm{tip}}^{t}\|} + (1 - w_{\mathrm{defl}}^{t}) \cdot \dfrac{\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t}}{\|\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t}\|}\)
+                    \State \colorbox{green!40}{\(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t+1} \gets \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t} + w_{\mathrm{defl}}^{t} \cdot \dfrac{-\Delta\boldsymbol{r}_{\mathrm{tip}}^{t}}{\|\Delta\boldsymbol{r}_{\mathrm{tip}}^{t}\|} + (1 - w_{\mathrm{defl}}^{t}) \cdot \dfrac{\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t}}{\|\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t}\|}\)}
                     \State \((\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1}) \gets \mathrm{steer\_wsk}(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t+1},\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t})\)
                     \State Return \(\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1}\)
                 }
@@ -351,7 +370,7 @@
                     \centering
                     \captionsetup{justification=centering}
                     \includegraphics[width=\textwidth]{figures/retrieval/retrieval}
-                    \caption{\textbf{(1.1) Retrieval}\\Whisker has retrieved the contact.}
+                    \caption{\textbf{\alert{TODO} (1.1) Retrieval}\\Whisker has retrieved the contact.}
                 \end{figure}
 
             \end{column}
@@ -443,14 +462,14 @@
             \begin{algorithmic}[1]
                 \State \(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, r}}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{r, body}} + \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{r}}^{t}) \cdot \mathrm{r.defl\_model}(\delta_{\mathrm{r}}^{t})\)
                 \State \(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, l}}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{l, body}} + \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{l}}^{t}) \cdot \mathrm{l.defl\_model}(\delta_{\mathrm{l}}^{t})\)
-                \State \(\mathrm{midpoint\_spline.add\_keypoint}\big((\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, r}}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, l}}^{t}) / 2\big)\)
+                \State \colorbox{yellow!40}{\(\mathrm{midpoint\_spline.add\_keypoint}\big((\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, r}}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, l}}^{t}) / 2\big)\)}
                 \State If not \(\mathrm{midpoint\_spline.has\_enough\_points}\) Then Return \(\;^{\mathrm{w}}\boldsymbol{v}^{t}\), \(\;^{\mathrm{w}}\omega^{t}\) End If
                 \State
                 \State \(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t} \gets \mathrm{midpoint\_spline}(u\mathord{=}1) - \mathrm{midpoint\_spline}(u\mathord{=}0)\)
                 \State \(\;^{\mathrm{w}}\boldsymbol{n}_{\mathrm{spline}}^{t} \gets \boldsymbol{R}_{xy}^{2}(\pi/2 \cdot orient_\mathrm{r}^t)\cdot\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t}\)
-                \State \(\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t} \gets \mathrm{arctan2}(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t})\)
+                \State \colorbox{cyan!40}{\(\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t} \gets \mathrm{arctan2}(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t})\)}
                 \State \(\mathrm{pull_{total}} \gets \mathrm{clip}\big(\frac{\delta_{\mathrm{r}}^{t} - \delta_{\mathrm{r, target}}}{\delta_{\mathrm{r, target}}} - \frac{\delta_{\mathrm{l}}^{t} - \delta_{\mathrm{l, target}}}{\delta_{\mathrm{l, target}}},\mathrm{\min}\mathord{=}-1, \mathrm{\max}\mathord{=}1\big)\)
-                \State \(\;^{\mathrm{w}}\boldsymbol{r}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t+1} + \;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t} + \mathrm{pull_{total}}/2 \cdot \;^{\mathrm{w}}\boldsymbol{n}_{\mathrm{spline}}^{t}\)
+                \State \colorbox{green!40}{\(\;^{\mathrm{w}}\boldsymbol{r}^{t+1} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t} + \mathrm{pull_{total}}/2 \cdot \;^{\mathrm{w}}\boldsymbol{n}_{\mathrm{spline}}^{t}\)}
                 \State \((\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1}) \gets steer\_body(\;^{\mathrm{w}}\boldsymbol{r}^{t+1},\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t})\)
                 \State Return \(\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1}\)
             \end{algorithmic}
