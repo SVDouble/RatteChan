@@ -10,6 +10,7 @@
 
 \usepackage{algorithm}
 \usepackage{algorithmicx}
+\usetikzlibrary{patterns}
 
 %\setbeameroption{show notes}
 
@@ -27,6 +28,9 @@
 \AIRbeamerSetupHeader{\AIRlayoutHeaderCustomChair}
 \AIRbeamerSetupFooterCD
 
+\setbeamerfont{caption}{size=\scriptsize}
+\captionsetup{font=scriptsize,labelfont=scriptsize}
+
 \begin{document}
     \AIRbeamerTitlePageStudentThesis
     \AIRbeamerSetFooterText{\AIRutilsDate{28}{03}{2025}}
@@ -38,12 +42,45 @@
 
     \section{Introduction}
 
+    \begin{frame}{What the Thesis Title Means}
+        \begin{enumerate}
+            \item \textbf{Whisker-Inspired Sensory Array}
+            \begin{itemize}
+                \item Biomimetic tactile sensor
+                \item Whisker-like
+                \item In an array
+                \item Passive sensing
+            \end{itemize}
+            \item \textbf{Active Tactile Exploration}
+            \begin{itemize}
+                \item Control loop
+                \item Inputs are tactile data
+                \item Exploration task
+            \end{itemize}
+        \end{enumerate}
+        \textbf{Summarized:} The goal is to build a whisker-like tactile sensor array and control it to explore the environment actively.
+    \end{frame}
+
     \subsection{Whisker Anatomy}
     \begin{frame}{Introduction}{Whisker Anatomy}
         \begin{figure}[htb]
             \centering
             \includegraphics[width=\textwidth]{figures/whisker-anatomy}
             \caption{Representation of the vibrissae system and its function, from~\cite{IBARRACASTANEDA2022100034}}
+        \end{figure}
+    \end{frame}
+
+    \subsection{Robotic Whisker Sensors}
+    \begin{frame}{Introduction}{Robotic Whisker Sensors}
+        \begin{itemize}
+            \item Strain gauge: bending \to strain detection.
+            \item Magnetic (Hall): bending \to magnetic shift.
+            \item Optical: deflection \to light variation.
+        \end{itemize}
+        \begin{figure}[H]
+            \centering
+            \includegraphics[height=0.5\textheight]{figures/optical-whisker}
+            \caption{Picture of the 3D printed sea lion head with integrated optical whiskers, from \cite{optical-whisker}}
         \end{figure}
     \end{frame}
 
@@ -59,69 +96,46 @@
         \end{itemize}
     \end{frame}
 
-    \subsection{Robotic Whisker Sensors}
-    \begin{frame}[c]{Introduction}{Robotic Whisker Sensors}
-        \begin{itemize}
-            \item Strain gauge: bending \to strain detection.
-            \item Magnetic (Hall): bending \to magnetic shift.
-            \item Optical: deflection \to light variation.
-        \end{itemize}
-        \begin{figure}[H]
-            \centering
-            \includegraphics[height=0.5\textheight]{figures/optical-whisker}
-            \caption{Picture of the 3D printed sea lion head with integrated optical whiskers, from \cite{optical-whisker}}
-        \end{figure}
-    \end{frame}
-
-    \subsection{Problem Statement}
-    \begin{frame}[c]{Problem Statement}
-        \begin{columns}[T,onlytextwidth]
-            \begin{column}[T]{0.4\textwidth}
-                \only<1-3>{
-                    \textbf{Goals:}
-                    \begin{itemize}
-                        \item Full contour capture
-                        \item Precise contour reconstruction
-                        \item Navigation in tunnels
-                    \end{itemize}
-                }
-                \only<2-3>{
-                    \textbf{Assumptions:}
-                    \begin{itemize}
-                        \item Navigation and reconstruction in 2D
-                        \item Rigid stationary objects
-                        \item Contact at the tip
-                        \item Known whisker base position
-                    \end{itemize}
-                }
-            \end{column}
-            \only<3>{
-                \begin{column}[T]{0.2\textwidth}
-                    \begin{minipage}[c][.8\textheight][c]{\linewidth}
-                        \tikz[baseline=-\baselineskip]\draw[ultra thick,->] (0,0) -- ++ (2,0);
-                    \end{minipage}
-                \end{column}
-                \begin{column}[T]{0.4\textwidth}
-                    \begin{minipage}[c][.8\textheight][c]{\linewidth}
-                        \textbf{Policies:}
-                        \begin{itemize}
-                            \item Swiping Policy
-                            \item Retrieval Policy
-                            \item Tunneling Policy
-                            \item Governing Policy
-                        \end{itemize}
-                    \end{minipage}
-                \end{column}
-            }
-        \end{columns}
-    \end{frame}
-
 
     \section{Related Work}
 
-    \begin{frame}
-        A frame with a magnetic whisker sensor in it.
-        \alert{TODO}
+    \begin{frame}[c]{Related Work}{3D Mapping of Underground Mining Environments}
+        \begin{columns}[T,onlytextwidth]
+            \begin{column}[T]{0.48\textwidth}
+                \begin{figure}[H]
+                    \centering
+                    \includegraphics[width=\textwidth]{figures/related-works-1-prototype}
+                    \caption{Whisker disk prototype. (a) The sensor comprises a circular array of 32 whiskers. (b) Detailed section view of a single whisker sensor, from~\cite{biomimetics9020083}}
+                \end{figure}
+            \end{column}
+            \begin{column}[T]{0.48\textwidth}
+                \begin{figure}[H]
+                    \centering
+                    \includegraphics[width=\textwidth]{figures/related-works-1-results}
+                    \caption{Environment reconstruction from the 3D-mapping experiment, from ~\cite{biomimetics9020083}}
+                \end{figure}
+            \end{column}
+        \end{columns}
+    \end{frame}
+
+    \begin{frame}[c]{Related Work}{Active Multiobject Exploration}
+        \textbf{Whisker sensors per se are passive sensors. \to Active control is required.}\\
+        \begin{columns}[T,onlytextwidth]
+            \begin{column}[T]{0.48\textwidth}
+                \begin{figure}[H]
+                    \centering
+                    \includegraphics[width=\textwidth]{figures/related-works-2-prototype}
+                    \caption{Robot is using the tactile feedback from our developed whisker sensor to localize, and recognize the objects found during exploration, from~\cite{Xiao_2022}}
+                \end{figure}
+            \end{column}
+            \begin{column}[T]{0.48\textwidth}
+                \begin{figure}[H]
+                    \centering
+                    \includegraphics[width=\textwidth]{figures/related-works-2-results}
+                    \caption{Results of active tactile exploration in real experiments., from~\cite{Xiao_2022}}
+                \end{figure}
+            \end{column}
+        \end{columns}
     \end{frame}
 
 
@@ -129,7 +143,7 @@
 
     \subsection{Single Whisker Sensor}
 
-    \begin{frame}[c]{Magnetically Transduced Whisker Sensor}
+    \begin{frame}[c]{Hardware}{Magnetically Transduced Whisker Sensor}
         % TODO: add a magnet picture
         \begin{columns}[c,onlytextwidth]
             \column{0.3\textwidth}
@@ -153,28 +167,26 @@
         \item The suspension hooks are designed to allow screwing in the whiskers into the whisker mount.
     }
 
-    \begin{frame}{Magnetic Sensor}
+    \begin{frame}{Hardware}{Magnetically Transduced Whisker Sensor}
         \begin{columns}[T,onlytextwidth]
-            \begin{column}[T]{0.6\textwidth}
-                \begin{minipage}[c][.8\textheight][c]{\linewidth}
-                    \begin{itemize}
-                        \item MLX90393 sensor is placed underneath the magnet glued to the suspension.
-                        \item Configured for measuring magnetic flux changes with a resolution of \(0.15 \mu T/LSB\).
-                        \item The sensor uses I2C communication protocol, acting as a slave.
-                        \item If multiple sensors are used, they are connected in a daisy chain.
-                    \end{itemize}
-                \end{minipage}
-            \end{column}
             \begin{column}[T]{0.4\textwidth}
+                \begin{itemize}
+                    \item MLX90393 sensor is placed underneath the magnet glued to the suspension.
+                    \item Configured for measuring magnetic flux changes with a resolution of \(0.15 \mu T/LSB\).
+                    \item The sensor uses I2C communication protocol, acting as a slave.
+                    \item If multiple sensors are used, they are connected in a daisy chain.
+                \end{itemize}
+            \end{column}
+            \begin{column}[T]{0.6\textwidth}
                 \begin{figure}[H]
                     \centering
-                    \includegraphics[width=0.7\textwidth]{figures/mlx90393}
+                    \includegraphics[height=0.3\textheight]{figures/mlx90393}
                     \caption{Adafruit MLX90393 sensor}
                 \end{figure}
                 \vskip-0.5cm
                 \begin{figure}[H]
                     \centering
-                    \includegraphics[width=0.7\textwidth]{figures/i2c}
+                    \includegraphics[height=0.3\textheight]{figures/i2c}
                     \caption{I2C communication}
                 \end{figure}
             \end{column}
@@ -182,20 +194,68 @@
     \end{frame}
 
     \subsection{Whisker Sensor Array}
+    \begin{frame}[c]{Hardware}{Whisker Platform}
+        \begin{column}[T]{0.5\textwidth}
+            \begin{figure}[H]
+                \centering
+                \includegraphics[height=0.7\textheight]{figures/platform-sketch}
+                \caption{Platform sketch from below.}
+            \end{figure}
+        \end{column}
+        \begin{column}[T]{0.5\textwidth}
+            \begin{figure}[H]
+                \centering
+                \includegraphics[height=0.7\textheight]{figures/platform-cad}
+                \caption{Platform CAD model.}
+            \end{figure}
+        \end{column}
+    \end{frame}
 
-    \begin{frame}{Whisker Platform}
-        <The CAD drawing of the parts goes here>
-        \alert{TODO}
-
-        \begin{figure}[ht]
+    \begin{frame}{Hardware}{Whisker Platform}
+        \begin{figure}[H]
             \centering
-            \includegraphics[width=0.6\textheight]{figures/platform}
-            \caption{Three whisker attached to the left side and robotic arm mounted at the top}
+            \includegraphics[width=1\textwidth]{figures/platform}
+            \caption{3D-printed platform. Three whisker attached to the left side and robotic arm mounted at the top.}
         \end{figure}
     \end{frame}
 
 
     \section{Control Algorithms: Theory and Practice}
+
+    \subsection{Problem Statement}
+    \begin{frame}{Problem Statement}
+        \begin{columns}[T,onlytextwidth]
+            \begin{column}[T]{0.4\textwidth}
+                \textbf{Goals:}
+                \begin{itemize}
+                    \item Full contour capture
+                    \item Precise contour reconstruction
+                    \item Navigation in tunnels
+                \end{itemize}
+                \textbf{Assumptions:}
+                \begin{itemize}
+                    \item Navigation and reconstruction in 2D
+                    \item Rigid stationary objects
+                    \item Contact at the tip
+                    \item Known whisker base position
+                \end{itemize}
+            \end{column}
+            \only<2>{
+                \begin{column}[T]{0.2\textwidth}
+                    \tikz[baseline=-\baselineskip]\draw[ultra thick,->] (0,0) -- ++ (2,0);
+                \end{column}
+                \begin{column}[T]{0.4\textwidth}
+                    \textbf{Policies:}
+                    \begin{itemize}
+                        \item Swiping Policy
+                        \item Retrieval Policy
+                        \item Tunneling Policy
+                        \item Governing Policy
+                    \end{itemize}
+                \end{column}
+            }
+        \end{columns}
+    \end{frame}
 
     \subsection{Body Motion}
     \begin{frame}{Body Motion}{Control Variables}
@@ -309,25 +369,23 @@
             \end{column}
         \end{columns}
     \end{frame}
-    \begin{frame}[c]{Retrieval Policy}{Angle Resolution}
+    \begin{frame}{Retrieval Policy}{Angle Resolution}
         \begin{columns}[T,onlytextwidth]
-            \begin{column}[T]{0.48\textwidth}
-                \begin{minipage}[c][.8\textheight][c]{\linewidth}
+            \begin{column}[T]{0.4\textwidth}
+                \begin{enumerate}
+                    \item \textbf{Angle Resolution}
                     \begin{enumerate}
-                        \item \textbf{Angle Resolution}
-                        \begin{enumerate}
-                            \item Construct a circle of potential contact points
-                            \item Move to the first candidate point
-                            \item Move sequentially from one candidate point to another until the contact is established
-                            \item Calculate the edge angle
-                        \end{enumerate}
+                        \item Construct a circle of potential contact points
+                        \item Move to the first candidate point
+                        \item Move sequentially from one candidate point to another until the contact is established
+                        \item Calculate the edge angle
                     \end{enumerate}
-                \end{minipage}
+                \end{enumerate}
             \end{column}
-            \begin{column}[T]{0.48\textwidth}
+            \begin{column}[T]{0.6\textwidth}
                 \begin{figure}[H]
                     \centering
-                    \begin{tikzpicture}[scale=2]
+                    \begin{tikzpicture}[scale=3]
                         \coordinate (E) at (0,0);
                         \coordinate (X) at (2,0);
                         \coordinate (Y) at ({2*cos(30)},{2*sin(30)});
@@ -338,15 +396,17 @@
                         \coordinate (B) at ({cos(135) - 2*cos(135 - 90 + 20)}, {sin(135) - 2*sin(135 - 90 + 20)});
 
                         \draw [blue, dotted] (E) circle (1);
-                        \draw (E) -- (X);
-                        \draw (E) -- (Y);
+                        \draw [pattern=north east lines] (X) -- (E) -- (Y);
                         \draw [green] (B) -- (W);
                         \draw [blue, dashed] (E) -- (Yp);
                         \draw [blue, dashed] (W) -- (T);
 
                         % Mark the 30° angle at vertex B.
                         \draw (0.5,0) arc (0:30:0.5);
-                        \node at (0.8,0.15) {$\beta$};
+                        \node [above, yshift=5mm] at (0.8,0.15) {$\beta$};
+
+                        % Mark the platform movement.
+                        \draw[-{Stealth[red]}] (2,-0.5) -- (0,-0.5);
 
                         % Label the points.
                         \fill (X) circle (1pt) node[below right] {$X$};
@@ -358,7 +418,8 @@
                         \fill (T) circle (1pt) node[above left] {$T$};
 
                     \end{tikzpicture}
-                    \caption{Angle Resolution at Edge E \\Black $[XE]$, $[EY]$ \textemdash{} object surface,\\Green $[BW]$ \textemdash{} the whisker,\\Blue $[EY']$ \textemdash{} the potential adjacent surface of the edge and its tangent $[WT]$,\\Blue circle \textemdash{} the targeted contact points.}
+                    \captionsetup{justification=centering}
+                    \caption{Angle Resolution at Edge E \\Black $[XE]$, $[EY]$ \textemdash{} object surface,\\Green $[BW]$ \textemdash{} the whisker.}
                 \end{figure}
             \end{column}
         \end{columns}
@@ -384,7 +445,7 @@
             \end{column}
         \end{columns}
     \end{frame}
-    \begin{frame}[c]{Retrieval Policy}{Whisking and Transition to Swiping}
+    \begin{frame}{Retrieval Policy}{Whisking and Transition to Swiping}
         \begin{enumerate}
             \setcounter{enumi}{1}
             \item \textbf{Whisking Back to the Edge}
@@ -405,6 +466,7 @@
             \begin{column}[T]{0.48\textwidth}
                 \begin{figure}[H]
                     \centering
+                    \captionsetup{justification=centering}
                     \includegraphics[width=\textwidth]{figures/retrieval/whisking}
                     \caption{\textbf{(2) Whisking}\\Moving back along the opposite side of the edge.}
                 \end{figure}
@@ -412,6 +474,7 @@
             \begin{column}[T]{0.48\textwidth}
                 \begin{figure}[H]
                     \centering
+                    \captionsetup{justification=centering}
                     \includegraphics[width=\textwidth]{figures/retrieval/repositioning}
                     \caption{\textbf{(3.1) Repositioning}\\Assuming an optimal position for approach.}
                 \end{figure}
@@ -423,6 +486,7 @@
             \begin{column}[T]{0.48\textwidth}
                 \begin{figure}[H]
                     \centering
+                    \captionsetup{justification=centering}
                     \includegraphics[width=\textwidth]{figures/retrieval/approach}
                     \caption{\textbf{(3.2) Approach}\\Moving towards the object.}
                 \end{figure}
@@ -430,6 +494,7 @@
             \begin{column}[T]{0.48\textwidth}
                 \begin{figure}[H]
                     \centering
+                    \captionsetup{justification=centering}
                     \includegraphics[width=\textwidth]{figures/retrieval/trajectory}
                     \caption{\textbf{(3.3) Transition to Swiping}\\Transferring control to the Swiping Policy.}
                 \end{figure}
@@ -546,29 +611,31 @@
     \begin{frame}{Conclusion}
         \begin{columns}[T,onlytextwidth]
             \begin{column}[T]{0.6\textwidth}
-                \begin{minipage}[c][.8\textheight][c]{\linewidth}
-                    \begin{enumerate}
-                        \item A \textbf{whisker array platform} for active tactile exploration was designed and assembled
-                        \item Control algorithms were implemented for:
-                        \begin{itemize}
-                            \item Contour reconstruction
-                            \item \textbf{Object retrieval}
-                            \item \textbf{Navigation in tunnels}
-                        \end{itemize}
-                        \item A \textbf{test framework with physics simulation} was developed for the whisker control system
-                        \item A \textbf{system infrastructure} was developed for real-time sensor data visualization and evaluation
-                    \end{enumerate}
-                \end{minipage}
+                \begin{enumerate}
+                    \item A \textbf{whisker array platform} for active tactile exploration was designed and assembled
+                    \item Control algorithms were implemented for:
+                    \begin{itemize}
+                        \item Contour reconstruction
+                        \item \textbf{Object retrieval}
+                        \item \textbf{Navigation in tunnels}
+                    \end{itemize}
+                    \item A \textbf{test framework with physics simulation} was developed for the whisker control system
+                    \item A \textbf{system infrastructure} was developed for real-time sensor data visualization and evaluation
+                \end{enumerate}
             \end{column}
             \begin{column}[T]{0.4\textwidth}
                 \begin{figure}[H]
                     \centering
+                    \captionsetup{justification=centering}
                     \includegraphics[width=0.7\textwidth]{figures/platform-two-whiskers}
+                    \caption{Platform with left and right whiskers}
                 \end{figure}
-                \vskip-0.5cm
+                \vskip-1cm
                 \begin{figure}[H]
                     \centering
+                    \captionsetup{justification=centering}
                     \includegraphics[width=0.7\textwidth]{figures/platform-in-tunnel}
+                    \caption{Simulation: platform navigating in a tunnel}
                 \end{figure}
             \end{column}
         \end{columns}
