@@ -42,26 +42,6 @@
 
     \section{Introduction}
 
-    \begin{frame}{What the Thesis Title Means}
-        \begin{enumerate}
-            \item \textbf{Whisker-Inspired Sensory Array}
-            \begin{itemize}
-                \item Biomimetic tactile sensor
-                \item Whisker-like
-                \item In an array
-                \item Passive sensing
-            \end{itemize}
-            \item \textbf{Active Tactile Exploration}
-            \begin{itemize}
-                \item Control loop
-                \item Inputs are tactile data
-                \item Exploration task
-            \end{itemize}
-        \end{enumerate}
-        \textbf{Summarized:} The goal is to build a whisker-like tactile sensor array and control it to explore the environment actively.
-    \end{frame}
-
-    \subsection{Whisker Anatomy}
     \begin{frame}{Introduction}{Whisker Anatomy}
         \begin{figure}[htb]
             \centering
@@ -70,7 +50,6 @@
         \end{figure}
     \end{frame}
 
-    \subsection{Robotic Whisker Sensors}
     \begin{frame}{Introduction}{Robotic Whisker Sensors}
         \begin{itemize}
             \item Strain gauge: bending \to strain detection.
@@ -84,7 +63,6 @@
         \end{figure}
     \end{frame}
 
-    \subsection{Whisker Sensor Applications}
     \begin{frame}{Introduction}{Whisker Sensor Applications}
         Prominent applications according to~\cite{s22072705}:
         \begin{itemize}
@@ -141,8 +119,6 @@
 
     \section{Hardware}
 
-    \subsection{Single Whisker Sensor}
-
     \begin{frame}[c]{Hardware}{Magnetically Transduced Whisker Sensor}
         % TODO: add a magnet picture
         \begin{columns}[c,onlytextwidth]
@@ -193,7 +169,6 @@
         \end{columns}
     \end{frame}
 
-    \subsection{Whisker Sensor Array}
     \begin{frame}[c]{Hardware}{Whisker Platform}
         \begin{column}[T]{0.5\textwidth}
             \begin{figure}[H]
@@ -222,7 +197,6 @@
 
     \section{Control Algorithms: Theory and Practice}
 
-    \subsection{Problem Statement}
     \begin{frame}{Problem Statement}
         \begin{columns}[T,onlytextwidth]
             \begin{column}[T]{0.4\textwidth}
@@ -257,13 +231,12 @@
         \end{columns}
     \end{frame}
 
-    \subsection{Body Motion}
     \begin{frame}{Body Motion}{Control Variables}
         \textbf{Control Inputs:}
         \begin{itemize}
             \item \(^{\mathrm{w}}\boldsymbol{r}^{t}\) -- platform position (world frame).
             \item \(^{\mathrm{w}}\alpha^{t}\) -- platform orientation (world frame).
-            \item \(\delta_{\mathrm{wsk,i}}^{t}\) -- deflection of the whiskers for i
+            \item \(\delta_{\mathrm{wsk,i}}^{t}\) -- deflection of the i-th whisker.
         \end{itemize}
 
         \textbf{Control Outputs:}
@@ -430,8 +403,8 @@
                 \begin{figure}[H]
                     \centering
                     \captionsetup{justification=centering}
-                    \includegraphics[width=\textwidth]{figures/retrieval/retrieval}
-                    \caption{\textbf{\alert{TODO} (1.1) Retrieval}\\Whisker has retrieved the contact.}
+                    \includegraphics[width=\textwidth]{figures/retrieval/mid-retrieval}
+                    \caption{\textbf{(1.1) Rotation}\\Whisker is rotating around the edge.}
                 \end{figure}
 
             \end{column}
@@ -521,7 +494,7 @@
     \end{frame}
 
     \subsection{Tunneling Policy}
-    \begin{frame}{Swiping Policy}{Control Algorithm}
+    \begin{frame}{Tunneling Policy}{Control Algorithm}
         \begin{algorithm}[H]
             \caption{Tunneling Policy Control}
             \begin{algorithmic}[1]
@@ -559,7 +532,6 @@
         \end{figure}
     \end{frame}
 
-    \subsection{Governing Policy}
     \begin{frame}{Governing Policy}{Finite State Machine}
         \begin{figure}[H]
             \centering

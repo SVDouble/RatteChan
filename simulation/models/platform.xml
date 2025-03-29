@@ -141,7 +141,7 @@
             <!-- Hinge joint for rotation -->
             <joint name="body_yaw_w" type="hinge" pos="0 0.072 0" axis="0 0 1" armature="0.02" ref="90"/>
 
-            <camera name="platform_cam" pos="0 0.072 0.5"/>
+            <camera name="platform_cam" pos="0 0.072 0.75"/>
 
             <!-- Whisker attached to the base -->
             <body name="wsk_r0" pos="0.030 0.125 0.01" axisangle="0 0 1 -15">
