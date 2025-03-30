@@ -64,22 +64,17 @@ A summary of these variables is provided in Table~\ref{tab:variables}.
 
 \begin{table}[htb]
     \centering
-    \begin{tabular}{p{1cm} p{2cm} p{3cm} p{8cm}}
+    \begin{tabular}{p{1cm} p{2.2cm} p{3cm} p{7.8cm}}
         \toprule
         \textbf{Name}                                        & \textbf{Values}                                                   & \textbf{Source}                                         & \textbf{Description}                                                                                                        \\
         \midrule
-        \multicolumn{4}{l}{\textbf{Platform Inputs}} \\
+        \multicolumn{4}{l}{\textbf{Control Inputs: Platform}} \\
         \midrule
         \(^{\mathrm{w}}\boldsymbol{r}^{t}\)                  & \(\mathbb{R}^2, [x, y]^\mathrm{T}\)                               & Measured                                                & Radius vector in world coordinates.                                                                                         \\
         \(^{\mathrm{w}}\alpha^{t}\)                          & \(\mathbb{R}\)                                                    & Measured                                                & Yaw angle (orientation) in world coordinates.                                                                               \\
         \(v_{\mathrm{total}}\)                               & \(\mathbb{R}^{+}\)                                                & Configuration                                           & Total platform velocity.                                                                                                    \\
         \midrule
-        \multicolumn{4}{l}{\textbf{Platform Outputs}} \\
-        \midrule
-        \(^{\mathrm{w}}\boldsymbol{v}^{t}\)                  & \(\mathbb{R}^2, [v_x, v_y]^\mathrm{T}\)                           & Controlled                                              & Linear velocity vector in world coordinates.                                                                                \\
-        \(^{\mathrm{w}}\omega^{t}\)                          & \(\mathbb{R}^2\)                                                  & Controlled                                              & Angular velocity (yaw) in world coordinates.                                                                                \\
-        \midrule
-        \multicolumn{4}{l}{\textbf{Whisker Inputs (per whisker)}} \\
+        \multicolumn{4}{l}{\textbf{Control Inputs: Whisker \boldsymbol{$i=\mathrm{l,r}$}}} \\
         \midrule
         \(\delta_{i}^{t}\)                                   & \([-\delta_{\mathrm{i, \mathrm{max}}},\delta_{i, \mathrm{max}}]\) & Measured                                                & Deflection due to contact forces.                                                                                           \\
         \(\alpha_{i}^{t}\)                                   & \(\mathbb{R}\)                                                    & \(^{\mathrm{w}}\alpha^{t} + \alpha_{i, \mathrm{body}}\) & Yaw angle (orientation) of the whisker base in world coordinates.                                                           \\
@@ -89,6 +84,11 @@ A summary of these variables is provided in Table~\ref{tab:variables}.
         \(\delta_{i, \mathrm{target}}\)                      & \([-\delta_{\mathrm{i, max}},\delta_{i, \mathrm{max}}]\)          & Deflection Model                                        & Target deflection value for small reconstruction error.                                                                     \\
         \(\;^{\mathrm{w}}\boldsymbol{r}_{i, \mathrm{body}}\) & \(\mathbb{R}^2\)                                                  & Robot Geometry                                          & Offset from the platform center to the whisker base.                                                                        \\
         \(\alpha_{i, \mathrm{body}}\)                        & \([-\pi,\pi)\)                                                    & Robot Geometry                                          & Angle for whisker placement relative to the platform.                                                                       \\
+        \midrule
+        \multicolumn{4}{l}{\textbf{Control Outputs}} \\
+        \midrule
+        \(^{\mathrm{w}}\boldsymbol{v}^{t}\)                  & \(\mathbb{R}^2, [v_x, v_y]^\mathrm{T}\)                           & --                                                      & Linear velocity vector in world coordinates.                                                                                \\
+        \(^{\mathrm{w}}\omega^{t}\)                          & \(\mathbb{R}\)                                                    & --                                                      & Angular velocity (yaw) in world coordinates.                                                                                \\
         \bottomrule
     \end{tabular}
     \caption{Overview of input and output variables used in the control system.}
@@ -115,7 +115,6 @@ The deflection model is shown in Figure~\ref{fig:deflection_profile}.
 \end{figure}
 
 
-
 \section{Body Motion Control}
 
 Each control policy produces a target position for either the platform body or the whisker, which is then executed by the actuators.
@@ -128,7 +127,7 @@ This transformation compensates for the offset between the whisker and the body 
 
 \begin{algorithm}[htb]
     \caption{Steer the Platform to Target Position and Orientation}
-    \begin{algorithmic}
+    \begin{algorithmic}[1]
         \State Require \(^{\mathrm{w}}\boldsymbol{r}^{t+1}\), \(\;^{\mathrm{w}}\alpha^{t+1}\)
         \State \(^{\mathrm{w}}\omega^{t+1} \gets \mathrm{PID}(\;^{\mathrm{w}}\alpha^{t+1} - \;^{\mathrm{w}}\alpha^{t})\)
         \State \(^{\mathrm{w}}\boldsymbol{v}^{t+1} \gets v_{\mathrm{total}} \cdot \dfrac{^{\mathrm{w}}\boldsymbol{r}^{t+1}}{\|^{\mathrm{w}}\boldsymbol{r}^{t+1}\|}\)
@@ -139,9 +138,9 @@ This transformation compensates for the offset between the whisker and the body 
 
 \begin{algorithm}[htb]
     \caption{Steer Whisker to Target Position and Orientation}
-    \begin{algorithmic}
-        \State Require \(^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t+1}\), \(^{\mathrm{w}}\alpha_{\mathrm{wsk}}^{t+1}\)
-        \State \((^{\mathrm{w}}\boldsymbol{v}^{t+1},\, ^{\mathrm{w}}\omega^{t+1}) \gets \mathrm{steer\_body}(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t+1},\, ^{\mathrm{w}}\alpha_{\mathrm{wsk}}^{t+1})\)
+    \begin{algorithmic}[1]
+        \State Require \(^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t+1}\), \(^{\mathrm{w}}\alpha^{t+1}\)
+        \State \((^{\mathrm{w}}\boldsymbol{v}^{t+1},\, ^{\mathrm{w}}\omega^{t+1}) \gets \mathrm{steer\_body}(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t+1},\, ^{\mathrm{w}}\alpha^{t+1})\)
         \State \(^{\mathrm{w}}\boldsymbol{r}_{\mathrm{corr}} \gets [0,\,0,\,^{\mathrm{w}}\omega^{t+1}] \times \boldsymbol{r}_{\mathrm{wsk, body}}\) \Comment{Correct for whisker offset (pivot shift)}
         \State \(^{\mathrm{w}}\boldsymbol{v}^{t+1} \gets v_{\mathrm{total}} \cdot \dfrac{^{\mathrm{w}}\boldsymbol{v}^{t+1} + \,^{\mathrm{w}}\boldsymbol{r}_{\mathrm{corr}}}{\|^{\mathrm{w}}\boldsymbol{v}^{t+1} + \,^{\mathrm{w}}\boldsymbol{r}_{\mathrm{corr}}\|}\)
         \State Return \(^{\mathrm{w}}\boldsymbol{v}^{t+1}\), \(^{\mathrm{w}}\omega^{t+1}\)
@@ -155,6 +154,7 @@ This transformation compensates for the offset between the whisker and the body 
 The swiping policy aims to produce a smooth motion of the whisker along the object's contour while collecting high-precision shape data.
 To achieve this, the whisker must maintain an optimal deflection profile because the accuracy of the deflection model depends on the current deflection.
 This requires a balance between accurately following the object's curvature and preserving the target deflection.
+The idea is demonstrated in Algorithm~\ref{alg:swiping_policy}.
 For contour following, a B-Spline is used to represent the object's contour by incorporating the latest whisker tip position at each control iteration:
 \[
     r_j = \bigl(x_j,y_j\bigr), \quad j=0,\dots,n-1.
@@ -169,35 +169,36 @@ We parameterize the keypoints uniformly by setting
     u_k = 1 + \frac{k}{n-1}, \quad k=0,1,\dots,n-1.
 \]
 This B-Spline formulation provides a smooth approximation of the object's contour while allowing local control over the curve shape.
-The tangent at the end of the spline is then used to determine the desired whisker orientation.
+The keypoint collection is marked with a yellow background in the algorithm.
+
+The tangent at the end of the spline is then used to determine the desired whisker orientation (see the code highlighted in blue).
 To account for the whisker's deflection, the target whisker base-tip offset is calculated from the deflection model and compared with the desired target deflection.
-The resulting whisker position is derived as a weighted sum of the vector that minimizes the deflection error and the spline tangent.
+The resulting whisker position is derived as a weighted sum of the vector that minimizes the deflection error and ensures the spline following (marked green in code).
 For transient conditions—when the whisker deflection is below a predefined threshold or the spline has not yet been constructed—the swiping policy retains the existing control values.
 
 \begin{algorithm}[htb]
     \caption{Swiping Policy}
-    \begin{algorithmic}
+    \begin{algorithmic}[1]
         \State If \(|\delta_{\mathrm{wsk}}^{t}| < \delta_{\mathrm{wsk, thr}}\) Then \Comment{Check that the whisker touches the object}
         \State \quad Return \(\;^{\mathrm{w}}\boldsymbol{v}^{t}\), \(\;^{\mathrm{w}}\omega^{t}\)
         \State End If
         \State
-        \State \(\;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip}}^{t} \gets \mathrm{wsk.defl\_model}(\delta_{\mathrm{wsk}}^{t})\)
-        \State \(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip}}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk, body}} + \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{wsk}}^{t}) \cdot \;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip}}^{t}\)
-        \State \(\mathrm{wsk.spline.add\_keypoint}(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip}}^{t})\)
+        \State \colorbox{yellow!40}{\(\;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip}}^{t} \gets \mathrm{wsk.defl\_model}(\delta_{\mathrm{wsk}}^{t})\)}
+        \State \colorbox{yellow!40}{\(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip}}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk, body}} + \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{wsk}}^{t}) \cdot \;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip}}^{t}\)}
+        \State \colorbox{yellow!40}{\(\mathrm{wsk.spline.add\_keypoint}(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip}}^{t})\)}
         \State If not \(\mathrm{wsk.spline.has\_enough\_points()}\) Then \Comment{Check that the spline is complete}
         \State \quad Return \(\;^{\mathrm{w}}\boldsymbol{v}^{t}\), \(\;^{\mathrm{w}}\omega^{t}\)
         \State End If
         \State
-        \State \(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t} \gets \dfrac{\mathrm{wsk.spline}(u\mathord{=}u_{k1}) - \mathrm{wsk.spline}(u\mathord{=}u_{k0})}{\|\mathrm{wsk.spline}(u\mathord{=}u_{k1}) - \mathrm{wsk.spline}(u\mathord{=}u_{k0})\|}\) \Comment{Object surface tangent}
-        \State \(\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t} \gets \mathrm{arctan2}(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t})\) \Comment{Object surface angle}
+        \State \colorbox{cyan!40}{\(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t} \gets \dfrac{\mathrm{wsk.spline}(u\mathord{=}u_{k1}) - \mathrm{wsk.spline}(u\mathord{=}u_{k0})}{\|\mathrm{wsk.spline}(u\mathord{=}u_{k1}) - \mathrm{wsk.spline}(u\mathord{=}u_{k0})\|}\)} \Comment{Object surface tangent}
+        \State \colorbox{cyan!40}{\(\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t} \gets \mathrm{arctan2}(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t})\)} \Comment{Object surface angle}
+        \State \colorbox{cyan!40}{\(\;^{\mathrm{w}}\alpha^{t+1} \gets \;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t}\)}
         \State \(\;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip, target}}^{t} \gets \mathrm{wsk.defl\_model}\big(\delta_{\mathrm{wsk, target}} \cdot \operatorname{sgn}(\delta_{\mathrm{wsk}}^{t})\big)\) \Comment{Desired whisker base-tip offset}
-        \State \(\Delta\boldsymbol{r}_{tip}^{t} \gets \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{wsk}}^{t}) \cdot (\;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip, target}}^{t} - \;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip}}^{t})\) \Comment{\((\forall{t} \;^{\mathrm{w}}\boldsymbol{v}^{t+1} \updownarrow \Delta\boldsymbol{r}_{\mathrm{tip}}^{t}) \implies \delta_{\mathrm{wsk}}^{t} \xrightarrow[t \to \infty]{} \delta_{\mathrm{wsk, target}}\) }
+        \State \(\Delta\boldsymbol{r}_{tip}^{t} \gets \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{wsk}}^{t}) \cdot (\;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip, target}} - \;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip}}^{t})\) \Comment{\(\scriptstyle (\forall{t} \;^{\mathrm{w}}\boldsymbol{v}^{t+1} \updownarrow \Delta\boldsymbol{r}_{\mathrm{tip}}^{t}) \implies \delta_{\mathrm{wsk}}^{t} \xrightarrow[t \to \infty]{} \delta_{\mathrm{wsk, target}}\)}
         \State \(\;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip, neutral}} \gets \mathrm{wsk.defl\_model}(0)\) \Comment{Undeformed whisker base-tip offset}
-        \State \(w_{\mathrm{defl}}^{t} \gets \dfrac{\|\Delta\boldsymbol{r}_{\mathrm{tip}}^{t}\|}{\|\;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip, target}}^{t} - \;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip, neutral}}\|}\) \Comment{Balance between following the object curvature...}
-        \State \(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t+1} \gets \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t} + w_{\mathrm{defl}}^{t} \cdot \dfrac{-\Delta\boldsymbol{r}_{\mathrm{tip}}^{t}}{\|\Delta\boldsymbol{r}_{\mathrm{tip}}^{t}\|} + (1 - w_{\mathrm{defl}}^{t}) \cdot \dfrac{\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t}}{\|\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t}\|}\) \Comment{...and maintaining \(\delta_{\mathrm{wsk, target}}\)}
-        \State
-        \State
-        \State \((\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1}) \gets \mathrm{steer\_wsk}(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t+1},\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t})\)
+        \State \colorbox{green!40}{\(w_{\mathrm{defl}}^{t} \gets \dfrac{\|\Delta\boldsymbol{r}_{\mathrm{tip}}^{t}\|}{\|\;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip, target}} - \;^{\mathrm{s}}\boldsymbol{r}_{\mathrm{tip, neutral}}\|}\)}
+        \State \colorbox{green!40}{\(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t+1} \gets \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t} + w_{\mathrm{defl}}^{t} \cdot \dfrac{-\Delta\boldsymbol{r}_{\mathrm{tip}}^{t}}{\|\Delta\boldsymbol{r}_{\mathrm{tip}}^{t}\|} + (1 - w_{\mathrm{defl}}^{t}) \cdot \dfrac{\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t}}{\|\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t}\|}\)} \Comment{Weighted sum}
+        \State \((\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1}) \gets \mathrm{steer\_wsk}(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk}}^{t+1},\;^{\mathrm{w}}\alpha^{t+1}\)
         \State Return \(\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1}\)
     \end{algorithmic}
     \label{alg:swiping_policy}
@@ -261,7 +262,10 @@ The angle resolution strategy operates as follows:
 
         % Mark the 30° angle at vertex B.
         \draw (0.5,0) arc (0:30:0.5);
-        \node at (0.8,0.15) {$\beta$};
+        \node [above, yshift=5mm] at (0.8,0.15) {$\beta$};
+
+        % Mark the platform movement.
+        \draw[-{Stealth[red]}] (2,-0.5) -- (0,-0.5);
 
         % Label the points.
         \fill (X) circle (1pt) node[below right] {$X$};
@@ -292,28 +296,28 @@ Once the new spline is constructed on the opposite side, the control is transfer
 \section{Tunneling Policy}
 
 The tunneling policy ensures that the platform maintains a centered trajectory between two surfaces, which optimizes whisker contact on both sides.
-A midpoint spline is generated by computing keypoints defined as the midpoints between the left and right whisker contacts.
+The idea is demonstrated in Algorithm~\ref{alg:tunneling_policy}.
+A midpoint spline is generated by computing keypoints defined as the midpoints between the left and right whisker contacts (yellow).
 This B-Spline serves as a continuous reference for steering the platform through tunnel-like environments.
+The target angle is determined by the tangent of the midpoint spline (cyan).
+The target position is calculated as current position plus the weighted sum of the spline tangent and deflection “pull“ (green).
+This pull evaluates the difference between the current and target deflections as a ratio for both whiskers and shows, whether the normal movement is needed to correct the deflection.
 
 \begin{algorithm}
     \caption{Tunneling Policy Control}
     \label{alg:tunneling_policy}
-    \begin{algorithmic}
-        \State If \(\delta_{\mathrm{wsk\_left}}^{t} < \delta_{\mathrm{wsk\_left}}^{\mathrm{thr}}\) Or \(\$\delta_{\mathrm{wsk\_right}}^{t} < \delta_{\mathrm{wsk\_right}}^{\mathrm{thr}}\) Then
-        \State \quad Return \(\;^{\mathrm{w}}\boldsymbol{v}^{t}\), \(\;^{\mathrm{w}}\omega^{t}\)
-        \State End If
+    \begin{algorithmic}[1]
+        \State \colorbox{yellow!40}{\(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, r}}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{r, body}} + \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{r}}^{t}) \cdot \mathrm{r.defl\_model}(\delta_{\mathrm{r}}^{t})\)}
+        \State \colorbox{yellow!40}{\(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, l}}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{l, body}} + \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{l}}^{t}) \cdot \mathrm{l.defl\_model}(\delta_{\mathrm{l}}^{t})\)}
+        \State \colorbox{yellow!40}{\(\mathrm{midpoint\_spline.add\_keypoint}\big((\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, r}}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, l}}^{t}) / 2\big)\)}
+        \State If not \(\mathrm{midpoint\_spline.has\_enough\_points}\) Then Return \(\;^{\mathrm{w}}\boldsymbol{v}^{t}\), \(\;^{\mathrm{w}}\omega^{t}\) End If
         \State
-        \State \(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, wsk\_right}}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk\_right, body}} + \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{wsk\_right}}^{t}) \cdot \mathrm{wsk\_right.defl\_model}(\delta_{\mathrm{wsk\_right}}^{t})\)
-        \State \(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, wsk\_left}}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{wsk\_left, body}} + \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{wsk\_left}}^{t}) \cdot \mathrm{wsk\_left.defl\_model}(\delta_{\mathrm{wsk\_left}}^{t})\)
-        \State \(\mathrm{midpoint\_spline.add\_keypoint}\big((\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, wsk\_right}}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, wsk\_left}}^{t}) / 2\big)\)
-        \State If not \(\mathrm{midpoint\_spline.has\_enough\_points()}\) Then
-        \State \quad Return \(\;^{\mathrm{w}}\boldsymbol{v}^{t}\), \(\;^{\mathrm{w}}\omega^{t}\)
-        \State End If
-        \State
-        \State \(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t} \gets \mathrm{midpoint\_spline}(u\mathord{=}1) - \mathrm{midpoint\_spline}(u\mathord{=}0)\)
-        \State \(\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t} \gets \mathrm{arctan2}(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t})\)
-        \State
-        \State \((\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1}) \gets steer\_body(\;^{\mathrm{w}}\boldsymbol{r}^{t+1} + \;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t},\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t})\)
+        \State \colorbox{cyan!40}{\(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t} \gets \mathrm{midpoint\_spline}(u\mathord{=}1) - \mathrm{midpoint\_spline}(u\mathord{=}0)\)}
+        \State \colorbox{cyan!40}{\(\;^{\mathrm{w}}\boldsymbol{n}_{\mathrm{spline}}^{t} \gets \boldsymbol{R}_{xy}^{2}(\pi/2 \cdot orient_\mathrm{r}^t)\cdot\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t}\)}
+        \State \colorbox{cyan!40}{\(\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t} \gets \mathrm{arctan2}(\;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t})\)}
+        \State \colorbox{green!40}{\(\mathrm{pull_{total}} \gets \mathrm{clip}\big(\frac{\delta_{\mathrm{r}}^{t} - \delta_{\mathrm{r, target}}}{\delta_{\mathrm{r, target}}} - \frac{\delta_{\mathrm{l}}^{t} - \delta_{\mathrm{l, target}}}{\delta_{\mathrm{l, target}}},\mathrm{\min}\mathord{=}-1, \mathrm{\max}\mathord{=}1\big)\)}
+        \State \colorbox{green!40}{\(\;^{\mathrm{w}}\boldsymbol{r}^{t+1} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{\tau}_{\mathrm{spline}}^{t} + \mathrm{pull_{total}}/2 \cdot \;^{\mathrm{w}}\boldsymbol{n}_{\mathrm{spline}}^{t}\)}
+        \State \((\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1}) \gets steer\_body(\;^{\mathrm{w}}\boldsymbol{r}^{t+1},\;^{\mathrm{w}}\theta_{\mathrm{spline}}^{t})\)
         \State Return \(\;^{\mathrm{w}}\boldsymbol{v}^{t+1}, \;^{\mathrm{w}}\omega^{t+1}\)
     \end{algorithmic}
 \end{algorithm}

@@ -1,35 +1,36 @@
 % !TeX spellcheck = en_US
 
-
 \chapter{Experimental Setup}
 
-To experimentally validate the proposed policies, we developed a framework, encompassing a simulation, tools to collect metrics and automatic test runner.
-It is based on the Mujoco physics engine, created by Google DeepMind, which provides a realistic simulation of the contact dynamics.
+To validate the proposed policies, we developed a framework comprising a simulation, tools for collecting metrics, and an automatic test runner.
+It is based on the Mujoco physics engine, created by Google DeepMind, which provides a realistic simulation of contact dynamics.
 The project is available on GitHub\footnote{\url{...}}.
 
 
-\section{Swiping Policy}
+\section{Swiping Policy} \label{sec:swiping-policy}
+
 For the swiping policy, a single whisker executes a sweeping motion over the object.
-Performance is quantified by evaluating both the mean absolute error and the standard error in contour reconstruction, with each estimated point $\mathbf{y}_i$ matched to its closest corresponding reference point $\mathbf{x}_i$.
+Performance is quantified by evaluating the mean absolute error and the standard error in contour reconstruction, with each estimated point $\mathbf{y}_i$ matched to its closest reference point $\mathbf{x}_i$.
 
-The estimated contour, $C_{\text{est}} = \{\mathbf{y}_i\}_{i=1}^N$, is the set of points obtained by the whisker.
-A point is included in the contour only if the whisker is deflected beyond a specified threshold.
-The reference contour, $C_{\text{ref}} = \{\mathbf{x}_i\}_{i=1}^N$, consists of points on the object's surface, each being the closest match to the corresponding estimated point.
-This reference contour is derived from high-resolution sampling of the object's surface and serves as the ground truth.
-The absolute error, defined as $d_i = \|\mathbf{x}_i - \mathbf{y}_i\|$, is the Euclidean (2-norm) distance between the reference and estimated points.
+The estimated contour, $C_{\text{est}} = \{\mathbf{y}_i\}_{i=1}^N$, is determined by the control algorithm, which selects points based on whisker deflection and excludes those recorded during the whisking-back phase in retrieval.
+The reference contour, $C_{\text{ref}} = \{\mathbf{x}_i\}_{i=1}^N$, consists of points on the object's surface, each being the closest match to the corresponding estimated point, and is derived from high-resolution sampling to serve as ground truth.
 
-To assess the performance of the swiping policy, we compute the mean absolute error $\bar{d} = \frac{1}{N}\sum_{i=1}^{N} d_i$ and the standard error $\sigma_d = \sqrt{\frac{1}{N-1}\sum_{i=1}^{N} (d_i - \bar{d})^2}$.
+The absolute error is defined as $d_i = \|\mathbf{x}_i - \mathbf{y}_i\|$, which is the Euclidean distance between the reference and estimated points.
+To assess performance, we compute the mean absolute error
+\[
+    \bar{d} = \frac{1}{N}\sum_{i=1}^{N} d_i,
+\]
+and the standard error
+\[
+    \sigma_d = \sqrt{\frac{1}{N-1}\sum_{i=1}^{N} (d_i - \bar{d})^2}.
+\]
 The mean absolute error represents the average distance between the reference and estimated points.
 
-Figures~\ref{fig:experiment-disk-swiping}--\ref{fig:experiment-complex-object-swiping} display the results for various objects.
-For representation of the estimated contours two colors are used: green if the point error differs from the mean by less than the standard error, and red otherwise.
-Which means that red points are the most inaccurate ones, lying in bottom 32 percentile of the error distribution.
+Figures~\ref{fig:experiment-disk-swiping}--\ref{fig:experiment-complex-object-swiping} display results for various objects.
+Estimated contour points are colored green if their error deviates from the mean by less than the standard error, and red otherwise.
+Red points indicate the most inaccurate measurements, corresponding to the worst 32 percentile of the error distribution.
 
 \subsection{Contour Estimation of Disk and Rounded Rectangular Box}
-Figure~\ref{fig:experiment-disk-swiping} shows the contour estimation of a disk with the swiping policy.
-It is the simplest object, and the whisker successfully reconstructs the contour.
-It demonstrates a submillimeter accuracy in contour estimation.
-No prominent red regions are present, the only ones being random faces of the disk (it's not perfectly round, but rather a polygon).
 
 \begin{figure}[htb]
     \centering
@@ -38,8 +39,9 @@ No prominent red regions are present, the only ones being random faces of the di
     \label{fig:experiment-disk-swiping}
 \end{figure}
 
-Figure~\ref{fig:experiment-rounded-rectangular-box-swiping} illustrates the contour estimation of a rounded rectangular box.
-The rectangular box is a more complex object with sharper corners, but it shows a similar level of accuracy and the same mean.
+Figure~\ref{fig:experiment-disk-swiping} shows the contour estimation of a disk using the swiping policy.
+The disk is the simplest object, and the whisker successfully reconstructs its contour with submillimeter accuracy.
+No prominent red regions are observed, except for occasional deviations due to the disk's polygonal approximation.
 
 \begin{figure}[htb]
     \centering
@@ -48,12 +50,10 @@ The rectangular box is a more complex object with sharper corners, but it shows 
     \label{fig:experiment-rounded-rectangular-box-swiping}
 \end{figure}
 
+Figure~\ref{fig:experiment-rounded-rectangular-box-swiping} illustrates the contour estimation of a rounded rectangular box.
+The rounded rectangular box is a more complex object with sharper corners, yet it shows a similar level of accuracy and mean error.
+
 \subsection{Contour Estimation of Complex Object}
-Figure~\ref{fig:experiment-complex-object-swiping} shows the contour estimation of a complex object.
-It has noticable red regions at the inside inflections.
-A the inner angles are not smooth, the platform has to quickly adjust to the surface changes, which leads to a higher error rate.
-At the first moments the whisker becomes too deflected, and the error increases as the deflection model has worse performance outside of the normal operation range.
-The mean error stays at the same level as for disk \ref{fig:experiment-disk-swiping} and rounded rectangular box \ref{fig:experiment-rounded-rectangular-box-swiping}.
 
 \begin{figure}[htb]
     \centering
@@ -63,8 +63,49 @@ The mean error stays at the same level as for disk \ref{fig:experiment-disk-swip
 \end{figure}
 
 
+Figure~\ref{fig:experiment-complex-object-swiping} shows the contour estimation of a complex object.
+Noticeable red regions appear at the inner inflections.
+Since the inner angles are not smooth, the platform must quickly adjust to surface changes, which leads to a higher error rate.
+At the initial moments, the whisker becomes overly deflected, causing the error to increase as the deflection model performs worse outside its normal operating range.
+The mean error remains comparable to that observed for the disk and the rounded rectangular box.
+
+
 \section{Retrieval Policy}
+
 Figures~\ref{fig:experiment-octagon-edges-135deg-swiping-retrieval}--\ref{fig:experiment-wall-edges-90deg-swiping-retrieval} show results for different polygonal objects.
+Let $k_{\mathrm{edge}}$ be the index of an edge point and $k_{\mathrm{retr}}$ the index of its corresponding retrieved point, with the same indexing for both events.
+The following metrics evaluate the retrieval policy:
+\begin{itemize}
+    \item \textbf{Mean absolute error:} $\bar{d} = \frac{1}{N}\sum_{i=1}^{N} d_i$, discussed in \cref{sec:swiping-policy}.
+    \item \textbf{Mean retrieval radius:} $\bar{r} = \frac{1}{N}\sum_{j=1}^{N} \|\mathbf{r}_{\mathrm{edge},j} - \mathbf{r}_{\mathrm{retr},j}\|$, where $\mathbf{r}_{\mathrm{edge},j}$ is the $j$th edge point and $\mathbf{r}_{\mathrm{retr},j}$ its corresponding retrieved point.
+    \item \textbf{Mean retrieval distance:} $\bar{d}_{\mathrm{retr}} = \frac{1}{N}\sum_{j=1}^{N}\sum_{i=k_{\mathrm{edge},j}}^{k_{\mathrm{retr},j}-1} \|\mathbf{r}^{t_{i+1}} - \mathbf{r}^{t_i}\|$, which calculates the trajectory length between the time of detachment and the time of retrieval, where $\mathbf{r}^{t}$ denotes the body position at time $t$.
+\end{itemize}
+In the plots, the edge points $\mathbf{r}_{\mathrm{edge}}$ are shown as red crosses, while the retrieved points $\mathbf{r}_{\mathrm{retr}}$ appear as black crosses.
+
+The mean retrieval radius, defined as
+\[
+\bar{r} = \frac{1}{N}\sum_{j=1}^{N} \|\mathbf{r}_{\mathrm{edge},j} - \mathbf{r}_{\mathrm{retr},j}\|,
+\]
+quantifies the proximity of a retrieved point to the edge, which is critical for accurately determining the edge direction.
+A smaller $\bar{r}$ corresponds to a faster and more precise retrieval.
+Ideally, this radius should be less than the distance between the whisker tip in its optimally deflected state (with $\delta=\delta_{\mathrm{target}}$) and its neutral state (with $\delta=0$), which is approximately 3\,cm.
+The control algorithm sets the target mean retrieval radius to 1\,cm; values below 3\,cm are acceptable provided the contact angle remains within the desired range.
+
+The mean retrieval distance, given by
+\[
+\bar{d}_{\mathrm{retr}} = \frac{1}{N}\sum_{j=1}^{N}\sum_{i=k_{\mathrm{edge},j}}^{k_{\mathrm{retr},j}-1} \|\mathbf{r}^{t_{i+1}} - \mathbf{r}^{t_i}\|,
+\]
+measures the length of the trajectory from the time of detachment until the system resumes normal operation after retrieval.
+A longer trajectory indicates more unnecessary movement, reducing the efficiency of the retrieval policy.
+Note that for large, flat contact angles the whisker's overshoot may increase $\bar{r}$, even if the backward motion is not required to establish optimal contact.
+
+The retrieval performance for the octagon with 135\degree{} edges is presented in Figure~\ref{fig:experiment-octagon-edges-135deg-swiping-retrieval}.
+This object, with its high number of edges, demands a stable retrieval policy.
+The octagon exhibits a mean reconstruction error of $1.1\,\text{mm} \pm 0.8\,\text{mm}$, comparable to the performance observed with the swiping policy.
+It also has a mean retrieval radius of $20.9\,\text{mm} \pm 1.7\,\text{mm}$, which is about one quarter of the whisker length.
+This radius is higher than the target of 1\,cm because fine adjustment of the whisker's position is unnecessary in this case.
+The low relative standard deviation indicates high reproducibility.
+The retrieval policy was triggered 8 times in total.
 
 \begin{figure}[htb]
     \centering
@@ -72,18 +113,44 @@ Figures~\ref{fig:experiment-octagon-edges-135deg-swiping-retrieval}--\ref{fig:ex
     \caption{Contour Estimation of Octagon (Edges at 135°) With Swiping and Retrieval Policy}
     \label{fig:experiment-octagon-edges-135deg-swiping-retrieval}
 \end{figure}
+
+The retrieval on a box with 90\degree{} edges is shown in Figure~\ref{fig:experiment-box-edges-90deg-swiping-retrieval}.
+The box’s sharper edges present a greater challenge for the whisker.
+It achieves a mean reconstruction error of $0.7\,\text{mm} \pm 0.4\,\text{mm}$, demonstrating good performance.
+It also has a mean retrieval radius of $11.2\,\text{mm} \pm 1.9\,\text{mm}$, which is close to the 1\,cm target while preserving retrieval consistency.
+
 \begin{figure}[htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/experiments/box-edges-90deg-swiping-retrieval}
     \caption{Contour Estimation of Box (Edges at 90°) With Swiping and Retrieval Policy}
     \label{fig:experiment-box-edges-90deg-swiping-retrieval}
 \end{figure}
+
+The performance on a prism with 60\degree{} edges is illustrated in Figure~\ref{fig:experiment-prism-edges-60deg-swiping-retrieval}.
+The prism yields a mean reconstruction error of $0.8\,\text{mm} \pm 0.6\,\text{mm}$, in line with the swiping policy.
+It also has a mean retrieval radius of $8.8\,\text{mm} \pm 0.6\,\text{mm}$, approaching the target value.
+However, an inflation in the trajectory is observed at the retrieved edges.
+This is likely due to the transition between the undeflected and deflected states.
+Such overshoot—especially when the whisker contacts the edge away from its tip—is necessary to accelerate deflection compensation during subsequent swiping.
+It also helps minimize the platform’s rocking in the normal direction.
+A more sophisticated deflection model that accounts for contact along the whisker shaft could potentially mitigate this effect.
+
 \begin{figure}[htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/experiments/prism-edges-60deg-swiping-retrieval}
     \caption{Contour Estimation of Prism (Edges at 60°) With Swiping and Retrieval Policy}
     \label{fig:experiment-prism-edges-60deg-swiping-retrieval}
 \end{figure}
+
+The wall experiment with 90\degree{} edges is presented in Figure~\ref{fig:experiment-wall-edges-90deg-swiping-retrieval}.
+This scenario is challenging because the wall’s width is only 1\,cm, matching the target retrieval radius.
+Nonetheless, the system achieves a mean retrieval radius of $10.2\,\text{mm} \pm 0.7\,\text{mm}$, nearly meeting the target.
+This performance is partly due to the wall’s precise 1\,cm width, which limits the possibility of contacts farther away.
+Video recordings confirm that the whisker tip is well-aligned and contacts the opposite edge accurately.
+If the wall were about 25\% shorter, the policy could still handle it through deflection at the whisker’s shaft, provided the side length remains above a critical threshold.
+Conversely, when the target radius is doubled, the platform executes a 180° turn to reach the edge, effectively rendering the wall undetectable.
+In this case, the mean reconstruction error is $1.1\,\text{mm} \pm 0.6\,\text{mm}$, consistent with the performance of the swiping policy.
+
 \begin{figure}[htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/experiments/wall-edges-90deg-swiping-retrieval}

@@ -13,14 +13,14 @@ The structure of a single whisker sensor is shown in \cref{fig:whisker_composite
         \centering
         \includegraphics[height=0.2\textheight]{figures/whisker}
         \caption{Whisker mounted on the suspension} \label{fig:whisker}
-    \end{subfigure}%
-    \hspace*{\fill}   % maximize separation between the subfigures
+    \end{subfigure}
+    \hspace*{\fill}
     \begin{subfigure}{0.31\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figures/suspension}
         \caption{Suspension Design} \label{fig:suspension}
-    \end{subfigure}%
-    \hspace*{\fill}   % maximizeseparation between the subfigures
+    \end{subfigure}
+    \hspace*{\fill}
     \begin{subfigure}{0.31\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figures/whisker-dims}
@@ -40,6 +40,7 @@ The whisker shaft is first glued to the suspension system.
 A neodymium permanent magnet, axially magnetized with its field direction aligned with the wire, is placed underneath.
 The suspension hooks are designed to allow screwing in the whiskers into the whisker mount.
 
+
 \section{Whisker Platform}
 
 A whisker platform was developed integrate multiple whisker sensors simultaneously.
@@ -48,6 +49,24 @@ The platform has a size of 90 mm x 60 mm x 35 mm and is 3D printed using PLA pla
 Six whiskers are attached at a 3D-printed PLA-platform, 3 per each side, as shown in \cref{fig:whisker_platform}.
 Additionally, a mount for the Franke Panda robotic arm was designed to allow the whisker platform to be moved and rotated.
 
+
+\begin{figure}[ht]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth} % adjust width as needed
+        \centering
+        \includegraphics[height=0.3\textheight]{figures/platform-cad} % fill subfigure width
+        \caption{Platform CAD model.}
+    \end{subfigure}
+    \hfill % adds horizontal spacing
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[height=0.3\textheight]{figures/platform-sketch}
+        \caption{Platform sketch from below.}
+    \end{subfigure}
+    \caption{Overall caption for both images.}
+    \label{fig:platform}
+\end{figure}
+
 \begin{figure}[ht]
     \centering
     \includegraphics[width=0.8\textheight]{figures/platform}
@@ -55,6 +74,26 @@ Additionally, a mount for the Franke Panda robotic arm was designed to allow the
     \label{fig:whisker_platform}
 \end{figure}
 
+
 \section{Data Acquisition}
-...
+
+\begin{itemize}
+    \item MLX90393 sensor is placed underneath the magnet glued to the suspension.
+    \item Configured for measuring magnetic flux changes with a resolution of \(0.15 \mu T/LSB\).
+    \item The sensor uses I2C communication protocol, acting as a slave.
+    \item If multiple sensors are used, they are connected in a daisy chain.
+\end{itemize}
+
+\begin{figure}[htb]
+    \centering
+    \includegraphics[height=0.3\textheight]{figures/mlx90393}
+    \caption{Adafruit MLX90393 sensor}
+\end{figure}
+\vskip-0.5cm
+\begin{figure}[htb]
+    \centering
+    \includegraphics[height=0.3\textheight]{figures/i2c}
+    \caption{I2C communication}
+\end{figure}
+
 
