@@ -12,7 +12,7 @@
     </option>
   </component>
   <component name="PlatformIOWorkspace" PROJECT_DIR="$PROJECT_DIR$" />
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.13 virtualenv at ~/Projects/Ratte/RatteChan/.venv" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.13 virtualenv at ~/Projects/Ratte/RatteChan/ratte/.venv" project-jdk-type="Python SDK" />
   <component name="PythonCompatibilityInspectionAdvertiser">
     <option name="version" value="3" />
   </component>

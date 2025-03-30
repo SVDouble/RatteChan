@@ -183,28 +183,28 @@ services:
     logging: *default-logging
 
   ## SENSOR SERVICES
-#  controller:
-#    build:
-#      context: controller-rpi
-#      dockerfile: Dockerfile
-#    container_name: "controller-rpi"
-#    networks:
-#      - rattechan_core
-#    environment:
-#      - MQTT_BROKER=mosquitto
-#      - MQTT_TOPIC=ratte/data
-#    volumes:
-#      - /dev/gpiomem0:/dev/gpiomem0
-#    labels:
-#      - "traefik.enable=true"
-#      - 'traefik.docker.network=secretum_proxy'
-#      - "traefik.http.routers.app.entrypoints=http"
-#      - "traefik.http.routers.app.rule=Host(`${SERVER_NAME}`) && PathPrefix(`/app`)"
-#      - 'traefik.http.routers.app.middlewares=no-auth-secured@file'
-#      - "traefik.http.services.app.loadbalancer.server.port=8000"
-#      - "traefik.http.middlewares.app.stripprefix.prefixes=/app"
-#    restart: 'unless-stopped'
-#    privileged: true
+  sensors:
+    build:
+      context: ratte
+      dockerfile: Dockerfile
+    container_name: "ratte-sensors"
+    networks:
+      - rattechan_core
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_TOPIC=ratte/data
+    volumes:
+      - /dev/gpiomem0:/dev/gpiomem0
+    labels:
+      - "traefik.enable=true"
+      - 'traefik.docker.network=secretum_proxy'
+      - "traefik.http.routers.app.entrypoints=http"
+      - "traefik.http.routers.app.rule=Host(`${SERVER_NAME}`) && PathPrefix(`/app`)"
+      - 'traefik.http.routers.app.middlewares=no-auth-secured@file'
+      - "traefik.http.services.app.loadbalancer.server.port=8000"
+      - "traefik.http.middlewares.app.stripprefix.prefixes=/app"
+    restart: 'unless-stopped'
+    privileged: true
 
 
 volumes:
