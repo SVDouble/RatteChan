@@ -1,0 +1,18 @@
+flowchart TD
+    A["Start Experiment"] --> B["Initialize Model & Config"]
+    B --> C["Enter Control Loop"]
+    C --> D["Receive Sensor Data (Simulation /<br>Sensors Over MQTT)"]
+    D --> E["Preprocess Data"]
+    E --> H["Select and Evaluate Control Policy"]
+    H --> J["Swiping Policy"]
+    H --> K["Tunneling Policy"]
+    H --> L["Retrieval Policy"]
+    J --> M["Generate Control Message"]
+    K --> M
+    L --> M
+    M --> N["Send Control Message (Simulation /<br>Sensors Over MQTT)"]
+    N --> O["Update System State"]
+    O --> P["Monitor & Render"]
+    P --> Q{"Stop Criteria Met?"}
+    Q -- No --> C
+    Q -- Yes --> R["Summarize Results & End Experiment"]

@@ -1,0 +1,79 @@
+classDiagram
+    class PID {
+      +compute()
+    }
+    class MotionController {
+      +steerBody()
+      +steerWhisker()
+      +idle()
+    }
+    class AnomalyDetector {
+      +detectAnomalies()
+    }
+    class SplineCurve {
+      +addPoint()
+      +reset()
+      +stabilize()
+      +evaluate()
+    }
+    class Controller {
+      +control()
+      +updateTrajectories()
+      +explorationPolicy()
+      +swipingPolicy()
+      +whiskingPolicy()
+      +reattachmentPolicy()
+      +tunnelingPolicy()
+    }
+    class SensorData {
+      +time
+      +body
+      +whiskers
+      +fromMujocoData()
+    }
+    class BodyData {
+      +x
+      +y
+      +z
+      +yaw
+      +getPosition()
+    }
+    class WhiskerData {
+      +deflection
+      +config
+      +bodyReference
+      +isDeflected()
+      +getTipPosition()
+      +getOrientation()
+    }
+    class Motion {
+      +currentData
+      +previousData
+      +getDeltaTime()
+      +getBodyMotion()
+      +forWhisker()
+    }
+    class WhiskerMotion {
+      +bodyMotion
+      +currentWhisker
+      +previousWhisker
+      +getTipDelta()
+      +getTipVelocity()
+      +getTipDrift()
+    }
+    class ControlMessage {
+      +bodyVx
+      +bodyVy
+      +bodyOmega
+    }
+
+    PID <|-- MotionController
+    MotionController --> ControlMessage
+    AnomalyDetector --> Controller
+    SplineCurve --> Controller
+    SensorData o-- BodyData
+    SensorData o-- WhiskerData
+    SensorData --> Motion
+    Motion --> WhiskerMotion
+    MotionController --> Controller
+    Controller --> ControlMessage
