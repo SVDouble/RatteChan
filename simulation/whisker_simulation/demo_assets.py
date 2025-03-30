@@ -521,7 +521,7 @@ def generate_smooth_tunnel_model(output: Path):
     )
 
 
-def generate_zigzag_tunnel(run=0.25, d=0.225, num_segments=6, zig_angle_deg=20, zag_angle_deg=-20):
+def generate_zigzag_tunnel(run=0.25, d=0.225, num_segments=6, zig_angle_deg=30, zag_angle_deg=-30):
     angles_rad = np.radians([zig_angle_deg, zag_angle_deg])
     points = [np.array([0.0, 0.0])]
     current_angle = 0.0

@@ -1,5 +1,6 @@
 % !TeX spellcheck = en_US
 
+
 \chapter{Experimental Setup}
 
 To validate the proposed policies, we developed a framework comprising a simulation, tools for collecting metrics, and an automatic test runner.
@@ -32,42 +33,45 @@ Red points indicate the most inaccurate measurements, corresponding to the worst
 
 \subsection{Contour Estimation of Disk and Rounded Rectangular Box}
 
-\begin{figure}[htb]
+Figure~\ref{fig:experiment-disk-swiping} shows the contour estimation of a disk using the swiping policy.
+The disk is the simplest object, the mean reconstruction error is $0.8\,\text{mm} \pm 0.5\,\text{mm}$, indicating a high level of accuracy.
+No prominent red regions are observed, except for occasional deviations due to the disk's polygonal approximation at the entry point.
+
+\begin{figure}[!htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/experiments/disk-swiping}
     \caption{Contour Estimation of Disk With Swiping Policy}
     \label{fig:experiment-disk-swiping}
 \end{figure}
 
-Figure~\ref{fig:experiment-disk-swiping} shows the contour estimation of a disk using the swiping policy.
-The disk is the simplest object, and the whisker successfully reconstructs its contour with submillimeter accuracy.
-No prominent red regions are observed, except for occasional deviations due to the disk's polygonal approximation.
+Figure~\ref{fig:experiment-rounded-rectangular-box-swiping} illustrates the contour estimation of a rounded rectangular box.
+The rounded rectangular box is a more complex object with sharper corners, yet it shows a similar level of accuracy and mean error.
+The mean reconstruction error is $0.8\,\text{mm} \pm 0.6\,\text{mm}$, with a single red region after the first corner.
 
-\begin{figure}[htb]
+\begin{figure}[!htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/experiments/rounded-rectangular-box-swiping}
     \caption{Contour Estimation of Rounded Rectangular Box With Swiping Policy}
     \label{fig:experiment-rounded-rectangular-box-swiping}
 \end{figure}
 
-Figure~\ref{fig:experiment-rounded-rectangular-box-swiping} illustrates the contour estimation of a rounded rectangular box.
-The rounded rectangular box is a more complex object with sharper corners, yet it shows a similar level of accuracy and mean error.
-
 \subsection{Contour Estimation of Complex Object}
-
-\begin{figure}[htb]
-    \centering
-    \includegraphics[width=0.8\textwidth]{figures/experiments/complex-object-swiping}
-    \caption{Contour Estimation of Complex Object With Swiping Policy}
-    \label{fig:experiment-complex-object-swiping}
-\end{figure}
-
 
 Figure~\ref{fig:experiment-complex-object-swiping} shows the contour estimation of a complex object.
 Noticeable red regions appear at the inner inflections.
 Since the inner angles are not smooth, the platform must quickly adjust to surface changes, which leads to a higher error rate.
 At the initial moments, the whisker becomes overly deflected, causing the error to increase as the deflection model performs worse outside its normal operating range.
 The mean error remains comparable to that observed for the disk and the rounded rectangular box.
+
+Additionally, the swiping policy can successfully handle a 30\degree{} angle without causing the whisker to detach.
+This angle is near the threshold where whisker detachment occurs and the retrieval policy is triggered.
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/experiments/complex-object-swiping}
+    \caption{Contour Estimation of Complex Object With Swiping Policy}
+    \label{fig:experiment-complex-object-swiping}
+\end{figure}
 
 
 \section{Retrieval Policy}
@@ -78,13 +82,13 @@ The following metrics evaluate the retrieval policy:
 \begin{itemize}
     \item \textbf{Mean absolute error:} $\bar{d} = \frac{1}{N}\sum_{i=1}^{N} d_i$, discussed in \cref{sec:swiping-policy}.
     \item \textbf{Mean retrieval radius:} $\bar{r} = \frac{1}{N}\sum_{j=1}^{N} \|\mathbf{r}_{\mathrm{edge},j} - \mathbf{r}_{\mathrm{retr},j}\|$, where $\mathbf{r}_{\mathrm{edge},j}$ is the $j$th edge point and $\mathbf{r}_{\mathrm{retr},j}$ its corresponding retrieved point.
-    \item \textbf{Mean retrieval distance:} $\bar{d}_{\mathrm{retr}} = \frac{1}{N}\sum_{j=1}^{N}\sum_{i=k_{\mathrm{edge},j}}^{k_{\mathrm{retr},j}-1} \|\mathbf{r}^{t_{i+1}} - \mathbf{r}^{t_i}\|$, which calculates the trajectory length between the time of detachment and the time of retrieval, where $\mathbf{r}^{t}$ denotes the body position at time $t$.
+    \item \textbf{Mean retrieval distance:} $\bar{d}_{\mathrm{retr}} = \frac{1}{N}\sum_{j=1}^{N}\sum_{i=i_{\mathrm{edge}_j}}^{i_{\mathrm{retr}_j}-1} \|\mathbf{r}^{t_{i+1}} - \mathbf{r}^{t_i}\|$, which calculates the trajectory length between the time of detachment and the time of retrieval, where $\mathbf{r}^{t}$ denotes the body position at time $t$.
 \end{itemize}
 In the plots, the edge points $\mathbf{r}_{\mathrm{edge}}$ are shown as red crosses, while the retrieved points $\mathbf{r}_{\mathrm{retr}}$ appear as black crosses.
 
 The mean retrieval radius, defined as
 \[
-\bar{r} = \frac{1}{N}\sum_{j=1}^{N} \|\mathbf{r}_{\mathrm{edge},j} - \mathbf{r}_{\mathrm{retr},j}\|,
+    \bar{r} = \frac{1}{N}\sum_{j=1}^{N} \|\mathbf{r}_{\mathrm{edge},j} - \mathbf{r}_{\mathrm{retr},j}\|,
 \]
 quantifies the proximity of a retrieved point to the edge, which is critical for accurately determining the edge direction.
 A smaller $\bar{r}$ corresponds to a faster and more precise retrieval.
@@ -93,7 +97,7 @@ The control algorithm sets the target mean retrieval radius to 1\,cm; values bel
 
 The mean retrieval distance, given by
 \[
-\bar{d}_{\mathrm{retr}} = \frac{1}{N}\sum_{j=1}^{N}\sum_{i=k_{\mathrm{edge},j}}^{k_{\mathrm{retr},j}-1} \|\mathbf{r}^{t_{i+1}} - \mathbf{r}^{t_i}\|,
+    \bar{d}_{\mathrm{retr}} = \frac{1}{N}\sum_{j=1}^{N}\sum_{i=k_{\mathrm{edge},j}}^{k_{\mathrm{retr},j}-1} \|\mathbf{r}^{t_{i+1}} - \mathbf{r}^{t_i}\|,
 \]
 measures the length of the trajectory from the time of detachment until the system resumes normal operation after retrieval.
 A longer trajectory indicates more unnecessary movement, reducing the efficiency of the retrieval policy.
@@ -107,7 +111,7 @@ This radius is higher than the target of 1\,cm because fine adjustment of the wh
 The low relative standard deviation indicates high reproducibility.
 The retrieval policy was triggered 8 times in total.
 
-\begin{figure}[htb]
+\begin{figure}[!htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/experiments/octagon-edges-135deg-swiping-retrieval}
     \caption{Contour Estimation of Octagon (Edges at 135°) With Swiping and Retrieval Policy}
@@ -119,7 +123,7 @@ The box’s sharper edges present a greater challenge for the whisker.
 It achieves a mean reconstruction error of $0.7\,\text{mm} \pm 0.4\,\text{mm}$, demonstrating good performance.
 It also has a mean retrieval radius of $11.2\,\text{mm} \pm 1.9\,\text{mm}$, which is close to the 1\,cm target while preserving retrieval consistency.
 
-\begin{figure}[htb]
+\begin{figure}[!htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/experiments/box-edges-90deg-swiping-retrieval}
     \caption{Contour Estimation of Box (Edges at 90°) With Swiping and Retrieval Policy}
@@ -135,7 +139,7 @@ Such overshoot—especially when the whisker contacts the edge away from its tip
 It also helps minimize the platform’s rocking in the normal direction.
 A more sophisticated deflection model that accounts for contact along the whisker shaft could potentially mitigate this effect.
 
-\begin{figure}[htb]
+\begin{figure}[!htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/experiments/prism-edges-60deg-swiping-retrieval}
     \caption{Contour Estimation of Prism (Edges at 60°) With Swiping and Retrieval Policy}
@@ -148,10 +152,10 @@ Nonetheless, the system achieves a mean retrieval radius of $10.2\,\text{mm} \pm
 This performance is partly due to the wall’s precise 1\,cm width, which limits the possibility of contacts farther away.
 Video recordings confirm that the whisker tip is well-aligned and contacts the opposite edge accurately.
 If the wall were about 25\% shorter, the policy could still handle it through deflection at the whisker’s shaft, provided the side length remains above a critical threshold.
-Conversely, when the target radius is doubled, the platform executes a 180° turn to reach the edge, effectively rendering the wall undetectable.
+Conversely, when the target radius is doubled, the platform executes a 180\degree{} turn to reach the edge, effectively rendering the wall undetectable.
 In this case, the mean reconstruction error is $1.1\,\text{mm} \pm 0.6\,\text{mm}$, consistent with the performance of the swiping policy.
 
-\begin{figure}[htb]
+\begin{figure}[!htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/experiments/wall-edges-90deg-swiping-retrieval}
     \caption{Contour Estimation of Wall (Edges at 90°) With Swiping and Retrieval Policy}
@@ -160,22 +164,81 @@ In this case, the mean reconstruction error is $1.1\,\text{mm} \pm 0.6\,\text{mm
 
 
 \section{Tunneling Policy}
-A tunneling approach builds on swiping to navigate confined environments.
+A tunneling policy extends the swiping policy to navigate confined environments.
+Its goal is to maintain a centered trajectory in the tunnel to avoid collisions and ensure accurate contour estimation.
+
+For the tunneling policy, we employ the following metrics:
+
+\begin{itemize}
+    \item \textbf{Mean absolute reconstruction error:}
+    \[
+        \bar{d} = \frac{1}{NK}\sum_{i=1}^{N}\sum_{k=1}^{K} d_{i,k},
+    \]
+    where
+    \[
+        d_{i,k} = \|\mathbf{x}_{i,k} - \mathbf{y}_{i,k}\|
+    \]
+    is the distance between the $i$th reference point $\mathbf{x}_{i,k}$ and the corresponding estimated point $\mathbf{y}_{i,k}$ of the $k$th whisker.
+    \item \textbf{Mean absolute axis error:}
+    \[
+        \bar{d}_{\mathrm{axis}} = \frac{1}{N}\sum_{i=1}^{N} d_{\mathrm{axis},i},
+    \]
+    where
+    \[
+        d_{\mathrm{axis},i} = \|\mathbf{a}_i - \mathbf{a}_m\|
+    \]
+    is the distance between the point $\mathbf{a}_i$ on the tunnel axis closest to the $i$th estimated midpoint and the axis $\mathbf{a}_m$, with the estimated midpoint defined as
+    \[
+        \mathbf{m}_i = \frac{\mathbf{x}_{i,\mathrm{l}} + \mathbf{y}_{i,\mathrm{r}}}{2}.
+    \]
+\end{itemize}
+
+The tunnel axis, shown as pink dashed lines in the figures, is defined as the line equidistant from the tunnel walls.
+Thus, the mean absolute axis error quantifies the deviation of the estimated midpoints (marked in black) from the tunnel axis.
+
 Figures~\ref{fig:experiment-smooth-tunnel-swiping-tunneling}--\ref{fig:experiment-round-tunnel-swiping-tunneling} illustrate smooth, zigzag, and round tunnels.
 
-\begin{figure}[htb]
+The smooth tunnel in Figure~\ref{fig:experiment-smooth-tunnel-swiping-tunneling} represents the simplest case.
+The whisker successfully navigates the tunnel while maintaining a centered trajectory.
+The mean absolute reconstruction error is $1.3\,\text{mm} \pm 1.6\,\text{mm}$, and the mean absolute axis error is $4\,\text{mm} \pm 4\,\text{mm}$.
+For reference, the tunnel is approximately 10\,cm wide, and each whisker is 7.5\,cm long.
+The difference between the reconstruction error and the axis error is due to a lag in the midpoint trajectory relative to the tunnel axis.
+This lag occurs because the control system cannot immediately adjust the platform’s position owing to its inertia and the continuously changing tunnel direction.
+Additionally, heightened deflection near the operational limit of the deflection model and a transition effect when the whiskers first contact the tunnel walls contribute to this error.
+
+\begin{figure}[!htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/experiments/smooth-tunnel-swiping-tunneling}
     \caption{Navigation and Contour Estimation of Smooth Tunnel With Swiping and Tunneling Policy}
     \label{fig:experiment-smooth-tunnel-swiping-tunneling}
 \end{figure}
-\begin{figure}[htb]
+
+The zigzag tunnel in Figure~\ref{fig:experiment-zigzag-tunnel-swiping-tunneling}, with angles of $20^\circ$ and $40^\circ$, is more complex due to its sharper corners.
+In this case, the mean absolute reconstruction error is $2\,\text{mm} \pm 2\,\text{mm}$, while the mean absolute axis error increases to $9\,\text{mm} \pm 10\,\text{mm}$.
+This increase is attributed to the difficulty of maintaining a centered trajectory, as the midpoint trajectory deviates from the tunnel axis at the corners.
+Furthermore, the left whisker detaches at the first zigzag, while the right whisker remains in contact with the wall.
+Because the left whisker cannot maintain contact at the sharp angle, the swiping policy is applied to the right whisker until the left whisker re-establishes contact.
+For a short period, the platform’s nose contacts the wall, but it quickly recovers.
+Overall, the performance is satisfactory, as the whiskers navigate the tunnel and accurately estimate the contour.
+For even sharper zigzag angles, the platform may fail to pass through the tunnel if its nose prods a wall, as no recovery policy is implemented for such cases.
+Such failures would be indicated by increased actuator force or a reduction in platform speed, which are not measured in the current setup.
+
+\begin{figure}[!htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/experiments/zigzag-tunnel-swiping-tunneling}
     \caption{Navigation and Contour Estimation of Zigzag Tunnel With Swiping and Tunneling Policy}
     \label{fig:experiment-zigzag-tunnel-swiping-tunneling}
 \end{figure}
-\begin{figure}[htb]
+
+The round tunnel in Figure~\ref{fig:experiment-round-tunnel-swiping-tunneling} tests the endurance of the tunneling policy.
+It involves a longer trajectory and a star-shaped loop.
+A pronounced transition effect is observed at the start, as the whisker adjusts to the tunnel’s curvature and the initial position (marked by black crosses) is not aligned with the tunnel axis.
+Skidding is also noticeable at the sharper curves.
+The performance remains satisfactory, with a mean absolute reconstruction error of $3\,\text{mm} \pm 2\,\text{mm}$ and a mean absolute axis error of $5\,\text{mm} \pm 6\,\text{mm}$.
+The increased reconstruction error is likely due to operating outside the optimal range of the deflection model at the curves.
+This is evident in segments of the tunnel marked in red, where the outer whisker (right, in this case) experiences excessive compression.
+
+\begin{figure}[!htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/experiments/round-tunnel-swiping-tunneling}
     \caption{Navigation and Contour Estimation of Round Tunnel With Swiping and Tunneling Policy}
