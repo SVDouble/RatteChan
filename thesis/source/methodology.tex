@@ -101,20 +101,6 @@ The measured whisker deflection \(\delta_{i}^{t}\) is noisy due to vibrations an
 To reduce this noise, a low-pass Butterworth filter is applied.
 The filter is initially seeded with the neutral deflection and updated with each new measurement.
 
-\subsection{Deflection Model}
-
-A 5th-degree polynomial is fitted to calibration data to model whisker deflection.
-This model mirrors the deflection offset from the neutral position and clips the result based on the whisker's half-circle limit.
-The deflection model is shown in Figure~\ref{fig:deflection_profile}.
-
-\begin{figure}[htb]
-    \centering
-    \includegraphics[width=0.8\textwidth]{figures/deflection_profile}
-    \caption{Deflection Profile Model.}
-    \label{fig:deflection_profile}
-\end{figure}
-
-
 \section{Body Motion Control}
 
 Each control policy produces a target position for either the platform body or the whisker, which is then executed by the actuators.

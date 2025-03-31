@@ -5,13 +5,14 @@
 
 
 \section{Overview}
-The system infrastructure facilitates real-time collection, processing, and visualization of sensor data from whisker sensors.
+The system infrastructure takes care of real-time collection, processing, and visualization of sensor data.
 The architecture comprises three main entities: the whisker platform, the controller, and the actuator.
 The platform provides two I2C buses for reading sensor data, each equipped with three MLX90393 sensors.
-The sensors are connected in a daisy chain via a QUIK connector, enabling solderless connections.
-Theoretically, up to 16 sensors can be connected per bus, but in practice, only three are used, as the development boards are limited to four sensors per bus.
-The controller is a Raspberry Pi 5 that processes sensor data and generates control signals for the actuator.
-Currently, the actuator is simulated; however, it will eventually be replaced by a Franka Emika Panda robotic arm.
+The sensors are connected in a daisy chain via a QUIK connector.
+This allows to avoid the need for soldering.
+Theoretically, up to 16 sensors can be connected per bus, but we are using only three, as the development boards are limited to four sensors per bus.
+As the controller device a Raspberry Pi 5 is chosen, as it has sufficient processing power and is small enough to be mounted on the robotic arm.
+Currently, the actuator is simulated; however, it will eventually be replaced by a robotic arm.
 Figure~\ref{fig:infrastructure_overview} summarizes the system architecture.
 
 \begin{figure}[htb]
@@ -25,7 +26,7 @@ Figure~\ref{fig:infrastructure_overview} summarizes the system architecture.
 \section{Controller}
 The control loop of the system is depicted in Figure~\ref{fig:control-flow}.
 This loop continuously processes sensor data, evaluates control policies, and generates control messages.
-Figure~\ref{fig:control-hierarchy} details the hierarchy of components within the controller.
+Figure~\ref{fig:control-hierarchy} illustrates the hierarchy of components within the controller.
 
 \begin{figure}
     \centering
@@ -39,7 +40,7 @@ Figure~\ref{fig:control-hierarchy} details the hierarchy of components within th
 The simulation framework is used for testing the controller.
 It provides a realistic physics engine environment for validating control algorithms.
 The simulation is based on MuJoCo, a physics engine developed by Google DeepMind.
-The interface looks like this~\cref{fig:mujoco}.
+Figure~\cref{fig:mujoco} shows the simulation interface of MuJoCo.
 
 \begin{figure}
     \centering
@@ -48,18 +49,21 @@ The interface looks like this~\cref{fig:mujoco}.
     \label{fig:mujoco}
 \end{figure}
 
-The simulation framework is designed to be modular, allowing for easy integration of new components and algorithms.
-10 test cases are provided to evaluate the performance of different policies.
-Each test case automatically evaluates and plots the results, like in Figures~\ref{fig:experiment-disk-swiping}--\ref{fig:experiment-round-tunnel-swiping-tunneling}.
-The controller has no dependency on the simulation framework, allowing for easy integration with other systems.
+The simulation framework is designed to be modular, and so the controller has no dependency on the simulation framework.
+That makes possible the integration of new frameworks or sensor data sources and sinks.
+10 test cases are provided to test the performance of 3 different policies.
+For each test case the results are automatically evaluated and plotted, similar to figures~\ref{fig:experiment-disk-swiping}--\ref{fig:experiment-round-tunnel-swiping-tunneling}.
+For each test case an accompanying video is provided, which shows the simulation in action.
+MuJoCo allows to follow, pause and analyze the simulation.
+The simulation is set up in a way that the trajectories of the whisker tips and the platform center of mass are displayed continuously.
+This is a sort of sanity check for the simulation, as the deflection model and tip calculations are error-prone.
 
 
 \section{System Services}
-The overall system is composed of several interconnected services that enable robust real-time data exchange.
-Figure~\ref{fig:data_flow} illustrates the data flow across these services.
-All of those services are running in Docker containers, which allows for easy deployment and management.
-They are orchestrated using Docker Compose, which simplifies the setup and configuration of the entire system.
-It can run on any machine with Docker installed, like Raspberry Pi 5, making it easy to deploy.
+The system is composed of several interconnected services, as illustrated in Figure~\ref{fig:data_flow}.
+All of them are running in Docker containers, as to guarantee a consistent and separate environment across different machines.
+They are orchestrated using Docker Compose, which simplifies the setup and configuration.
+The control system runs on any machine with Docker installed, like Raspberry Pi 5, making it easy to deploy.
 
 \begin{figure}
     \centering
@@ -72,11 +76,12 @@ It can run on any machine with Docker installed, like Raspberry Pi 5, making it 
     \item \textbf{Sensor IO Module:}
     This module reads sensor data from the robot's I2C buses and publishes the data via MQTT.
     It also forwards control commands from the controller to the actuator.
-    Currently, it is embedded in the Raspberry Pi.
+    Currently, the built-in I2C buses of the Raspberry Pi are used for simplicity.
+    But generally speaking, the Sensor IO module can be decoupled from the controller and run on a separate device.
 
     \item \textbf{Controller:}
     The Controller processes sensor data and generates control signals.
-    It also publishes statistics for further monitoring.
+    It also publishes statistics for further monito ring.
 
     \item \textbf{MQTT Broker:}
     Acting as the central messaging hub, the MQTT Broker receives and distributes sensor and control data.
@@ -110,9 +115,9 @@ It can run on any machine with Docker installed, like Raspberry Pi 5, making it 
 
 \section{Dashboard}
 The system dashboard is built using Grafana, a powerful analytics and monitoring platform.
-It provides a web-based interface for visualizing real-time sensor data and control signals.
-Grafana Live with MQTT supports real-time monitoring of system status.
-Figure~\ref{fig:grafana} shows a barebone dashboard displaying magnetic data from six whisker sensors.
+It provides a web-based interface for visualizing sensor data and control signals.
+Grafana Live with MQTT is employed to transmit real-time system status.
+Figure~\ref{fig:grafana} shows a minimalistic dashboard with magnetic data from six whisker sensors sampled in real-time.
 
 
 \begin{figure}[htb]
@@ -130,10 +135,3 @@ The plans for the dashboard include:
     \item System cycle time and overload monitoring
     \item Historical data analysis and trend monitoring.
 \end{itemize}
-
-\subsection{MLX90393 Sensor Drivers}
-Two MLX90393 sensor drivers have been implemented: one in C++ for the ESP32 microcontroller and another in Python for the Raspberry Pi.
-Both drivers provide an API for sensor data acquisition and configuration.
-In continuous reading mode, the sensor operates with a high sampling rate.
-While up to 16 sensors can theoretically be connected per I2C bus, hardware limitations restrict each bus to four sensors.
-This can be overcome by using a custom PCB with chips configured with unique addresses.
