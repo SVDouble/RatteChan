@@ -3,6 +3,10 @@
 
 \chapter{Introduction}
 
+Whisker-inspired tactile sensing represents a promising solution for active perception in robotics, especially in navigating unstructured or visually obscured environments.
+This thesis investigates the potential of biomimetic whisker sensors integrated into a robotic platform to achieve precise reconstruction and autonomous navigation through active tactile perception.
+By leveraging insights from biological whisker systems, we propose novel control strategies and demonstrate their efficacy in simulation and real-world scenarios.
+
 
 \section{Biological Whiskers}
 
@@ -32,11 +36,10 @@ This simplicity, effectiveness, and variability of biological whiskers provide a
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{figures/whisker-anatomy}
-    \caption{Representation of the vibrissae system and its function, from~\cite{IBARRACASTANEDA2022100034}}
+    \caption{Representation of the vibrissae system and its function~\cite{IBARRACASTANEDA2022100034}}
     \label{fig:whisker-anatomy}
 \end{figure}
 
-\pagebreak
 
 \section{Whisker-inspired Tactile Sensors}
 
@@ -69,7 +72,7 @@ The taxonomy of whisker sensors is shown in Figure~\ref{fig:taxonomy}.
 \begin{figure}[htb]
     \centering
     \includegraphics[width=0.65\textheight]{figures/taxonomy}
-    \caption{A taxonomy for whisker-based sensors, from \cite{s22072705}}
+    \caption{A taxonomy for whisker-based sensors\cite{s22072705}}
     \label{fig:taxonomy}
 \end{figure}
 
@@ -194,5 +197,5 @@ The following key contributions are made in this thesis:
     It aims to keep the whiskers in contact with the walls while following the tunnel and avoiding collisions.
     \item We present a new \textbf{whisker sensor array} design using magnetically transduced whiskers, with 3 whiskers on each side of the platform.
     \item Additionally, we prepare a \textbf{simulation framework} for the whisker control system to automate the testing of the control policies.
-    MuJoCo~\cite{todorov2012mujoco} physics simulation framework is used to simulate the whisker sensor and the environment.
+    MuJoCo physics simulation framework is used to simulate the whisker sensor and the environment.
 \end{enumerate}

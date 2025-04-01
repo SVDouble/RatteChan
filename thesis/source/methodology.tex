@@ -35,7 +35,7 @@ The following key requirements were determined for the control model design:
     \item Although multiple objects may be present, the system focuses on a single object at any given time.
 \end{enumerate}
 
-\noindent To meet these requirements, the control algorithm is implemented as an FSM that sequences the following policies:
+\noindent To meet these requirements, the control algorithm is implemented as a FSM that sequences the following policies:
 
 \begin{enumerate}
     \item \textbf{Swiping Policy:} The whisker performs a continuous swiping motion along the object's curve while maintaining an optimal deflection profile.
@@ -101,7 +101,7 @@ A summary of these variables is provided in Table~\ref{tab:variables}.
     \label{tab:variables}
 \end{table}
 
-\subsection{Data Preprocessing}\label{sec:data_preprocessing}
+\section{Data Preprocessing}\label{sec:data_preprocessing}
 
 The measured whisker deflection \(\delta_{i}^{t}\) is noisy due to vibrations and transient disturbances.
 To reduce this noise, a low-pass Butterworth filter is applied.
@@ -162,7 +162,7 @@ We parameterize the keypoints uniformly by setting
     u_k = 1 + \frac{k}{n-1}, \quad k=0,1,\dots,n-1.
 \]
 This B-Spline formulation provides a smooth approximation of the object's contour while allowing local control over the curve shape.
-The keypoint collection is given in Algorithm~\ref{alg:swiping_policy}, lines 5--7 highlighted in yellow.
+The keypoint collection is given in Algorithm~\ref{alg:swiping_policy} (lines 5--7 highlighted in yellow).
 
 The tangent at the end of the spline is then used to determine the desired whisker orientation (see Algorithm~\ref{alg:swiping_policy}, lines 12--14 highlighted in blue).
 To account for the whisker's deflection, the target whisker base-tip offset is calculated from the deflection model and compared with the desired target deflection.
@@ -288,56 +288,56 @@ See Figure~\ref{fig:retrieval-3-1}, ~\ref{fig:retrieval-3-2} and ~\ref{fig:retri
 
 \begin{figure}[htb]
     \centering
-    \begin{subfigure}[b]{0.47\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \captionsetup{justification=centering}
         \includegraphics[width=\textwidth]{figures/retrieval/before}
         \caption{\textbf{Initial situation}\\Swiping along the side of the object.}
         \label{fig:retrieval-0-1}
     \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.47\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \captionsetup{justification=centering}
         \includegraphics[width=\textwidth]{figures/retrieval/disengagement}
         \caption{\textbf{Disengagement}\\Whisker has detached.}
         \label{fig:retrieval-0-2}
     \end{subfigure}
-    \begin{subfigure}[b]{0.47\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \captionsetup{justification=centering}
         \includegraphics[width=\textwidth]{figures/retrieval/mid-retrieval}
         \caption{\textbf{Rotation}\\Whisker is rotating around the edge.}
         \label{fig:retrieval-1-1}
     \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.47\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \captionsetup{justification=centering}
         \includegraphics[width=\textwidth]{figures/retrieval/retrieval}
         \caption{\textbf{Retrieval}\\Whisker has retrieved the contact.}
         \label{fig:retrieval-1-2}
     \end{subfigure}
-    \begin{subfigure}[b]{0.47\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \captionsetup{justification=centering}
         \includegraphics[width=\textwidth]{figures/retrieval/whisking}
         \caption{\textbf{Whisking}\\Moving back along the opposite side of the edge.}
         \label{fig:retrieval-2-1}
     \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.47\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \captionsetup{justification=centering}
         \includegraphics[width=\textwidth]{figures/retrieval/repositioning}
         \caption{\textbf{Repositioning}\\Assuming an optimal position for approach.}
         \label{fig:retrieval-3-1}
     \end{subfigure}
-    \begin{subfigure}[b]{0.47\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \captionsetup{justification=centering}
         \includegraphics[width=\textwidth]{figures/retrieval/approach}
         \caption{\textbf{Approach}\\Moving towards the object.}
         \label{fig:retrieval-3-2}
     \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.47\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \captionsetup{justification=centering}
         \includegraphics[width=\textwidth]{figures/retrieval/trajectory}
@@ -382,7 +382,7 @@ This pull evaluates the difference between the current and target deflections as
 \section{Finite State Machine}
 
 The policies are specialized, and only in combination can the whisker harness their full potential.
-An FSM combines these policies, with each policy represented as a state.
+A FSM combines these policies, with each policy represented as a state.
 Transitions occur when specific events arise, such as ``whisker has come into contact with the surface'' or ``whisker has become disengaged.''
 The state chart of the FSM for the discussed policies is depicted in Figure~\ref{fig:fsm}.
 
@@ -451,21 +451,20 @@ The baseline algorithm from previous work implements the swiping policy as follo
 \end{enumerate}
 The underlying idea is that to track the surface, the whisker deflection profile must remain constant; hence, the platform moves closer to the object when the whisker is too relaxed and moves away when it is too strained.
 
-\subsection{Comparison to Baseline}
+\subsection{Comparison}
 
 The baseline control can be characterized as follows:
-\textbf{Pros:}
 \begin{itemize}
+    \item [\textbf{Pros:}]
     \item The whisker deflection offset is less susceptible to noise due to filtering.
     \item The swiping policy is straightforward and is designed to maintain a constant whisker profile.
 \end{itemize}
 
-\textbf{Cons:}
-
 \begin{itemize}
+    \item [\textbf{Cons:}]
     \item Filtering does not resolve the inherent noise or limitations of an ill-posed deflection model; subtle changes in whisker deflection that may be important for surface reconstruction can be lost.
     \item Maintaining a constant deflection profile ensures surface tracking but does not guarantee complete contour capture.
-    \item The platform's velocity is relatively slow, and sudden changes in the principal direction--due to whisker slippage--can result in a 180° change in the spline direction, potentially causing reverse motion.
+    \item The platform's velocity is relatively slow, and sudden changes in the principal direction--due to whisker slippage--can result in a 180\degree{} change in the spline direction, potentially causing reverse motion.
 \end{itemize}
 
 The following steps are possible to rectify the shortcomings of the baseline algorithm:
