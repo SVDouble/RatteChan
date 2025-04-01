@@ -243,15 +243,12 @@ See Figures~\ref{fig:retrieval-1-1} and~\ref{fig:retrieval-1-2} for an illustrat
         \coordinate (B) at ({cos(135) - 2*cos(135 - 90 + 20)}, {sin(135) - 2*sin(135 - 90 + 20)});
 
         \draw [blue, dotted] (E) circle (1);
+        \draw [pattern=north east lines] (X) -- (E) -- (Y);
         \draw (E) -- (X);
         \draw (E) -- (Y);
         \draw [green] (B) -- (W);
         \draw [blue, dashed] (E) -- (Yp);
         \draw [blue, dashed] (W) -- (T);
-
-        % Mark the 30° angle at vertex B.
-        \draw (0.5,0) arc (0:30:0.5);
-        \node [above, yshift=5mm] at (0.8,0.15) {$\beta$};
 
         % Mark the platform movement.
         \draw[-{Stealth[red]}] (2,-0.5) -- (0,-0.5);
@@ -266,7 +263,7 @@ See Figures~\ref{fig:retrieval-1-1} and~\ref{fig:retrieval-1-2} for an illustrat
         \fill (T) circle (1pt) node[above left] {$T$};
 
     \end{tikzpicture}
-    \caption{Angle Retrieval Strategy. Black $[XE]$, $[EY]$ \textemdash{} object surface, Green $[BW]$ \textemdash{} the whisker, Blue $[EY']$ \textemdash{} the potential adjacent surface of the edge and its tangent $[WT]$, Blue circle \textemdash{} the targeted contact points.}
+    \caption{Angle Retrieval Strategy. Black $[XE]$, $[EY]$ \textemdash{} object surface, Green $[BW]$ \textemdash{} the whisker, Blue $[EY']$ \textemdash{} the potential adjacent surface of the edge and its normal $[WT]$, Blue circle \textemdash{} the targeted contact points.}
     \label{fig:angle_retrieval}
 \end{figure}
 
