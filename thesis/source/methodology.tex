@@ -38,9 +38,7 @@ The following key requirements were determined for the control model design:
 This structured approach enables the control system to dynamically adapt to varying contact scenarios.
 
 
-\section{Data Preprocessing}
-
-\subsection{Control Algorithm Variables}
+\section{Variables}
 
 It is necessary to consider the variables of the control algorithm.
 Inputs come from three main sources:
@@ -95,11 +93,12 @@ A summary of these variables is provided in Table~\ref{tab:variables}.
     \label{tab:variables}
 \end{table}
 
-\subsection{Deflection Smoothing}
+\subsection{Data Preprocessing}
 
 The measured whisker deflection \(\delta_{i}^{t}\) is noisy due to vibrations and transient disturbances.
 To reduce this noise, a low-pass Butterworth filter is applied.
 The filter is initially seeded with the neutral deflection and updated with each new measurement.
+
 
 \section{Body Motion Control}
 
@@ -214,6 +213,7 @@ A test point on the opposite side of the edge is used to determine the true edge
 
 \subsection{Premise}
 If the whisker remains detached beyond a predefined threshold, it is considered disengaged and the retrieval policy takes over from the swiping policy.
+Figures~\ref{fig:retrieval-0-1} and~\ref{fig:retrieval-1-2} illustrate the retrieval premise.
 
 \subsubsection{Angle Resolution}
 The angle resolution strategy operates as follows:
@@ -226,6 +226,7 @@ The angle resolution strategy operates as follows:
     \item Once the contact is re-established, the edge angle is determined as an angle between the spline tangent before the detachment and the line connecting the edge and the contact point.
     The required deflection threshold to detect the contact is set high enough for the deflection model to have a sufficiently small error during the next step with such a deflection.
 \end{itemize}
+See Figures~\ref{fig:retrieval-1-1} and~\ref{fig:retrieval-1-2} for an illustration of the angle resolution strategy.
 
 \begin{figure}[htb]
     \centering
@@ -271,12 +272,76 @@ The angle resolution strategy operates as follows:
 The whisker moves back along the opposite side of the edge by linearly steering towards the edge.
 As the radius is small with respect to the length of the whisker, such trajectory doesn't affect the deflection much, and the deflection profile is therefore preserved.
 The selected radius guarantees that the distance from the contact point to the edge is sufficient to construct a new spline and predict the edge angle reliably.
+Whisking back is shown in Figure~\ref{fig:retrieval-2-1}.
 
 \subsection{Transition to Swiping}
 After analyzing the opposite side, the whisker intentionally detaches and repositions.
 It is repositioned with a slight overshoot of the target attachment angle to ensure proper alignment when contact is re-established.
 The whisker then reverses the direction of movement to re-engage with the object.
 Once the new spline is constructed on the opposite side, the control is transferred back to the swiping policy, thereby completing the retrieval maneuver.
+See Figure~\ref{fig:retrieval-3-1}, ~\ref{fig:retrieval-3-2} and ~\ref{fig:retrieval-3-3} for an illustration of the repositioning and approach.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \captionsetup{justification=centering}
+        \includegraphics[width=\textwidth]{figures/retrieval/before}
+        \caption{\textbf{Initial situation}\\Swiping along the side of the object.}
+        \label{fig:retrieval-0-1}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \captionsetup{justification=centering}
+        \includegraphics[width=\textwidth]{figures/retrieval/disengagement}
+        \caption{\textbf{Disengagement}\\Whisker has detached.}
+        \label{fig:retrieval-0-2}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \captionsetup{justification=centering}
+        \includegraphics[width=\textwidth]{figures/retrieval/mid-retrieval}
+        \caption{\textbf{Rotation}\\Whisker is rotating around the edge.}
+        \label{fig:retrieval-1-1}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \captionsetup{justification=centering}
+        \includegraphics[width=\textwidth]{figures/retrieval/retrieval}
+        \caption{\textbf{Retrieval}\\Whisker has retrieved the contact.}
+        \label{fig:retrieval-1-2}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \captionsetup{justification=centering}
+        \includegraphics[width=\textwidth]{figures/retrieval/whisking}
+        \caption{\textbf{Whisking}\\Moving back along the opposite side of the edge.}
+        \label{fig:retrieval-2-1}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \captionsetup{justification=centering}
+        \includegraphics[width=\textwidth]{figures/retrieval/repositioning}
+        \caption{\textbf{Repositioning}\\Assuming an optimal position for approach.}
+        \label{fig:retrieval-3-1}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \captionsetup{justification=centering}
+        \includegraphics[width=\textwidth]{figures/retrieval/approach}
+        \caption{\textbf{Approach}\\Moving towards the object.}
+        \label{fig:retrieval-3-2}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \captionsetup{justification=centering}
+        \includegraphics[width=\textwidth]{figures/retrieval/trajectory}
+        \caption{\textbf{Transition to Swiping}\\Transferring control to the Swiping Policy.}
+        \label{fig:retrieval-3-3}
+    \end{subfigure}
+    \caption{Retrieval Policy in 8 steps.}
+    \label{fig:retrieval}
+\end{figure}
 
 
 \section{Tunneling Policy}
