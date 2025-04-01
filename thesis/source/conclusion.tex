@@ -3,6 +3,11 @@
 
 \chapter{Conclusion}
 
+This chapter summarizes the contributions of our work and sketches out the roadmap ahead for refining autonomous active tactile exploration.
+In the following sections, future directions for the project are presented, emphasizing the transition from simulation to real-world testing and addressing key challenges identified during experimentation.
+
+Furthermore, we discuss opportunities for enhancing both the whisker array platform and its control policies, focusing on advanced deflection models, increased sensor integration, and improved collision detection mechanisms.
+
 
 \section{Summary}
 
@@ -27,6 +32,7 @@ A \textbf{dashboard} is set up to visualize whisker deflection data and the plat
 
 
 \section{Future Work}
+Future directions for this project are the following:
 \begin{enumerate}
     \item It is essential to test the whisker platform not only in simulation but also in \textbf{real-world scenarios}.
     Since the platform is already assembled, the next step is testing the control system with the platform attached to the Franka Emika Panda robotic arm.
@@ -39,13 +45,14 @@ A \textbf{dashboard} is set up to visualize whisker deflection data and the plat
     In simulations, using ground truth whisker tip positions can simplify tuning the control policies.
     End-to-end control tests provide a realistic evaluation of the entire system but complicate debugging, as component errors propagate through the system.
     The current deflection model accurately covers only a limited deflection range, which is insufficient for the tunneling policy.
-    The platform may be placed in tight spaces, leading to large whisker \textbf{deflections exceeding the model’s valid range}.
+    The platform may be placed in tight spaces, leading to large whisker \textbf{deflections exceeding the model's valid range}.
     Significant deviations were found during testing of the tunneling policy, even in simple scenarios, with predicted whisker tip positions typically closer to the platform than their actual positions.
     Recalibrating the deflection model will improve contour reconstruction performance by increasing whisker tip position accuracy.
 \end{enumerate}
 
 
 \section{Potential Improvements}
+We would like to mention modification for enhancing the whisker array platform and refining its control strategies:
 \begin{itemize}
     \item An \textbf{advanced whisker deflection model} is required to detect contact along the entire whisker length.
     This involves processing additional axes of the hall sensor.
@@ -58,16 +65,16 @@ A \textbf{dashboard} is set up to visualize whisker deflection data and the plat
     The retrieval policy would then be limited to resolving the encountered edge angles.
 
     \item \textbf{Variable speed} of the whisker array platform is required to enable faster exploration.
-    Currently, the platform moves at a constant speed of 5\,cm/s, except during the retrieval policy’s repositioning phase, when it is allowed to rotate in place.
+    Currently, the platform moves at a constant speed of 5\,cm/s, except during the retrieval policy's repositioning phase, when it is allowed to rotate in place.
 
-    \item An \textbf{advanced exploration policy and environment mapping} capability is required for the whisker array to achieve SLAM in unstructured environments.
+    \item An \textbf{advanced exploration policy and environment mapping} capability is required for the whisker array to achieve Simultaneous Localization and Mapping (SLAM) in unstructured environments.
     This involves discovering new objects and determining optimal exploration paths.
 
     \item For a robust tunneling policy, \textbf{collision detection for the platform} is necessary.
-    Currently, collisions involving the platform’s nose, frequently occurring in confined spaces, are not detected.
+    Currently, collisions involving the platform's nose, frequently occurring in confined spaces, are not detected.
     As a result, exploration halts since the whisker array cannot move to the desired position.
 
-    \item For 3D contour reconstruction, a \textbf{PCB with multiple hall sensors} is required.
+    \item For 3D contour reconstruction, a \textbf{Printed Circuit Board (PCB) with multiple Hall-effect sensors} is required.
     The simplest arrangement would involve three whisker sensors positioned in a triangle with side lengths significantly shorter than the whisker length.
     Such an arrangement is currently not achievable with Adafruit MLX90393 development boards due to their large size.
 

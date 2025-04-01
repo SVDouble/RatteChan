@@ -3,13 +3,17 @@
 
 \chapter{Infrastructure}
 
+The following chapter details the integrated system infrastructure that underpins our whisker sensor platform.
+It covers the real-time data acquisition, processing, and visualization components, along with the modular software services orchestrated in Docker containers.
+This infrastructure seamlessly connects hardware elements--such as the whisker platform and the actuator--with the control unit and simulation environment.
+
 
 \section{Overview}
 The system infrastructure takes care of real-time collection, processing, and visualization of sensor data.
-Its implementation is available on GitHub~\cite{ratte-github} under the \texttt{services} directory.
+Its implementation is available on GitHub\footnote{\url{https://github.com/SVDouble/RatteChan}} under the \texttt{services} directory.
 The architecture comprises three main entities: the whisker platform, the controller, and the actuator.
-The platform provides two I2C buses for reading sensor data, each equipped with three MLX90393 sensors.
-The sensors are connected in a daisy chain via a QUIK connector.
+The platform provides two Inter-Integrated Circuit (I2C) buses for reading sensor data, each equipped with three Adafruit MLX90393 sensors.
+The sensors are connected in a daisy chain via a 4-pin JST connector.
 This allows to avoid the need for soldering.
 Theoretically, up to 16 sensors can be connected per bus, but we are using only three, as the development boards are limited to four sensors per bus.
 As the controller device a Raspberry Pi 5 is chosen, as it has sufficient processing power and is small enough to be mounted on the robotic arm.
@@ -38,10 +42,9 @@ Figure~\ref{fig:control-hierarchy} illustrates the hierarchy of components withi
 
 
 \section{Simulation}
-The simulation framework is used for testing the controller.
-It provides a realistic physics engine environment for validating control algorithms.
-The simulation is based on MuJoCo, a physics engine developed by Google DeepMind.
-Figure~\ref{fig:mujoco} shows the simulation interface of MuJoCo.
+The simulation framework backed by MuJoCo~\cite{todorov2012mujoco} is used for testing the controller.
+It provides a realistic environment for validating control algorithms.
+Figure~\ref{fig:mujoco} depicts the simulation interface of MuJoCo.
 
 \begin{figure}
     \centering
@@ -53,7 +56,7 @@ Figure~\ref{fig:mujoco} shows the simulation interface of MuJoCo.
 The simulation framework is designed to be modular, and so the controller has no dependency on the simulation framework.
 That makes possible the integration of new frameworks or sensor data sources and sinks.
 10 test cases are provided to test the performance of 3 different policies.
-For each test case the results are automatically evaluated and plotted, similar to figures~\ref{fig:experiment-disk-swiping}--\ref{fig:experiment-round-tunnel-swiping-tunneling}.
+For each test case the results are automatically evaluated and plotted, similar to Figures~\ref{fig:experiment-disk-swiping}--\ref{fig:experiment-round-tunnel-swiping-tunneling}.
 For each test case an accompanying video is provided, which shows the simulation in action.
 MuJoCo allows to follow, pause and analyze the simulation.
 The simulation is set up in a way that the trajectories of the whisker tips and the platform center of mass are displayed continuously.
@@ -63,7 +66,8 @@ This is a sort of sanity check for the simulation, as the deflection model and t
 \section{System Services}
 The system is composed of several interconnected services, as illustrated in Figure~\ref{fig:data_flow}.
 All of them are running in Docker containers, as to guarantee a consistent and separate environment across different machines.
-They are orchestrated using Docker Compose, which simplifies the setup and configuration.
+Docker containers are lightweight, portable, and self-sufficient units that encapsulate all the necessary components to run a software application.
+They are orchestrated using Docker Compose\footnote{\url{https://docs.docker.com/compose/}}, a tool for defining and running multi-container applications.
 The control system runs on any machine with Docker installed, like Raspberry Pi 5, making it easy to deploy.
 
 \begin{figure}
@@ -75,7 +79,7 @@ The control system runs on any machine with Docker installed, like Raspberry Pi 
 
 \begin{itemize}
     \item \textbf{Sensor IO Module:}
-    This module reads sensor data from the robot's I2C buses and publishes the data via MQTT.
+    This module reads sensor data from the robot's I2C buses and publishes the data via Message Queuing Telemetry Transport (MQTT).
     It also forwards control commands from the controller to the actuator.
     Currently, the built-in I2C buses of the Raspberry Pi are used for simplicity.
     But generally speaking, the Sensor IO module can be decoupled from the controller and run on a separate device.

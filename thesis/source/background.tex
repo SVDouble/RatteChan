@@ -4,7 +4,7 @@
 \chapter{Related Works}
 
 This chapter provides an overview of recent advances in tactile sensing and active exploration strategies.
-It reviews whisker-inspired sensor designs—including magnetically transduced, piezoresistive, and Micro-Electro-Mechanical Systems (MEMS) based implementations—and examines their operating principles, advantages, and challenges.
+It reviews whisker-inspired sensor designs--including magnetically transduced, piezoresistive, and Micro-Electro-Mechanical Systems (MEMS) based implementations--and examines their operating principles, advantages, and challenges.
 Additionally, the chapter discusses how these sensors are integrated into active tactile exploration tasks, such as contour reconstruction and environment manipulation.
 
 
@@ -109,7 +109,7 @@ The control approach involves the following steps:
     \item A spline is fitted through the last $N$ whisker tip position measurements to calculate the curvature of the whisker.
     \item The desired whisker rotation aligns with the surface normal at the next predicted contact point from the spline.
     \item A PID controller maintains a constant whisker deflection profile.
-    The controller adjusts the whisker’s normal velocity based on the deflection error, compressing or relaxing the whisker as needed by moving along the surface normal.
+    The controller adjusts the whisker's normal velocity based on the deflection error, compressing or relaxing the whisker as needed by moving along the surface normal.
     \item The tangential velocity component is adjusted so that the total velocity remains constant.
 \end{enumerate}
 
@@ -125,12 +125,12 @@ When the sensory array is reliable enough, complex manipulation tasks can be per
 \textcite{Brouwer2024TactileInformedAP} have developed tactile-informed action primitives designed to help robots reach targets in densely cluttered environments without getting stuck.
 Their approach introduces two simple motion patterns: the \enquote{burrow} primitive adds a gentle, snaking side-to-side motion to clear a path, while the \enquote{excavate} primitive makes a spiraling, scooping motion that pushes obstacles aside.
 Both primitives are depicted in Figure~\ref{fig:environment-manipulation}.
-By integrating these primitives into a closed-loop control strategy informed by soft tactile sensors on the robot’s finger-like end-effector, the system can sense contact forces and adjust its motion in real time.
-Both simulation and hardware experiments show that this strategy dramatically improves performance--reducing both the distance to the goal and the time to complete the reach—and significantly increases the success rate compared to traditional straight-line motion.
+By integrating these primitives into a closed-loop control strategy informed by soft tactile sensors on the robot's finger-like end-effector, the system can sense contact forces and adjust its motion in real time.
+Both simulation and hardware experiments show that this strategy dramatically improves performance--reducing both the distance to the goal and the time to complete the reach--and significantly increases the success rate compared to traditional straight-line motion.
 
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{figures/environment-manipulation}
-    \caption{Schematic visualizations of a) straight line control, b) burrowing action primitive and c–e) a sequence showing the progression of a clockwise excavate action primitive, by \textcite{Brouwer2024TactileInformedAP}.}
+    \caption{Schematic visualizations of a) straight line control, b) burrowing action primitive and c--e) a sequence showing the progression of a clockwise excavate action primitive, by \textcite{Brouwer2024TactileInformedAP}.}
     \label{fig:environment-manipulation}
 \end{figure}

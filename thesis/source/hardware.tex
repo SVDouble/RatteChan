@@ -53,7 +53,7 @@ Three spring-like arms hold the whisker securely in place.
 A whisker platform was developed to enable multi-whisker exploration and contour reconstruction.
 It consists of a triangular body with a \SI{30}{\degree} nose angle, two side clamps that each hold up to three whiskers, and a mount compatible with the Franka Panda robotic arm gripper.
 The platform, depicted in Figure~\ref{fig:platform}, measures \SI{90}{\milli\meter} $\times$ \SI{60}{\milli\meter} $\times$ \SI{35}{\milli\meter} and is 3D printed using PLA filament.
-Figure~\ref{fig:whisker_platform} shows the printed and assembled platform, designed to roughly resemble a rat’s shape.
+Figure~\ref{fig:whisker_platform} shows the printed and assembled platform, designed to roughly resemble a rat's shape.
 
 The MLX90393 sensors are secured by side clamps designed with cuts to accommodate 4-pin JST connectors on both sides.
 All components are assembled using M2 and M3 screws.
@@ -61,7 +61,7 @@ All components are assembled using M2 and M3 screws.
 The clamps and suspension bases are designed to allow whiskers to be quickly plugged into place and locked by slight rotation, enabling easy replacement.
 No external power supply beyond the JST connector is necessary.
 
-Whiskers are mounted at a \SI{15}{\degree} angle relative to the platform’s mirror plane, slightly pointing forward to enlarge the contact search area.
+Whiskers are mounted at a \SI{15}{\degree} angle relative to the platform's mirror plane, slightly pointing forward to enlarge the contact search area.
 However, this orientation poses the risk of head-on collisions during tunneling, potentially causing excessive deflection, permanent deformation, or breaking.
 Implementing safeguards within the control system to mitigate this is beyond the scope of this thesis.
 Thus, in simulations, whiskers are oriented slightly backward to avoid these issues.
@@ -104,7 +104,7 @@ Two drivers have been developed for the MLX90393 sensors: one in C++ for the ESP
 Both implementations follow the official MLX90393 Triaxis Magnetic Node specification~\cite{MLX90393}.
 Continuous burst mode is employed, reading sensor data at regular intervals, allowing a data acquisition rate of \SI{300}{\hertz}.
 This high rate facilitates effective signal filtering, especially during rapid whisker movements.
-The control loop itself operates at approximately \SI{30}{\hertz}, constrained by the actuator’s responsiveness.
+The control loop itself operates at approximately \SI{30}{\hertz}, constrained by the actuator's responsiveness.
 
 \begin{figure}[ht]
     \centering
@@ -125,12 +125,12 @@ The control loop itself operates at approximately \SI{30}{\hertz}, constrained b
 
 The deflection model from the work of \textcite{dang2025whisker} is used to convert the sensor readings into whisker deflection angles.
 The model characterizes the deflection profile using two key components: the root position, denoted as \(p_r\), and a measurement model that maps the tangential contact location \(c_t = (x_{bt}, y_{tb})\) (expressed in the sensor base frame) to a deflection measurement \(z\).
-In this setup, the bending of the whisker shaft is proportional to the rotation of its suspension system, and the sensor extracts the flux change along the Y-axis—where the variation is most significant—to represent \(z\).
+In this setup, the bending of the whisker shaft is proportional to the rotation of its suspension system, and the sensor extracts the flux change along the Y-axis--where the variation is most significant--to represent \(z\).
 
 To calibrate this model, the sensor is mounted on a two-dimensional motorized stage, which moves in 3\,mm steps along both axes.
 A total of 180 data sets are collected by recording both the magnetic sensor data and the tangential contact positions as the stage moves in a grid-like pattern.
 These data are then used to fit a fifth-order bivariate polynomial, yielding a function \(z_c = f(x_b, y_b)\) that describes the deflection arc shape at a given moment.
-Note that the default root position is set as \(p_r = (0,0)\), even though slight linear displacements at the center of rotation may occur due to the current spring design—a factor identified for future improvement.
+Note that the default root position is set as \(p_r = (0,0)\), even though slight linear displacements at the center of rotation may occur due to the current spring design--a factor identified for future improvement.
 
 In practice, the provided model covers the operational deflection range (\qtyrange{-5e-5}{5e-4}{\radian}) and starts to diverge from the actual deflection profile at larger angles.
 To rectify this, the polynomial is stabilized by clipping values that exceed realistic deflection limits.
