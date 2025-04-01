@@ -4,64 +4,63 @@
 \chapter{Hardware Design}
 
 
-\section{Magnetically transduced whisker sensor}
+\section{Magnetically Transduced Whisker Sensor}
 The structure of a single whisker sensor is shown in \cref{fig:whisker_composite}.
 
 \begin{figure}[ht]
     \centering
-    \begin{subfigure}{0.31\textwidth}
+    \begin{subfigure}[b]{0.31\textwidth}
         \centering
         \includegraphics[height=0.2\textheight]{figures/whisker}
         \caption{Whisker mounted on the suspension} \label{fig:whisker}
     \end{subfigure}
     \hspace*{\fill}
-    \begin{subfigure}{0.31\textwidth}
+    \begin{subfigure}[b]{0.31\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figures/suspension}
-        \caption{Suspension Design} \label{fig:suspension}
+        \caption{Suspension design} \label{fig:suspension}
     \end{subfigure}
     \hspace*{\fill}
-    \begin{subfigure}{0.31\textwidth}
+    \begin{subfigure}[b]{0.31\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figures/whisker-dims}
-        \caption{Structure dimensions} \label{fig:whisker-dims}
+        \caption{Structural dimensions} \label{fig:whisker-dims}
     \end{subfigure}
     \caption{Single whisker sensor.}
-    \label{fig:whisker_composite}
 \end{figure}
 
 The whisker consists of:
 \begin{itemize}
-    \item A flexible whisker shaft made of a nitinol wire (0.25 mm diameter, 75 mm length).
-    \item A suspension system fabricated via 3D printing using PLA plastic as filament.
-    \item A magnetic sensor Adafruit MLX90393, configured for measuring magnetic flux changes with resolution of 0.15 $\micro T/LSB$
+    \item A flexible nitinol wire shaft (0.25\,mm diameter, 75\,mm length).
+    \item A suspension system fabricated via 3D printing using PLA filament.
+    \item An Adafruit MLX90393 magnetic sensor, configured to measure magnetic flux changes with a resolution of 0.15\,$\mu T$/LSB.
 \end{itemize}
-The whisker shaft is first inserted and glued to the suspension system.
-A neodymium permanent magnet, axially magnetized with its field direction aligned with the wire, is placed underneath the suspension below the whisker shaft.
-As the whisker deflects, the magnet rotates in place, causing a change in the magnetic field.
+
+The whisker shaft is inserted into and glued to the suspension system.
+A neodymium permanent magnet, axially magnetized and aligned with the whisker shaft, is placed directly beneath the suspension.
+When the whisker deflects, the magnet rotates, altering the sensed magnetic field.
+
+The suspension is designed to allow slight rotation of the whisker shaft while limiting axial movement.
+Three spring-like arms hold the whisker securely in place.
 
 
 \section{Whisker Platform}
 
-A whisker platform was developed to allow multi-whisker exploration and reconstruction.
-It consists of a triangularly-shaped body with 30\degree nose, two side clamps, which allow for 3 whiskers to be attached on each side, and a mount for the Franka Panda robotic arm with a gripper.
-The platform, show on the Figure~\cref{fig:platform}, has a size of 90 mm x 60 mm x 35 mm and is 3D printed using PLA plastic filament.
-Figure~\ref{fig:whisker_platform} showcases the 3D-printed version of the same platform.
-The platform is designed to resemble the shape of the rat, even if just roughly.
+A whisker platform was developed to enable multi-whisker exploration and contour reconstruction.
+It consists of a triangular body with a 30\degree{} nose angle, two side clamps that each hold up to three whiskers, and a mount compatible with the Franka Panda robotic arm gripper.
+The platform, depicted in \cref{fig:platform}, measures 90\,mm $\times$ 60\,mm $\times$ 35\,mm and is 3D printed using PLA filament.
+Figure~\ref{fig:whisker_platform} shows the printed and assembled platform, designed to roughly resemble a rat’s shape.
 
-The MLX90393 sensors are being held in place by the side clamps.
-The cuts in the clamps allow for 4-ping JST connectors to be used on both sides of the sensors.
-All the components are hold together by M2 and M3 screws.
+The MLX90393 sensors are secured by side clamps designed with cuts to accommodate 4-pin JST connectors on both sides.
+All components are assembled using M2 and M3 screws.
 
-The clamps and suspension bases are designed in such a way, that the whiskers can be plugged into the holes in the clamps and locked by slight rotation.
-The whiskers can be easily replaced the same way.
-No external power supply apart from the JST connector is needed.
+The clamps and suspension bases are designed to allow whiskers to be quickly plugged into place and locked by slight rotation, enabling easy replacement.
+No external power supply beyond the JST connector is necessary.
 
-The whisker mounts are positioned at an angle of 15\degree to the mirror plane of the platform.
-This allows for a larger contact search space, as the whiskers point slightly forward.
-The downside of such placement is that, especially in tunneling scenarios, the whiskers can get face the object head-on and deflect in the opposite direction.
-Too severe deflection can cause the whisker to break or deform permanently, therefore safeguards in the control system are needed to prevent such behavior.
-This is outside the scope of this thesis, and in the simulation because of the same reason the whiskers are pointed slightly backwards.
+Whiskers are mounted at a 15\degree{} angle relative to the platform’s mirror plane, slightly pointing forward to enlarge the contact search area.
+However, this orientation poses the risk of head-on collisions during tunneling, potentially causing excessive deflection, permanent deformation, or breaking.
+Implementing safeguards within the control system to mitigate this is beyond the scope of this thesis.
+Thus, in simulations, whiskers are oriented slightly backward to avoid these issues.
 
 \begin{figure}[ht]
     \centering
@@ -82,53 +81,52 @@ This is outside the scope of this thesis, and in the simulation because of the s
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=0.6\textheight]{figures/platform}
-    \caption{Whisker platform with three whiskers and robotic arm mount attached.}
+    \includegraphics[width=\textwidth]{figures/platform}
+    \caption{Assembled whisker platform with three whiskers and robotic arm mount.}
     \label{fig:whisker_platform}
 \end{figure}
 
 
 \section{Data Acquisition}
 
-Adafruit MLX90393 devboard, shown on the Figure~\cref{fig:sensor} hosting a Hall sensor is located 2--3mm underneath the magnet glued to the suspension.
-The sensor uses a 16-bit ADC with proportional output of the magnetic flux density sensed along the XYZ axes.
-It is configured for measurement with a resolution of \(0.15 \mu T/LSB\).
-In fact, only Z component is used, as it unambiguously captures the rotating caused by planar whisker deflections.
-The sensor uses I2C communication protocol, acting as a slave.
-If multiple sensors are used, they are connected in a daisy chain.
+The Adafruit MLX90393 development board (\cref{fig:sensor}), which hosts a Hall sensor, is placed approximately 2--3\,mm beneath the suspension-mounted magnet.
+The sensor utilizes a 16-bit ADC providing magnetic flux density measurements along X, Y, and Z axes.
+It is configured to measure with a resolution of \(0.15\,\mu T/LSB\).
+In practice, only the Z-axis component is used, as it uniquely captures rotation caused by planar whisker deflections.
+The sensors communicate via the I2C protocol, operating in slave mode.
+When multiple sensors are used, they are connected in a daisy-chain arrangement.
 
-Two MLX90393 sensor drivers have been implemented: one in C++ for the ESP32 microcontroller and another in Python for the Raspberry Pi 5.
-They are based on the official MLX90393 Triaxis® Magnetic Node specification~\cite{MLX90393}.
-Continuous burst mode is used to read the sensor data, as points at equal time intervals are needed for the control loop.
-This allows to read our the data at a rate of 300Hz.
-This rate allows for filtering of the deflection signal at fast-paced movements.
-The control loops itself runs at around 30Hz, as this is the limit at which the actuator can be controlled.
+Two drivers have been developed for the MLX90393 sensors: one in C++ for the ESP32 microcontroller and another in Python for the Raspberry Pi 5.
+Both implementations follow the official MLX90393 Triaxis® Magnetic Node specification~\cite{MLX90393}.
+Continuous burst mode is employed, reading sensor data at regular intervals, allowing a data acquisition rate of 300\,Hz.
+This high rate facilitates effective signal filtering, especially during rapid whisker movements.
+The control loop itself operates at approximately 30\,Hz, constrained by the actuator’s responsiveness.
 
 \begin{figure}[ht]
     \centering
     \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figures/mlx90393}
-        \caption{Adafruit MLX90393 devboard, 25.4mm x 17.8mm x 1.6mm, from~\cite{MLX90393}}
+        \caption{Adafruit MLX90393 devboard (25.4\,mm $\times$ 17.8\,mm $\times$ 1.6\,mm), from~\cite{MLX90393}}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figures/mlx90393-chip}
-        \caption{Melexis MLX90393 chip, 3.1mm x 2.9mm x 1mm, from~\cite{MLX90393}}
+        \caption{Melexis MLX90393 chip (3.1\,mm $\times$ 2.9\,mm $\times$ 1\,mm), from~\cite{MLX90393}}
     \end{subfigure}
+    \caption{MLX90393 sensor hardware.}
     \label{fig:sensor}
 \end{figure}
 
-To convert the magnetic field strength into whisker deflection a calibrated deflection model is used.
-It is created by sampling the sensor readouts at different deflection angles and fitting a 5th degree polynomial to the data.
-Although this approach is not very precise at the whole range of deflections, it covers the normal operation range of deflection, which is around -5e-4--5e-4 rad, is sufficient for the purpose of this thesis.
-The deflection model is shown in Figure~\ref{fig:deflection_profile}.
-It mirrors the deflection offset from the neutral position and clips the result based on the whisker's half-circle limit to stabilize points outside the range of operation.
+A calibrated deflection model converts magnetic field strength readings into whisker deflection angles.
+This model is generated by sampling sensor output at different deflection angles and fitting a fifth-degree polynomial to the collected data.
+While this polynomial fit is less precise outside the intended operational range, it sufficiently covers the typical operational deflection range ($-5\times10^{-4}$ to $5\times10^{-4}$\,rad).
+Figure~\ref{fig:deflection_profile} illustrates this deflection profile, which accounts for offset from the neutral position and stabilizes outputs by clipping values exceeding realistic deflection limits.
 
 \begin{figure}[htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/deflection_profile}
-    \caption{Deflection Profile Model.}
+    \caption{Whisker deflection profile model.}
     \label{fig:deflection_profile}
 \end{figure}

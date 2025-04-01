@@ -78,10 +78,40 @@ Thus, this whisker sensor has significant potential for integration into robotic
     \label{fig:mems-whisker}
 \end{figure}
 
+\subsection{Contour Reconstruction}
+Whisker sensors are particularly suited to contour reconstruction due to their precise contact localization capabilities.
+However, two main issues affect their application:
+
+\begin{enumerate}
+    \item Detachment or slippage of the whisker due to varying surface textures.
+    \item Inability to distinguish between tangential and normal contact.
+\end{enumerate}
+
+Detachment or slippage issues can be mitigated using active control policies that actively reestablish whisker contact upon detachment.
+Distinguishing tangential from normal contacts can be addressed by additionally considering torque measurements alongside bending moments, as described by~\cite{doi:10.1089/soro.2016.0028}, but this approach is considerably more complex for practical implementation.
+
+
 
 \section{Active Tactile Exploration}
+Active tactile exploration is a technique in robotics for gathering environmental information through touch.
+Typical applications include contact localization~\cite{doi:10.1089/soro.2016.0028}, contour reconstruction~\cite{lin2022whiskerinspiredtactilesensingcontact}, object recognition~\cite{Xiao_2022}, and manipulation~\cite{Brouwer2024TactileInformedAP}.
+Whisker sensors, discussed in the previous section, offer a promising solution for these tasks.
 
-This thesis is largely based on the work of Dang et al.~\cite{dang2025whisker}, who, besides the whisker sensor, also developed a control system for active tactile exploration.
-They
-\subsection{Previous Work}
+Research on whisker-based active tactile exploration includes the work by Dang et al.~\cite{dang2025whisker}, which introduces both a whisker sensor and an accompanying control system for active tactile exploration.
+In their work, the whisker is actuated by a Franka Emika Panda robotic arm for object contour reconstruction.
+The control approach involves the following steps:
+\begin{enumerate}
+    \item Hall sensor data from the whisker sensors is processed to determine the whisker tip position, with noise reduced using Kalman filtering.
+    \item A spline is fitted through the last $N$ whisker tip position measurements to calculate the curvature of the whisker.
+    \item The desired whisker rotation aligns with the surface normal at the next predicted contact point from the spline.
+    \item A PID controller maintains a constant whisker deflection profile.
+    The controller adjusts the whisker’s normal velocity based on the deflection error, compressing or relaxing the whisker as needed by moving along the surface normal.
+    \item The tangential velocity component is adjusted so that the total velocity remains constant.
+\end{enumerate}
 
+This approach achieves excellent results, reconstructing smooth surfaces with submillimeter accuracy.
+Small sharp angles can also be navigated, provided the whisker does not detach.
+
+However, whisker detachment remains a significant challenge, as sudden, unpredictable slips inevitably occur, necessitating a retrieval mechanism.
+Another limitation of Dang et al.’s approach is the inherent instability in contour tracking direction--small disturbances may cause unintended reversal in exploration direction.
+Nevertheless, this control policy forms a solid foundation for developing more robust solutions, including retrieval strategies.
