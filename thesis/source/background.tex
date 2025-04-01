@@ -91,12 +91,12 @@ Detachment or slippage issues can be mitigated using active control policies tha
 Distinguishing tangential from normal contacts can be addressed by additionally considering torque measurements alongside bending moments, as described by~\cite{doi:10.1089/soro.2016.0028}, but this approach is considerably more complex for practical implementation.
 
 
-
 \section{Active Tactile Exploration}
 Active tactile exploration is a technique in robotics for gathering environmental information through touch.
 Typical applications include contact localization~\cite{doi:10.1089/soro.2016.0028}, contour reconstruction~\cite{lin2022whiskerinspiredtactilesensingcontact}, object recognition~\cite{Xiao_2022}, and manipulation~\cite{Brouwer2024TactileInformedAP}.
 Whisker sensors, discussed in the previous section, offer a promising solution for these tasks.
 
+\subsection{Contour Reconstruction}
 Research on whisker-based active tactile exploration includes the work by Dang et al.~\cite{dang2025whisker}, which introduces both a whisker sensor and an accompanying control system for active tactile exploration.
 In their work, the whisker is actuated by a Franka Emika Panda robotic arm for object contour reconstruction.
 The control approach involves the following steps:
@@ -115,3 +115,18 @@ Small sharp angles can also be navigated, provided the whisker does not detach.
 However, whisker detachment remains a significant challenge, as sudden, unpredictable slips inevitably occur, necessitating a retrieval mechanism.
 Another limitation of Dang et al.’s approach is the inherent instability in contour tracking direction--small disturbances may cause unintended reversal in exploration direction.
 Nevertheless, this control policy forms a solid foundation for developing more robust solutions, including retrieval strategies.
+
+\subsection{Environment Manipulation}
+When the sensory array is reliable enough, complex manipulation tasks can be performed.
+Brouwer et al.~\cite{Brouwer2024TactileInformedAP} have developed tactile-informed action primitives designed to help robots reach targets in densely cluttered environments without getting stuck.
+Their approach introduces two simple motion patterns: the \enquote{burrow} primitive adds a gentle, snaking side-to-side motion to clear a path, while the \enquote{excavate} primitive makes a spiraling, scooping motion that pushes obstacles aside.
+Both primitives are depicted in Figure~\ref{fig:environment-manipulation}.
+By integrating these primitives into a closed-loop control strategy informed by soft tactile sensors on the robot’s finger-like end-effector, the system can sense contact forces and adjust its motion in real time.
+Both simulation and hardware experiments show that this strategy dramatically improves performance--reducing both the distance to the goal and the time to complete the reach—and significantly increases the success rate compared to traditional straight-line motion.
+
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=\textwidth]{figures/environment-manipulation}
+    \caption{Schematic visualizations of a) straight line control, b) burrowing action primitive and c–e) a sequence showing the progression of a clockwise excavate action primitive, by Brouwer et al.~\cite{Brouwer2024TactileInformedAP}.}
+    \label{fig:environment-manipulation}
+\end{figure}

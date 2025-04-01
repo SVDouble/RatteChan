@@ -42,16 +42,15 @@
     % Abstract
     \include{source/abstract}
 
-    \section*{Acknowledgements}
-    I would like to express my gratitude to my supervisor, \textbf{Yixuan Dang}, for his guidance and support throughout this project.
-    I would also like to thank my fellow student \textbf{Yichen Zhang}, who also worked on the whisker project as part of his bachelor thesis, for his help and collaboration.
-    Finally, I am grateful to my family and friends for their support during my studies.
-
-
     % Content
     \AIRstudentthesisPrintTableOfContents
     \listoffigures
+    \begingroup
+    \let\cleardoublepage\relax
+    \let\clearpage\relax
     \listoftables
+    \listofalgorithms
+    \endgroup
 
     \mainmatter
     \include{source/introduction}
@@ -61,6 +60,14 @@
     \include{source/experiments}
     \include{source/infrastructure}
     \include{source/conclusion}
+
+    \chapter*{Acknowledgements}
+    \thispagestyle{empty}
+    I would like to express my gratitude to my supervisor, \textbf{Yixuan Dang}, for his guidance and support throughout this project.
+    I would also like to thank my fellow student \textbf{Yichen Zhang}, who also worked on the whisker project as part of his bachelor thesis, for his help and collaboration.
+    Finally, I am grateful to my family and friends for their support during my studies.
+    \clearpage
+
 
     % Appendix
     \appendix
