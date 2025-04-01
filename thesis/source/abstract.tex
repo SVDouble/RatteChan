@@ -3,18 +3,18 @@
     Object contour reconstruction is critical in robotics for tasks such as navigation and recognition.
     Whisker sensors offer a promising tactile modality due to their high spatial resolution, robustness under varying conditions, and low computational requirements.
     However, existing approaches typically fail to reconstruct objects with sharp corners, as the whisker detaches from the object, and do not allow for contour reconstruction in confined spaces.
-    In this work, we introduce a development platform that integrates multiple magnetically transduced whisker sensors, mounted on a robotic arm for active control.
+    This work introduces a development platform integrating multiple magnetically transduced whisker sensors mounted on a robotic arm for active control.
     For single-whisker configurations, we propose an enhanced contour-following strategy paired with an object retrieval policy to manage unavoidable whisker detachments at sharp corners and accurately capture their contours.
-    For multi-whisker setups, a tunneling policy is introduced, and all control policies are combined into a single finite state machine that dynamically selects the active policy and determines which whiskers are relied on.
-    Simulation results demonstrate that our method effectively reconstructs contours with sharp angles, and maintains a centered trajectory in confined passages.
+    A tunneling policy is introduced for multi-whisker setups, and all control policies are combined into a single finite state machine that dynamically selects the active policy and determines which whiskers are relied on.
+    Simulation results demonstrate that our method effectively reconstructs contours with sharp angles with sub-millimeter accuracy and maintains a centered trajectory in confined passages.
     Finally, we present a comprehensive framework for real-world experiments, including data collection, preprocessing, evaluation, storage, and visualization.
 }{
-    Die Rekonstruktion von Objektkonturen ist in der Robotik für Aufgaben wie Navigation und Erkennung von entscheidender Bedeutung.
-    Schnurrbart-Sensoren bieten aufgrund ihrer hohen räumlichen Auflösung, Robustheit unter wechselnden Bedingungen und geringem Rechenaufwand eine vielversprechende taktile Modalität.
-    Bestehende Ansätze scheitern jedoch typischerweise daran, Objekte mit scharfen Ecken zu rekonstruieren, da sich der Schnurrbart vom Objekt löst, und erlauben keine Konturrekonstruktion in engen Räumen.
-    In dieser Arbeit stellen wir eine Entwicklungsplattform vor, die mehrere magnetisch transduzierte Schnurrbart-Sensoren integriert, die auf einem Roboterarm für aktive Steuerung montiert sind.
-    Für Einzel-Schnurrbart-Konfigurationen schlagen wir eine verbesserte Konturverfolgungsstrategie in Kombination mit einer Objekt-Rückholpolitik vor, um unvermeidliche Schnurrbartablösungen an scharfen Ecken zu handhaben und deren Konturen präzise zu erfassen.
-    Für Mehr-Schnurrbart-Systeme wird eine Tunneling-Politik eingeführt, und alle Steuerungsstrategien werden in einer einzigen endlichen Zustandsmaschine kombiniert, die dynamisch die aktive Strategie auswählt und bestimmt, auf welche Schnurrbärte vertraut wird.
-    Simulationsergebnisse zeigen, dass unsere Methode Konturen mit scharfen Winkeln effektiv rekonstruiert und eine zentrierte Bahn in engen Passagen beibehält.
-    Abschließend präsentieren wir ein umfassendes Framework für reale Experimente, einschließlich Datenerfassung, Vorverarbeitung, Evaluierung, Speicherung und Visualisierung.
+    Die Rekonstruktion von Objektkonturen ist essenziell in der Robotik für Aufgaben wie Navigation und Objekterkennung.
+    Whisker-Sensoren bieten aufgrund ihrer hohen räumlichen Auflösung, Robustheit unter wechselnden Bedingungen und geringen Rechenanforderungen eine vielversprechende taktile Modalität.
+    Bestehende Ansätze scheitern jedoch häufig an der Rekonstruktion von Objekten mit scharfen Ecken, da sich die Whisker hierbei vom Objekt lösen, und ermöglichen keine Konturrekonstruktion in engen Räumen.
+    Diese Arbeit stellt eine Entwicklungsplattform vor, die mehrere magnetisch transduzierte Whisker-Sensoren integriert, welche aktiv durch einen Roboterarm gesteuert werden.
+    Für Ein-Whisker-Konfigurationen schlagen wir eine verbesserte Konturverfolgungsstrategie vor, kombiniert mit einer Strategie der Objektwiederaufnahme, um unvermeidliche Whisker-Ablösungen an scharfen Ecken zu bewältigen und deren Konturen präzise zu erfassen.
+    Für Multi-Whisker-Konfigurationen wird eine Tunneling-Strategie eingeführt, und alle Steuerstrategien werden in einer einzigen Zustandsmaschine kombiniert, die dynamisch die aktive Strategie auswählt und bestimmt, auf welche Whisker vertraut wird.
+    Simulationsergebnisse zeigen, dass die vorgestellte Methode Konturen mit scharfen Winkeln im Submillimeterbereich genau rekonstruiert und eine mittige Trajektorie in engen Passagen aufrechterhält.
+    Abschließend präsentieren wir ein umfassendes Framework für reale Experimente, inklusive Datenerfassung, Vorverarbeitung, Auswertung, Speicherung und Visualisierung.
 }

@@ -8,9 +8,9 @@
 
 Over the past two decades, tactile perception has gained attention within robotics, a field traditionally dominated by visual sensing~\cite{s22072705}.
 Tactile sensing provides distinct advantages, especially when visibility is limited, in low-light conditions, or when environments are narrow, cluttered, or visually obstructed.
-Nature provides ample evidence of the effectiveness of tactile sensing and offers inspiration for the development of tactile sensors.
+Nature provides ample evidence of the effectiveness of tactile sensing and offers inspiration for developing tactile sensors.
 
-Some animals possess tactile sensory hairs known as whiskers or vibrissae, which complement their vision.
+Some animals possess tactile sensory hairs known as whiskers or vibrissae, complementing their vision.
 Whiskers enable them to interact effectively with their environment through non-intrusive mechanical contact.
 \enquote{Traditionally, whiskers are associated with diverse survival skills, including tactile discrimination, distance assessment, food acquisition, gap crossing, and social interaction} note~\textcite{IBARRACASTANEDA2022100034}.
 For example, seals and sea lions use their whiskers for hunting in dark and turbid environments.
@@ -18,16 +18,16 @@ When prey swims nearby, the generated hydrodynamic vortices cause distinct, jerk
 These deflections reveal the hydrodynamic trail left by the prey, allowing seals and sea lions to locate their prey effectively~\cite{muthuramalingam2018sealsealionwhiskers}.
 Thus, whiskers function as passive sensors by responding directly to external excitation.
 
-In contrast, some rodents such as rats and squirrels can move their whiskers actively, in rhythmic motions known as \textit{whisking}, enabling them to actively perceive their immediate surroundings and to distinguish surface textures.
+In contrast, some rodents, such as rats and squirrels, can move their whiskers in rhythmic motions known as \textit{whisking}, enabling them to actively perceive their immediate surroundings and distinguish surface textures.
 Different textures produce unique slip-stick motion patterns and deflection magnitudes of whiskers, resulting in characteristic resonant vibrations that rodents interpret to identify surfaces and objects~\cite{wolfe2008texture}.
 
-Rats particularly depend on whisker-based navigation when traversing confined spaces, such as tunnels or burrows.
+Rats depend on whisker-based navigation when traversing confined spaces like tunnels or burrows.
 Through coordinated whisking motions, rats efficiently detect the layout and contours of the environment, allowing them to move even in complete darkness~\cite{wolfe2008texture}.
 
 The anatomical structure and functional mechanisms of biological whiskers are depicted in Figure~\ref{fig:whisker-anatomy}.
 Whiskers come in various shapes and sizes, and one animal can have multiple whiskers, each with a different length and taper.
 Sensory detection is carried out solely by mechanoreceptors located at the base of each whisker follicle, without any additional receptors along the whisker shaft~\cite{doi:10.1089/soro.2016.0028}.
-This simplicity, effectiveness and variability of biological whiskers provides a foundation for developing biomimetic tactile sensors.
+This simplicity, effectiveness, and variability of biological whiskers provide a foundation for developing biomimetic tactile sensors.
 
 \begin{figure}[htb]
     \centering
@@ -36,6 +36,7 @@ This simplicity, effectiveness and variability of biological whiskers provides a
     \label{fig:whisker-anatomy}
 \end{figure}
 
+\pagebreak
 
 \section{Whisker-inspired Tactile Sensors}
 
@@ -63,7 +64,7 @@ Some of the most commonly used whisker-inspired tactile sensors are~\cite{s22072
     \item \textbf{Magnetoresistive sensors:} measure changes in electrical resistance caused by changes in magnetic fields when whisker deflection occurs.
     \item \textbf{MEMS-based sensors:} employs a capacitive or piezoelectric sensor in a microelectromechanical system format.
 \end{itemize}
-Taxonomy of whisker sensors is shown in Figure~\ref{fig:taxonomy}.
+The taxonomy of whisker sensors is shown in Figure~\ref{fig:taxonomy}.
 
 \begin{figure}[htb]
     \centering
@@ -86,113 +87,112 @@ Operation in unstructured environments poses multiple challenges, such as:
 Thus, the reconstruction of unstructured environments plays a pivotal role in the robot's ability to navigate and manipulate objects in its environment.
 
 Whisker sensors are particularly well-suited for this task due to their \textbf{non-intrusive nature} and \textbf{reconstruction precision}.
-They can be attached to the autonomous mobile manipulator, providing it with tactile information for accurate environment reconstruction, navigation and obstacle avoidance.
+They can be attached to the autonomous mobile manipulator, providing it with tactile information for accurate environment reconstruction, navigation, and obstacle avoidance.
 Furthermore, they are lightweight and low-cost, making them suitable for integration into small robots.
 
-However, the use of whisker sensors for active tactile perception poses several challenges.
-For single whisker configurations the following challenges arise:
+However, using whisker sensors for active tactile perception poses several challenges.
+For single whisker configurations, the following challenges arise:
 \begin{itemize}
     \item The whisker requires \textbf{active control} to maintain contact with the object.
-    \item \textbf{The whisker might slip or detach} if the surface is uneven or rough, or when sharp corners are encountered.
+    \item \textbf{The whisker might slip or detach} if the surface is uneven or rough or when sharp corners are encountered.
     \item The whisker \textbf{must maintain a certain deflection profile} to ensure accurate measurements.
     \item The whisker mustn't be compressed or bent too much, as this can lead to damage or wear.
     \item The whisker can bend in the wrong direction, preventing further exploration until it is repositioned.
 \end{itemize}
 
-For platforms integrating multiple whiskers additional challenges arise:
+For platforms integrating multiple whiskers, additional challenges arise:
 \begin{itemize}
-    \item The platform must be aware of its size and shape, as to not collide with the environment.
+    \item The platform must be aware of its size and shape so as not to collide with the environment.
     \item The platform must be able to \textbf{navigate in confined spaces}, such as tunnels or narrow passages.
     \item The platform must follow the above-mentioned requirements for each whisker.
 \end{itemize}
 
-To sum up, a robust whisker array and active control system is required.
+To summarize, a robust whisker array and active control system are required.
 
 
 \section{Overview of the Thesis}
 
 This thesis focuses on the use of \textbf{whisker sensors for active tactile perception in unstructured environments.}
 We aim to develop a control algorithm that allows a robotic platform to \textbf{actively explore and reconstruct its environment using whisker sensors.}
-The ultimate goal is to integrate the whisker arrays into a robotic rat and let it navigate autonomously in unstructured environments.
-This is very similar to the autonomous mobile manipulators discussed before.
+The ultimate goal is to integrate the whisker arrays into a robotic rat and let it \textbf{navigate autonomously in unstructured environments}.
 This thesis assumes that the navigation and whisker deflection happen in 2D and that all the objects are immovable.
 
 \subsection{Simulation}
 First, a \textbf{simulation backed by MuJoCo~\cite{todorov2012mujoco}}, a physics simulation framework maintained by Google DeepMind, is developed to test the proposed control algorithms.
 The whisker shaft is simulated as a composite of 40 elastic cables.
-The whisker contacts with the objects are assumed to be frictionless.
-A massive platform with two integrated whisker from left and right sides is set up for active control.
-Whiskers are tilted by 15\degree{} away from the nose to avoid the whisker tips getting stuck in the walls during the tunneling policy testing due to whiskers approaching the wall normally head-on and not deflecting.
+The whisker's contact with the objects is assumed to be frictionless.
+A massive platform with two integrated whiskers from the left and right sides is set up for active control.
+Whiskers are tilted by 15\degree{} away from the nose to avoid the whisker tips getting stuck in the walls during the tunneling policy testing due to whiskers approaching the wall head-on and not deflecting.
 
 \subsection{Control System}
-The control system is build upon specialized control policies for different tasks.
+The control system is built upon specialized control policies for different tasks.
 It accepts platform position and rotation as inputs and outputs platform linear and angular velocity.
 It runs at a \textbf{frequency of 30 Hz}.
-Platform linear velocity is always pointing at the target position, determined by the algorithm, with no smoothing or filtering.
-For angular velocity a \textbf{PID controller} driven by the platform yaw error is employed.
+Platform linear velocity always points at the target position, determined by the algorithm, with no smoothing or filtering.
+A \textbf{PID controller} driven by the platform yaw error is employed for angular velocity.
 
 \subsection{Swiping Policy}
-The basic building block is the \textbf{swiping policy}, which enables a single whisker to follow smooth contour of an object.
-It balances between preserving optimal whisker deflection and following the object's surface tangentially.
-Without the desired deflection the whisker will either detach or measure with low accuracy.
-The tangential contour tracking is required to ensure a steady direction of movement, as the deflection compensation per se does not imply any movement or a certain direction.
-To identify the geometry of the immediate object surface a spline is constructed from the last 7 whisker tip points at a distance of at least 1mm from each other.
-The swiping policy is tested in simulation on various objects, including a disk, a rectangular box with rounded corners and an object with moderate inflections.
+The basic building block is the \textbf{swiping policy}, which enables a single whisker to follow the smooth contour of an object.
+It balances between preserving optimal whisker deflection and tangentially following the object's surface.
+Without the desired deflection, the whisker tip will either detach or be measured with low accuracy.
+Tangential contour tracking is required to ensure a steady direction of movement, as deflection compensation does not imply a certain direction.
+To identify the geometry of the immediate object surface, a spline is constructed from the last 7 whisker tip points at a distance of at least 1mm from each other.
+The swiping policy is tested in simulation on various objects, including a disk, a rectangular box with rounded corners, and a complex object with moderate inflections.
 The swiping policy achieves \textbf{submillimeter accuracy} on all tests and is shown to pass angles of \textbf{up to 30\degree{} without detaching}.
 
 \subsection{Retrieval Policy}
-After that we introduce the \textbf{retrieval policy}, which allows the whisker to reattach to the object if it detached at a sharp corner.
-It aims to reconstruct the edge contour and to revert to the swiping policy.
+After that, we introduce the \textbf{retrieval policy}, which allows the whisker to reattach to the object if it detached at a sharp corner.
+It aims to reconstruct the edge contour and revert to the swiping policy.
 In order to do so, it tries for a contact a certain distance away from the edge, at a certain angle, until it comes into contact with the object.
 This contact at the opposite side of the edge is used to determine the edge angle.
-As edge reconstruction is required, the whisker swipes back to the edge until it detaches, then the platform reorients and approaches the edge again, now properly aligned.
-Once a steady contact is established, the control is switched back to the swiping policy.
-The retrieval policy is tested in simulation on various objects, including an octagon, a cube, a prism and a wall.
-It consistently succeeded in reattaching the whisker to the object and reconstructing the edge contour, delivering the average reconstruction error of 1mm.
+As edge reconstruction is required, the whisker swipes back to the edge until it detaches, and then the platform reorients and approaches the edge again, now properly aligned.
+Once a steady contact is established, the control is switched to the swiping policy.
+The retrieval policy is tested in simulation on various objects, including an octagon, a cube, a prism, and a wall.
+It consistently reattached the whisker to the object and reconstructed the edge contour, delivering an average reconstruction error of 1mm.
 The retrieval policy is shown to handle \textbf{the entire range of corner angles}, from 30\degree{} to 180\degree{} and to stick to the defined retrieval radius of 1cm.
 It generates a \textbf{stable platform trajectory}, only slightly diverging from the ideal trajectory, which would assume no whisker detachment and immediate reorientation at the edge.
 
 \subsection{Tunneling Policy}
-For navigation in confined passages, we develop the \textbf{tunneling policy}, aimed at keeping the platform at the center of the tunnel at all times.
+For navigation in confined passages, we develop the \textbf{tunneling policy}, aimed at keeping the platform at the tunnel's center at all times.
 It employs both whiskers to scan and reconstruct the tunnel.
-The tunneling policy is based on the same ideas as the swiping policy, that is, the whiskers are kept in contact with the walls, while following the tunnel and avoiding collisions.
+The tunneling policy is based on the same ideas as the swiping policy; the whiskers are kept in contact with the walls while the platform is following the tunnel and avoiding collisions.
 Again, a spline is constructed to estimate the axis (centerline) of the tunnel and determine the surface tangent.
-The target position is then calculated to ensure optimal deflection of both whiskers and following the tunnel axis.
-Required deflection compensation is quantified by the so-called \enquote{pull} in the normal direction.
-The tunneling policy is tested in simulation on various objects, including a smooth tunnel segment, a zigzag tunnel segment with angles up to 40\degree{} and a round star-shaped tunnel loop.
-The tunneling policy is shown to reconstruct contours of the tunnels with an average reconstruction error of 2mm.
-It can follow the axis of the tunnel with average deviation of about 5mm for segments where no whisker detachment occurs.
-It is capable of navigating tunnels with sharp corners up to 40\degree{} without colliding with the walls -- of course, only for otherwise smooth tunnels.
+The target position is then calculated to ensure optimal deflection of both whiskers and stable movement along the tunnel axis.
+The \enquote{pull} quantifies required deflection compensation in the normal direction.
+The tunneling policy is tested in simulation on various objects, including a smooth tunnel segment, a zigzag tunnel segment with angles up to 40\degree{}, and a round star-shaped tunnel loop.
+The tunneling policy is shown to reconstruct the contours of the tunnels with an average reconstruction error of 2mm.
+It can follow the tunnel axis with an average deviation of about 5mm for segments with no whisker detachment.
+It can navigate tunnels with sharp corners up to 40\degree{} without colliding with the walls -- of course, only for otherwise smooth tunnels.
 
 \subsection{Governing Policy}
-To combine the aforementioned specialized policies a finite state machine is set up.
+A finite state machine is set up to combine the aforementioned specialized policies.
 The transitions occur at the change of the number of deflected whiskers.
 For instance, the swiping policy transitions to the tunneling policy if the second whisker becomes deflected.
-It is responsible for switch from free exploration to swiping policy and handling whisker detachment inside tunnels, as both contact are not always secured.
+It is responsible for switching from free exploration to a swiping policy and handling whisker detachment inside tunnels, as both contacts are not always secured.
 No additional checks besides the basic functionality test are conducted.
 
 \subsection{Hardware Setup}
 In order to test the control system in real-world conditions, a whisker sensor array is designed and assembled.
 It supports 3 magnetically transduced whiskers on each side of the platform and features a mount for the Franka Emika Panda robotic arm equipped with a gripper.
 The whiskers made from nitinol wire are 7.5cm long and 0.2mm in diameter.
-Underneath them a neodymium magnet is glued to the suspension.
+Underneath them, a neodymium magnet is glued to the suspension.
 Adafruit MLX90393 Hall-effect sensor is placed 2--3mm away from the magnet and is used to measure the whisker deflection by detecting the change in the $Y$ axis of the magnetic field.
 Whiskers are tilted by 15\degree{} away towards the nose to increase the contact search space in front of the platform.
 
 \subsection{System Infrastructure}
 The system infrastructure is designed to support real-time collection, processing, and visualization of sensor data.
-It consists of multiple services like message broker, database, controller and dashboard web server.
-The dashboard backed by Grafana visualizes the sensor data from the whisker array in real-time.
+It consists of multiple services like message broker, database, controller, and dashboard web server.
+The dashboard backed by Grafana visualizes the sensor data from the whisker array in real time.
 
 
 \section{Key Contributions}
 The following key contributions are made in this thesis:
 \begin{enumerate}
-    \item We propose \textbf{Retrieval policy} for object retrieval in case of whisker detachment at sharp corners, managing the entire range of corner angles and ensuring edge contour reconstruction.
-    It involves edge angle resolution, whisking back and reattaching the whisker to the object.
-    \item We develop a \textbf{Tunneling policy}, allowing navigation in tunnels, for multi-whisker setups and show that it is able to maintain a centered trajectory in confined passages.
-    It aims to keep the whiskers in contact with the walls, while following the tunnel and avoiding collisions.
+    \item We propose \textbf{Retrieval policy} for object retrieval in the case of whisker detachment at sharp corners, managing the entire range of corner angles and ensuring edge contour reconstruction.
+    It involves edge angle resolution, whisking back, and reattaching the whisker to the object.
+    \item We develop a \textbf{Tunneling policy}, allowing navigation in tunnels for multi-whisker setups and show that it can maintain a centered trajectory in confined passages.
+    It aims to keep the whiskers in contact with the walls while following the tunnel and avoiding collisions.
     \item We present a new \textbf{whisker sensor array} design using magnetically transduced whiskers, with 3 whiskers on each side of the platform.
     \item Additionally, we prepare a \textbf{simulation framework} for the whisker control system to automate the testing of the control policies.
-    MuJoCo physics engine is used to simulate the whisker sensor and the environment.
+    MuJoCo~\cite{todorov2012mujoco} physics simulation framework is used to simulate the whisker sensor and the environment.
 \end{enumerate}
