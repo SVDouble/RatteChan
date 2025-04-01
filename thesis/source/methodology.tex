@@ -4,7 +4,7 @@
 \chapter{Control Algorithms}
 
 This chapter presents the control strategies that enable the whisker sensor system to accurately reconstruct object contours through tactile exploration.
-It details a Finite State Machine (FSM) based framework that integrates multiple control policies: swiping for continuous contour tracking, retrieval for re-establishing lost contacts, and tunneling for balanced navigation between surfaces.
+It details a Finite State Machine (FSM) based framework that integrates multiple control policies: swiping for continuous contour tracking, retrieval for re-establishing lost contacts and tunneling for balanced navigation between surfaces.
 The algorithms leverage real-time sensor feedback, spline-based trajectory planning, and PID-based body motion control to ensure smooth, adaptive interactions with diverse object geometries.
 
 
@@ -18,9 +18,9 @@ The following key requirements were determined for the control model design:
 \begin{enumerate}
     \item \textbf{Precise Contour Reconstruction:} The algorithm must accurately capture the local shape at the point of contact, ensuring that the detailed profile of the object is recorded.
     \item \textbf{Accurate Curve Following:} It must adeptly follow both smooth curves and sharp angles, all while maintaining an optimal whisker deflection.
-    The constant whisker deflection is crucial to have a predictable and small whisker tip position resolution by the deflection model.
+    The constant whisker deflection is crucial for a predictable and small whisker tip position resolution by the deflection model.
     \item \textbf{Robust Detachment Recovery:} Sudden changes in the object's geometry can cause the whisker to detach.
-    The system is therefore designed to quickly detect such events and recover contact with minimal disruption.
+    The system is, therefore, designed to quickly detect such events and recover contact with minimal disruption.
     \item \textbf{Collision Avoidance:} Considering the platform's dimensions, the algorithm incorporates measures to prevent collisions with the object during contour tracking.
 \end{enumerate}
 
@@ -35,12 +35,12 @@ The following key requirements were determined for the control model design:
     \item Although multiple objects may be present, the system focuses on a single object at any given time.
 \end{enumerate}
 
-\noindent To meet these requirements, the control algorithm is implemented as a FSM that sequences the following policies:
+\noindent To meet these requirements, the control algorithm is implemented as an FSM that sequences the following policies:
 
 \begin{enumerate}
     \item \textbf{Swiping Policy:} The whisker performs a continuous swiping motion along the object's curve while maintaining an optimal deflection profile.
-    \item \textbf{Retrieval Policy:} In the event of whisker detachment, this policy analyzes the detachment reason, re-establishes contact and resumes the swiping motion, ensuring the contour continuity.
-    \item \textbf{Tunnelling Policy:} When operating between two surfaces, the algorithm maintains a centered trajectory, thereby ensuring balanced contact on both sides.
+    \item \textbf{Retrieval Policy:} In the event of whisker detachment, this policy analyzes the detachment reason, re-establishes contact, and resumes the swiping motion, ensuring contour continuity.
+    \item \textbf{Tunnelling Policy:} When operating between two surfaces, the algorithm maintains a centered trajectory, ensuring balanced contact on both sides.
 \end{enumerate}
 
 This structured approach enables the control system to dynamically adapt to varying contact scenarios.
@@ -113,9 +113,9 @@ The filter is initially seeded with the neutral deflection and updated with each
 Each control policy produces a target position for either the platform body or the whisker, which is then executed by the actuators.
 To achieve accurate motion, the body motion control algorithm computes the necessary linear and angular velocities to reach the desired position.
 A PID controller is used to generate the target angular velocity based on the difference between the current and desired orientations.
-Meanwhile, the linear velocity is maintained at a constant magnitude, so that the resulting velocity vector is directly determined by the desired direction (see Algorithm~\ref{alg:steer_platform}).
+Meanwhile, the linear velocity is maintained at a constant magnitude so that the resulting velocity vector is directly determined by the desired direction (see Algorithm~\ref{alg:steer_platform}).
 In cases where the target position is specified for the whisker rather than the body, the algorithm applies a coordinate transformation to adjust the linear velocity accordingly.
-This transformation compensates for the offset between the whisker and the body frame, ensuring that the control command is executed correctly (see Algorithm~\ref{alg:steer_whisker}).
+This transformation compensates for the offset between the whisker and the body frame, ensuring the control command is executed correctly (see Algorithm~\ref{alg:steer_whisker}).
 
 
 \begin{algorithm}[htb]
@@ -215,22 +215,22 @@ Detachment can occur due to:
 \end{enumerate}
 
 The main challenge is determining the actual object profile for continued navigation.
-Since minor slippage is handled by the swiping policy, the focus here is on detachment due to the object's surface.
+Since the swiping policy handles minor slippage, the focus is on detachment due to the object's surface.
 The expected contact angle ranges from approximately 10\textminus20\textdegree{} (as the whisker moves from the deflected position toward neutral) up to 180\textdegree.
 A test point on the opposite side of the edge is used to determine the true edge angle, as the spline cannot be updated.
 
 \subsection{Premise}
-If the whisker remains detached beyond a predefined threshold, it is considered disengaged and the retrieval policy takes over from the swiping policy.
+If the whisker remains detached beyond a predefined threshold, it is considered disengaged, and the retrieval policy takes over from the swiping policy.
 Figures~\ref{fig:retrieval-0-1} and~\ref{fig:retrieval-0-2} illustrate the retrieval premise.
 
 \subsubsection{Angle Resolution}
 The angle resolution strategy operates as follows:
 \begin{enumerate}
     \item The whisker returns to a starting angle-detection position.
-    \item It targets the nearest out of all potential contact point at a fixed distance from the last known position; the locus of such points is a circle.
-    \item It moves sequentially from one candidate point to another, until the contact is established, as shown in Figure~\ref{fig:angle_retrieval}.
-    For every candidate point on the circle, the whisker's yaw is adjusted so that it contacts the object at a predefined angle.
-    The object's surface is assumed to be a straight line from edge to the candidate point.
+    \item It targets the nearest out of all potential contact points at a fixed distance from the last known position; the locus of such points is a circle.
+    \item It moves sequentially from one candidate point to another until the contact is established, as shown in Figure~\ref{fig:angle_retrieval}.
+    For every candidate point on the circle, the whisker's yaw is adjusted to contact the object at a predefined angle.
+    The object's surface is assumed to be a straight line from the edge to the candidate point.
     \item Once the contact is re-established, the edge angle is determined as an angle between the spline tangent before the detachment and the line connecting the edge and the contact point.
     The required deflection threshold to detect the contact is set high enough for the deflection model to have a sufficiently small error during the next step with such a deflection.
 \end{enumerate}
@@ -354,13 +354,13 @@ See Figure~\ref{fig:retrieval-3-1}, ~\ref{fig:retrieval-3-2} and ~\ref{fig:retri
 The tunneling policy ensures that the platform maintains a centered trajectory between two surfaces, which optimizes whisker contact on both sides.
 The idea is demonstrated in Algorithm~\ref{alg:tunneling_policy}.
 A midpoint spline is generated by computing keypoints defined as the midpoints between the left and right whisker contacts (Algorithm~\ref{alg:tunneling_policy}, lines 1--3 highlighted in yellow).
-This B-Spline serves as a continuous reference for steering the platform through tunnel-like environments.
+This B-Spline is a continuous reference for steering the platform through tunnel-like environments.
 The target angle is determined by the tangent of the midpoint spline (Algorithm~\ref{alg:tunneling_policy}, lines 6--8 highlighted in blue).
-The target position is calculated as current position plus the weighted sum of the spline tangent and deflection \enquote{pull} (Algorithm~\ref{alg:tunneling_policy}, lines 9--10 highlighted in green).
-This pull evaluates the difference between the current and target deflections as a ratio for both whiskers and shows, whether the normal movement is needed to correct the deflection.
+The target position is calculated as the current position plus the weighted sum of the spline tangent and deflection \enquote{pull} (Algorithm~\ref{alg:tunneling_policy}, lines 9--10 highlighted in green).
+This pull evaluates the difference between the current and target deflections as a ratio for both whiskers and shows whether normal movement is needed to correct the deflection.
 
 \begin{algorithm}
-    \caption{Tunneling Policy Control}
+    \caption{Tunneling Policy}
     \begin{algorithmic}[1]
         \State \colorbox{yellow!40}{\(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, r}}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{r, body}} + \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{r}}^{t}) \cdot \mathrm{r.defl\_model}(\delta_{\mathrm{r}}^{t})\)}
         \State \colorbox{yellow!40}{\(\;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{tip, l}}^{t} \gets \;^{\mathrm{w}}\boldsymbol{r}^{t} + \;^{\mathrm{w}}\boldsymbol{r}_{\mathrm{l, body}} + \boldsymbol{R}_{xy}^{2}(\; ^{\mathrm{w}}\alpha_{\mathrm{l}}^{t}) \cdot \mathrm{l.defl\_model}(\delta_{\mathrm{l}}^{t})\)}
@@ -381,15 +381,15 @@ This pull evaluates the difference between the current and target deflections as
 
 \section{Finite State Machine}
 
-The policies are specialized and only in combination can the whisker harness their full potential.
-A FSM is used to combine these policies, with each policy represented as a state.
+The policies are specialized, and only in combination can the whisker harness their full potential.
+An FSM combines these policies, with each policy represented as a state.
 Transitions occur when specific events arise, such as ``whisker has come into contact with the surface'' or ``whisker has become disengaged.''
-The statechart of the FSM for the discussed policies is depicted in Figure~\ref{fig:fsm}.
+The state chart of the FSM for the discussed policies is depicted in Figure~\ref{fig:fsm}.
 
 \begin{figure}[htb]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/diagrams/fsm}
-    \caption{FSM diagram of the whisker control system. The diagram illustrates the various states (Exploring, Swiping, Tunneling, Retrieval, Whisking, Failure) and the transitions triggered by events such as contact establishment, detachment, and reattachment.}
+    \caption{FSM diagram of the whisker control system. The diagram illustrates the various states (Exploring, Swiping, Tunneling, Retrieval, Whisking, Failure) and the transitions triggered by contact establishment, detachment, and reattachment.}
     \label{fig:fsm}
 \end{figure}
 
@@ -404,9 +404,10 @@ If the goal is to quickly analyze the object's surface without precise edge reco
 
 \subsection{Platform Tilt}
 
-For improved stability during swiping (i.e. to handle sharper angles without separation), the platform can be tilted slightly toward the object.
+The platform can be tilted slightly toward the object for improved stability during swiping (i.e., to handle sharper angles without separation).
 This requires a simple modification of the body motion control algorithm by adjusting the target orientation by a small angle.
-The tilt increases the duration of whisker contact with the surface, as the platform maintains its direction, which is beneficial given that the spline is constructed only at the contact point and cannot predict the future curve far away.
+The tilt increases the duration of whisker contact with the surface as the platform maintains its direction.
+It is beneficial given that the spline is constructed only at the contact point and cannot predict the future curve far away.
 
 \subsection{Reverse Swiping}
 
@@ -418,7 +419,7 @@ The retrieval policy is adjusted accordingly, as it depends solely on the positi
 \subsection{Positioning of Whiskers at Different Angles}
 
 Improving the adhesion of the whisker to the object can be achieved by positioning the whisker at an angle relative to the platform while maintaining the platform's tangential alignment with the object.
-This approach follows the same principle as tilting, but preserves the platform's angle relative to the object.
+This approach follows the same principle as tilting but preserves the platform's angle relative to the object.
 This modification is particularly important in tunneling scenarios, where both whiskers must negotiate turns without becoming stuck.
 When entering a tunnel, the first whisker contacts the surface, followed by the second whisker.
 It is critical that the second whisker is positioned at an appropriate angle relative to the platform (typically slightly behind the main body).
@@ -448,7 +449,7 @@ The baseline algorithm from previous work implements the swiping policy as follo
     \item The total velocity is maintained, with the principal direction velocity in the local frame calculated as the complement to the velocity toward whisker compression or relaxation.
     \item The output velocity in the world frame is obtained by rotating the local frame velocity by the whisker tip spline tangent.
 \end{enumerate}
-The underlying idea is that to track the surface, the whisker profile (i.e. its deflection) must remain constant; hence, the platform moves closer to the object when the whisker is too relaxed and moves away when it is too strained.
+The underlying idea is that to track the surface, the whisker deflection profile must remain constant; hence, the platform moves closer to the object when the whisker is too relaxed and moves away when it is too strained.
 
 \subsection{Comparison to Baseline}
 
@@ -467,7 +468,7 @@ The baseline control can be characterized as follows:
     \item The platform's velocity is relatively slow, and sudden changes in the principal direction--due to whisker slippage--can result in a 180° change in the spline direction, potentially causing reverse motion.
 \end{itemize}
 
-Following steps are possible to rectify the shortcomings of the baseline algorithm:
+The following steps are possible to rectify the shortcomings of the baseline algorithm:
 \begin{enumerate}
     \item To enhance reactivity, remove the Kalman filter and apply smoothing directly to the deflection signal (using the low-pass Butterworth filter described in Section~\ref{sec:data_preprocessing}).
     \item To modify the swiping policy to balance the importance of following the spline with maintaining the deflection profile.
@@ -479,10 +480,10 @@ Following steps are possible to rectify the shortcomings of the baseline algorit
 \subsection{Limitations of the Suggested Control Algorithm}
 The proposed control algorithm has several limitations:
 \begin{itemize}
-    \item It does not take the platform dimensions into account to prevent non-whisker contacts.
-    \item It requires parameter tuning (e.g., velocity, desired deflection, contact deflection threshold, PID parameters, etc.) to work properly.
-    \item It is not failsafe in terms of whisker integrity, as extreme deflections are not directly forbidden.
+    \item It does not consider the platform dimensions to prevent non-whisker contacts.
+    \item It requires parameter tuning (e.g., velocity, desired deflection, contact deflection threshold, PID parameters, etc.).
+    \item It is not failsafe regarding whisker integrity, as extreme deflections are not directly forbidden.
     \item It does not allow for non-constant velocity and does not optimize the velocity for the environment.
-    \item It can lead to situations in which the platform might get stuck (for instance, at the tunnel end, since the minimal space required for platform rotation without damaging the whisker is not calculated).
+    \item It can lead to situations where the platform might get stuck (for instance, at the tunnel end, since the minimal space required for platform rotation without damaging the whisker is not calculated).
     \item There are other limitations imposed by the assumptions discussed earlier.
 \end{itemize}

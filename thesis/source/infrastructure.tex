@@ -4,19 +4,19 @@
 \chapter{Infrastructure}
 
 The following chapter details the integrated system infrastructure that underpins our whisker sensor platform.
-It covers the real-time data acquisition, processing, and visualization components, along with the modular software services orchestrated in Docker containers.
+It covers the real-time data acquisition, processing, and visualization components and the modular software services orchestrated in Docker containers.
 This infrastructure seamlessly connects hardware elements--such as the whisker platform and the actuator--with the control unit and simulation environment.
 
 
 \section{Overview}
-The system infrastructure takes care of real-time collection, processing, and visualization of sensor data.
+The system infrastructure takes care of real-time sensor data collection, processing, and visualization.
 Its implementation is available on GitHub\footnote{\url{https://github.com/SVDouble/RatteChan}} under the \texttt{services} directory.
 The architecture comprises three main entities: the whisker platform, the controller, and the actuator.
 The platform provides two Inter-Integrated Circuit (I2C) buses for reading sensor data, each equipped with three Adafruit MLX90393 sensors.
 The sensors are connected in a daisy chain via a 4-pin JST connector.
-This allows to avoid the need for soldering.
+This allows us to avoid the need for soldering.
 Theoretically, up to 16 sensors can be connected per bus, but we are using only three, as the development boards are limited to four sensors per bus.
-As the controller device a Raspberry Pi 5 is chosen, as it has sufficient processing power and is small enough to be mounted on the robotic arm.
+The controller device, a Raspberry Pi 5, was chosen because it has sufficient processing power and is small enough to be mounted on the robotic arm.
 Currently, the actuator is simulated; however, it will eventually be replaced by a robotic arm.
 Figure~\ref{fig:infrastructure_overview} summarizes the system architecture.
 
@@ -53,19 +53,19 @@ Figure~\ref{fig:mujoco} depicts the simulation interface of MuJoCo.
     \label{fig:mujoco}
 \end{figure}
 
-The simulation framework is designed to be modular, and so the controller has no dependency on the simulation framework.
-That makes possible the integration of new frameworks or sensor data sources and sinks.
-10 test cases are provided to test the performance of 3 different policies.
-For each test case the results are automatically evaluated and plotted, similar to Figures~\ref{fig:experiment-disk-swiping}--\ref{fig:experiment-round-tunnel-swiping-tunneling}.
-For each test case an accompanying video is provided, which shows the simulation in action.
-MuJoCo allows to follow, pause and analyze the simulation.
-The simulation is set up in a way that the trajectories of the whisker tips and the platform center of mass are displayed continuously.
-This is a sort of sanity check for the simulation, as the deflection model and tip calculations are error-prone.
+The simulation framework is designed to be modular, so the controller has no dependency on the simulation framework.
+That makes the integration of new frameworks or sensor data sources and sinks possible.
+Ten test cases are provided to test the performance of 3 different policies.
+The results are automatically evaluated and plotted for each test case, similar to Figures~\ref{fig:experiment-disk-swiping}--\ref{fig:experiment-round-tunnel-swiping-tunneling}.
+An accompanying video is provided for each test case, showing the simulation in action.
+MuJoCo allows us to follow, pause, and analyze the simulation.
+The simulation is set up so that the trajectories of the whisker tips and the platform center of mass are displayed continuously.
+This is a sanity check for the simulation, as the deflection model and tip calculations are error-prone.
 
 
 \section{System Services}
-The system is composed of several interconnected services, as illustrated in Figure~\ref{fig:data_flow}.
-All of them are running in Docker containers, as to guarantee a consistent and separate environment across different machines.
+The system comprises several interconnected services, as illustrated in Figure~\ref{fig:data_flow}.
+All of them run in Docker containers to guarantee a consistent and separate environment across different machines.
 Docker containers are lightweight, portable, and self-sufficient units that encapsulate all the necessary components to run a software application.
 They are orchestrated using Docker Compose\footnote{\url{https://docs.docker.com/compose/}}, a tool for defining and running multi-container applications.
 The control system runs on any machine with Docker installed, like Raspberry Pi 5, making it easy to deploy.
@@ -85,11 +85,11 @@ The control system runs on any machine with Docker installed, like Raspberry Pi 
     But generally speaking, the Sensor IO module can be decoupled from the controller and run on a separate device.
 
     \item \textbf{Controller:}
-    The Controller processes sensor data and generates control signals.
-    It also publishes statistics for further monito ring.
+    The controller processes sensor data and generates control signals.
+    It also publishes statistics for further monitoring.
 
     \item \textbf{MQTT Broker:}
-    Acting as the central messaging hub, the MQTT Broker receives and distributes sensor and control data.
+    As the central messaging hub, the MQTT Broker receives and distributes sensor and control data.
     It is based on the subscriber-publisher model.
     This component is critical for system responsiveness.
 
@@ -98,37 +98,37 @@ The control system runs on any machine with Docker installed, like Raspberry Pi 
     The data is then forwarded to InfluxDB for storage.
 
     \item \textbf{InfluxDB:}
-    InfluxDB is a time-series database, which is used to store historical sensor data and controller performance metrics.
+    InfluxDB is a time-series database that stores historical sensor data and controller performance metrics.
     It serves as a persistent storage solution for the system during the execution of the experiments.
 
     \item \textbf{Grafana:}
-    Grafana provides a web-based dashboard that visualizes the sensor data in real-time.
+    Grafana provides a web-based dashboard that visualizes the sensor data in real time.
     It allows users to monitor the system's status interactively.
 
     \item \textbf{Promtail:}
-    Promtail is responsible for collecting logs from the various services and forwarding them to Loki.
+    Promtail collects logs from the various services and forwards them to Loki.
 
     \item \textbf{Loki:}
     Loki aggregates the logs provided by Promtail and makes them available for visualization via Grafana.
-    This centralized logging system helps in troubleshooting and monitoring system health.
+    This centralized logging system helps troubleshoot and monitor system health.
 
     \item \textbf{Traefik:}
-    Traefik is used as a reverse proxy for communication between the services and with the outside world.
+    Traefik is a reverse proxy for communication between the services and the outside world.
     For instance, it allows access to the Grafana dashboard via a web browser.
 \end{itemize}
 
 
 \section{Dashboard}
-The system dashboard is built using Grafana, a powerful analytics and monitoring platform.
+The system dashboard uses Grafana, a powerful analytics and monitoring platform.
 It provides a web-based interface for visualizing sensor data and control signals.
 Grafana Live with MQTT is employed to transmit real-time system status.
-Figure~\ref{fig:grafana} shows a minimalistic dashboard with magnetic data from six whisker sensors sampled in real-time.
+Figure~\ref{fig:grafana} shows a minimalistic dashboard with magnetic data from six whisker sensors sampled in real time.
 
 
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{figures/grafana}
-    \caption{Visualization of magnetic data of 6 whisker sensors in real time using Grafana.}
+    \caption{visualization of magnetic data of 6 whisker sensors in real-time using Grafana.}
     \label{fig:grafana}
 \end{figure}
 

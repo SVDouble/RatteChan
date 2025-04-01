@@ -3,24 +3,24 @@
 
 \chapter{Conclusion}
 
-This chapter summarizes the contributions of our work and sketches out the roadmap ahead for refining autonomous active tactile exploration.
-In the following sections, future directions for the project are presented, emphasizing the transition from simulation to real-world testing and addressing key challenges identified during experimentation.
+This chapter summarizes our work's contributions and outlines the roadmap for refining autonomous active tactile exploration.
+The following sections present future directions for the project, emphasizing the transition from simulation to real-world testing and addressing key challenges identified during experimentation.
 
-Furthermore, we discuss opportunities for enhancing both the whisker array platform and its control policies, focusing on advanced deflection models, increased sensor integration, and improved collision detection mechanisms.
+Furthermore, we discuss opportunities for enhancing the whisker array platform and its control policies, focusing on advanced deflection models, increased sensor integration, and improved collision detection mechanisms.
 
 
 \section{Summary}
 
-In this work, the groundwork is laid for achieving \textbf{autonomous active tactile exploration of unstructured environments using a whisker array}.
+This work lays the groundwork for achieving \textbf{autonomous active tactile exploration of unstructured environments using a whisker array}.
 \textbf{Four specialized control policies} are implemented to steer the whisker array platform for contour reconstruction and tunnel navigation.
 A \textbf{simulation framework backed by MuJoCo} is established to evaluate the whisker control system.
 
-All policies demonstrate the ability to capture contours with \textbf{millimeter-range precision} while navigating complex environments.
+All policies can capture contours with \textbf{millimeter-range precision} while navigating complex environments.
 The swiping policy reconstructs object contours while preserving exploration direction and maintaining whisker contact.
-It is shown that the swiping policy is able to reconstruct smooth contours and \textbf{overcome angles of up to 30\degree{} without detachment}.
+It is shown that the swiping policy can reconstruct smooth contours and \textbf{overcome angles of up to 30\degree{} without detachment}.
 The retrieval policy is proposed to handle whisker detachment at sharp corners.
 It is shown that the retrieval policy successfully \textbf{reconstructs object edges} and enables smooth whisker detachment handling, ensuring complete contour capture.
-For navigating confined spaces, the tunneling policy is presented.
+The tunneling policy is presented for navigating confined spaces.
 Multiple test scenarios show the tunneling policy successfully \textbf{navigates tunnels with a diameter of 22\,cm, effectively managing whisker reattachments at sharp corners}.
 Furthermore, a governing policy is proposed to \textbf{handle transitions between exploration, swiping, retrieval, and tunneling policies}.
 Its efficacy is demonstrated clearly in scenarios such as the zigzag tunnel, where brief whisker detachment occurs, and in all tests involving the retrieval policy.
@@ -42,8 +42,8 @@ Future directions for this project are the following:
     This is especially relevant for the tunneling policy, where whiskers often collide head-on with surfaces, causing the tip to become stuck and resulting in unpredictable deflections.
 
     \item The whisker \textbf{deflection model must be recalibrated} separately for (a) simulations and (b) real-world environments.
-    In simulations, using ground truth whisker tip positions can simplify tuning the control policies.
-    End-to-end control tests provide a realistic evaluation of the entire system but complicate debugging, as component errors propagate through the system.
+    Using ground truth whisker tip positions in simulations can simplify tuning the control policies.
+    End-to-end control tests provide a realistic system evaluation but complicate debugging as component errors propagate.
     The current deflection model accurately covers only a limited deflection range, which is insufficient for the tunneling policy.
     The platform may be placed in tight spaces, leading to large whisker \textbf{deflections exceeding the model's valid range}.
     Significant deviations were found during testing of the tunneling policy, even in simple scenarios, with predicted whisker tip positions typically closer to the platform than their actual positions.
@@ -52,14 +52,14 @@ Future directions for this project are the following:
 
 
 \section{Potential Improvements}
-We would like to mention modification for enhancing the whisker array platform and refining its control strategies:
+We would like to mention modifications for enhancing the whisker array platform and refining its control strategies:
 \begin{itemize}
     \item An \textbf{advanced whisker deflection model} is required to detect contact along the entire whisker length.
     This involves processing additional axes of the hall sensor.
     For this, more advanced suspensions might be required, which \textbf{allow both rotation and axial displacement of the whisker}.
 
-    \item \textbf{More whiskers} can be included in the contour reconstruction process.
-    Currently, the control policies evaluate only a maximum of one whisker per side.
+    \item \textbf{More whiskers} can be included in the contour reconstruction.
+    The control policies evaluate only a maximum of one whisker per side.
     Using even two whiskers per side would significantly speed up contour reconstruction, eliminating the need for swiping back during retrieval.
     The platform dimensions allow the rear-most whisker to seamlessly capture the edge contour.
     The retrieval policy would then be limited to resolving the encountered edge angles.
@@ -76,7 +76,7 @@ We would like to mention modification for enhancing the whisker array platform a
 
     \item For 3D contour reconstruction, a \textbf{Printed Circuit Board (PCB) with multiple Hall-effect sensors} is required.
     The simplest arrangement would involve three whisker sensors positioned in a triangle with side lengths significantly shorter than the whisker length.
-    Such an arrangement is currently not achievable with Adafruit MLX90393 development boards due to their large size.
+    Due to their large size, such an arrangement is currently not achievable with Adafruit MLX90393 development boards.
 
     \item Integrating the whisker array into the \textbf{robotic rat} would represent the pinnacle of the project.
 \end{itemize}

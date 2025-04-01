@@ -3,7 +3,7 @@
 
 \chapter{Experimental Setup}
 
-To validate the proposed policies, we developed a framework comprising a simulation, tools for collecting metrics, and an automatic test runner.
+We developed a simulation framework, tools for collecting metrics, and an automatic test runner to validate the proposed policies.
 It is backed by MuJoCo~\cite{todorov2012mujoco}, which provides a realistic simulation of contact dynamics.
 Our developed framework is available on GitHub\footnote{\url{https://github.com/SVDouble/RatteChan}}.
 
@@ -16,7 +16,7 @@ Performance is quantified by evaluating the mean absolute error and the standard
 The estimated contour, $C_{\text{est}} = \{\mathbf{y}_i\}_{i=1}^N$, is determined by the control algorithm, which selects points based on whisker deflection and excludes those recorded during the whisking-back phase in retrieval.
 The reference contour, $C_{\text{ref}} = \{\mathbf{x}_i\}_{i=1}^N$, consists of points on the object's surface, each being the closest match to the corresponding estimated point, and is derived from high-resolution sampling to serve as ground truth.
 
-The absolute error is defined as $d_i = \|\mathbf{x}_i - \mathbf{y}_i\|$, which is the Euclidean distance between the reference and estimated points.
+The absolute error is $d_i = \|\mathbf{x}_i - \mathbf{y}_i\|$, which is the Euclidean distance between the reference and estimated points.
 To assess performance, we compute the mean absolute error
 \[
     \bar{d} = \frac{1}{N}\sum_{i=1}^{N} d_i,
@@ -28,11 +28,11 @@ and the standard error
 The mean absolute error represents the average distance between the reference and estimated points.
 
 Figures~\ref{fig:experiment-disk-swiping}--\ref{fig:experiment-complex-object-swiping} display results for various objects.
-Estimated contour points are colored green if their error deviates from the mean by less than the standard error, and red otherwise.
+Estimated contour points are colored green if their error deviates from the mean by less than the standard error and red otherwise.
 Red points indicate the most inaccurate measurements, corresponding to the worst 32 percentile of the error distribution.
 
 Figure~\ref{fig:experiment-disk-swiping} shows the contour estimation of a disk using the swiping policy.
-The disk is the simplest object, the mean reconstruction error is $0.8\,\text{mm} \pm 0.5\,\text{mm}$, indicating a high level of accuracy.
+The disk is the simplest object; the mean reconstruction error is $0.8\,\text{mm} \pm 0.5\,\text{mm}$, indicating a high level of accuracy.
 No prominent red regions are observed, except for occasional deviations due to the disk's polygonal approximation at the entry point.
 
 \begin{figure}[!htb]
@@ -43,7 +43,7 @@ No prominent red regions are observed, except for occasional deviations due to t
 \end{figure}
 
 Figure~\ref{fig:experiment-rounded-rectangular-box-swiping} illustrates the contour estimation of a rounded rectangular box.
-The rounded rectangular box is a more complex object with sharper corners, yet it shows a similar level of accuracy and mean error.
+The rounded rectangular box is a more complex object with sharper corners, yet it shows similar accuracy and mean error.
 The mean reconstruction error is $0.8\,\text{mm} \pm 0.6\,\text{mm}$, with a single red region after the first corner.
 
 \begin{figure}[!htb]
@@ -60,7 +60,7 @@ At the initial moments, the whisker becomes overly deflected, causing the error 
 The mean error remains comparable to that observed for the disk and the rounded rectangular box.
 
 Additionally, the swiping policy can successfully handle a 30\degree{} angle without causing the whisker to detach.
-This angle is near the threshold where whisker detachment occurs and the retrieval policy is triggered.
+This angle is near the threshold where whisker detachment occurs, and the retrieval policy is triggered.
 
 \begin{figure}[!htb]
     \centering
@@ -82,28 +82,28 @@ The following metrics evaluate the retrieval policy:
 \end{itemize}
 In the plots, the edge points $\mathbf{r}_{\mathrm{edge}}$ are shown as red crosses, while the retrieved points $\mathbf{r}_{\mathrm{retr}}$ appear as black crosses.
 
-The mean retrieval radius, defined as
+The mean retrieval radius is defined as
 \[
     \bar{r} = \frac{1}{N}\sum_{j=1}^{N} \|\mathbf{r}_{\mathrm{edge},j} - \mathbf{r}_{\mathrm{retr},j}\|,
 \]
 quantifies the proximity of a retrieved point to the edge, which is critical for accurately determining the edge direction.
 A smaller $\bar{r}$ corresponds to a faster and more precise retrieval.
 Ideally, this radius should be less than the distance between the whisker tip in its optimally deflected state (with $\delta=\delta_{\mathrm{target}}$) and its neutral state (with $\delta=0$), which is approximately 3\,cm.
-The control algorithm sets the target mean retrieval radius to 1\,cm; values below 3\,cm are acceptable provided the contact angle remains within the desired range.
+The control algorithm sets the target mean retrieval radius to 1\,cm; values below 3\,cm are acceptable, provided the contact angle remains within the desired range.
 
 The mean retrieval distance, given by
 \[
     \bar{d}_{\mathrm{retr}} = \frac{1}{N}\sum_{j=1}^{N}\sum_{i=k_{\mathrm{edge},j}}^{k_{\mathrm{retr},j}-1} \|\mathbf{r}^{t_{i+1}} - \mathbf{r}^{t_i}\|,
 \]
-measures the length of the trajectory from the time of detachment until the system resumes normal operation after retrieval.
+measures the trajectory length from the time of detachment until the system resumes normal operation after retrieval.
 A longer trajectory indicates more unnecessary movement, reducing the efficiency of the retrieval policy.
-Note that for large, flat contact angles the whisker's overshoot may increase $\bar{r}$, even if the backward motion is not required to establish optimal contact.
+Note that the whisker's overshoot may increase $\bar{r}$ for large, flat contact angles, even if the backward motion is not required to establish optimal contact.
 
 The retrieval performance for the octagon with 135\degree{} edges is presented in Figure~\ref{fig:experiment-octagon-edges-135deg-swiping-retrieval}.
-This object, with its high number of edges, demands a stable retrieval policy.
+With its high number of edges, this object demands a stable retrieval policy.
 The octagon exhibits a mean reconstruction error of $1.1\,\text{mm} \pm 0.8\,\text{mm}$, comparable to the performance observed with the swiping policy.
-It also has a mean retrieval radius of $20.9\,\text{mm} \pm 1.7\,\text{mm}$, which is about one quarter of the whisker length.
-This radius is higher than the target of 1\,cm because fine adjustment of the whisker's position is unnecessary in this case.
+It also has a mean retrieval radius of $20.9\,\text{mm} \pm 1.7\,\text{mm}$, about one-quarter of the whisker length.
+This radius is higher than the target of 1\,cm because fine adjustment of the whisker's position is unnecessary.
 The low relative standard deviation indicates high reproducibility.
 The retrieval policy was triggered 8 times in total.
 
@@ -131,7 +131,7 @@ The prism yields a mean reconstruction error of $0.8\,\text{mm} \pm 0.6\,\text{m
 It also has a mean retrieval radius of $8.8\,\text{mm} \pm 0.6\,\text{mm}$, approaching the target value.
 However, an inflation in the trajectory is observed at the retrieved edges.
 This is likely due to the transition between the undeflected and deflected states.
-Such overshoot--especially when the whisker contacts the edge away from its tip--is necessary to accelerate deflection compensation during subsequent swiping.
+Such overshooting--especially when the whisker contacts the edge away from its tip--is necessary to accelerate deflection compensation during subsequent swiping.
 It also helps minimize the platform's rocking in the normal direction.
 A more sophisticated deflection model that accounts for contact along the whisker shaft could potentially mitigate this effect.
 
@@ -148,7 +148,7 @@ Nonetheless, the system achieves a mean retrieval radius of $10.2\,\text{mm} \pm
 This performance is partly due to the wall's precise 1\,cm width, which limits the possibility of contacts farther away.
 Video recordings confirm that the whisker tip is well-aligned and contacts the opposite edge accurately.
 If the wall were about 25\% shorter, the policy could still handle it through deflection at the whisker's shaft, provided the side length remains above a critical threshold.
-Conversely, when the target radius is doubled, the platform executes a 180\degree{} turn to reach the edge, effectively rendering the wall undetectable.
+Conversely, when the target radius is doubled, the platform executes a 180\degree{} turn to reach the edge, rendering the wall undetectable.
 In this case, the mean reconstruction error is $1.1\,\text{mm} \pm 0.6\,\text{mm}$, consistent with the performance of the swiping policy.
 
 \begin{figure}[!htb]
@@ -190,7 +190,7 @@ For the tunneling policy, we employ the following metrics:
 \end{itemize}
 
 The tunnel axis, shown as pink dashed lines in the figures, is defined as the line equidistant from the tunnel walls.
-Thus, the mean absolute axis error quantifies the deviation of the estimated midpoints (marked in black) from the tunnel axis.
+Thus, the mean absolute axis error quantifies the estimated midpoints (marked in black) deviation from the tunnel axis.
 
 Figures~\ref{fig:experiment-smooth-tunnel-swiping-tunneling}--\ref{fig:experiment-round-tunnel-swiping-tunneling} illustrate smooth, zigzag, and round tunnels.
 
@@ -200,7 +200,7 @@ The mean absolute reconstruction error is $1.3\,\text{mm} \pm 1.6\,\text{mm}$, a
 For reference, the tunnel is approximately 10\,cm wide, and each whisker is 7.5\,cm long.
 The difference between the reconstruction error and the axis error is due to a lag in the midpoint trajectory relative to the tunnel axis.
 This lag occurs because the control system cannot immediately adjust the platform's position owing to its inertia and the continuously changing tunnel direction.
-Additionally, heightened deflection near the operational limit of the deflection model and a transition effect when the whiskers first contact the tunnel walls contribute to this error.
+Additionally, heightened deflection near the operational limit of the deflection model and a transition effect when the whiskers first come into contact with the tunnel walls contribute to this error.
 
 \begin{figure}[!htb]
     \centering
@@ -214,10 +214,10 @@ In this case, the mean absolute reconstruction error is $2\,\text{mm} \pm 2\,\te
 This increase is attributed to the difficulty of maintaining a centered trajectory, as the midpoint trajectory deviates from the tunnel axis at the corners.
 Furthermore, the left whisker detaches at the first zigzag, while the right whisker remains in contact with the wall.
 Because the left whisker cannot maintain contact at the sharp angle, the swiping policy is applied to the right whisker until the left whisker re-establishes contact.
-For a short period, the platform's nose contacts the wall, but it quickly recovers.
+The platform's nose contacts the wall for a short period, but it quickly recovers.
 Overall, the performance is satisfactory, as the whiskers navigate the tunnel and accurately estimate the contour.
 For even sharper zigzag angles, the platform may fail to pass through the tunnel if its nose prods a wall, as no recovery policy is implemented for such cases.
-Such failures would be indicated by increased actuator force or a reduction in platform speed, which are not measured in the current setup.
+Such failures would be indicated by increased actuator force or a reduced platform speed, which are not measured in the current setup.
 
 \begin{figure}[!htb]
     \centering
