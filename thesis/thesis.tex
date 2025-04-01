@@ -1,4 +1,6 @@
 % !TeX spellcheck = en_US
+% \PassOptionsToPackage{backend=biber,style=authoryear,natbib=true,maxcitenames=2,mincitenames=1}{biblatex}
+
 \documentclass[AIRstudentthesis%      style
 ,optCharter%            font
 ,optBlackHeadings%      black sections to reduce number of colored pages
@@ -12,6 +14,9 @@
 ,optComputerModernMath
 ]{AIRlatex}
 
+\AtBeginDocument{%
+    \ExecuteBibliographyOptions{maxcitenames=2,mincitenames=1} % enforce truncation to et al.
+}
 
 % Load additional LaTeX packages - remove what you do not need
 \usepackage{algorithm}
@@ -30,9 +35,7 @@
 \graphicspath{{figures/}}
 \addbibresource{source/literature.bib}
 
-% Define additional commands
-\newcommand{\code}[1]{\texttt{#1}}
-\newcommand{\degree}[0]{^\circ}
+\sisetup{math-micro=\text{µ},text-micro=µ}
 
 \begin{document}
     % Titlepage

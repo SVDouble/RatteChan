@@ -12,7 +12,7 @@ Nature provides ample evidence of the effectiveness of tactile sensing and offer
 
 Some animals possess tactile sensory hairs known as whiskers or vibrissae, which complement their vision.
 Whiskers enable them to interact effectively with their environment through non-intrusive mechanical contact.
-\enquote{Traditionally, whiskers are associated with diverse survival skills, including tactile discrimination, distance assessment, food acquisition, gap crossing, and social interaction} note Ibarra-Castaneda et al.~\cite{IBARRACASTANEDA2022100034}.
+\enquote{Traditionally, whiskers are associated with diverse survival skills, including tactile discrimination, distance assessment, food acquisition, gap crossing, and social interaction} note \citetext{IBARRACASTANEDA2022100034}.
 For example, seals and sea lions use their whiskers for hunting in dark and turbid environments.
 When prey swims nearby, the generated hydrodynamic vortices cause distinct, jerky deflections in the whiskers.
 These deflections reveal the hydrodynamic trail left by the prey, allowing seals and sea lions to locate their prey effectively~\cite{muthuramalingam2018sealsealionwhiskers}.
@@ -22,7 +22,7 @@ In contrast, some rodents such as rats and squirrels can move their whiskers act
 Different textures produce unique slip-stick motion patterns and deflection magnitudes of whiskers, resulting in characteristic resonant vibrations that rodents interpret to identify surfaces and objects~\cite{wolfe2008texture}.
 
 Rats particularly depend on whisker-based navigation when traversing confined spaces, such as tunnels or burrows.
-Through coordinated whisking motions, rats efficiently detect the layout and contours of the environment, allowing them to move even in complete darkness~\cite{*}.
+Through coordinated whisking motions, rats efficiently detect the layout and contours of the environment, allowing them to move even in complete darkness~\cite{wolfe2008texture}.
 
 The anatomical structure and functional mechanisms of biological whiskers are depicted in Figure~\ref{fig:whisker-anatomy}.
 Whiskers come in various shapes and sizes, and one animal can have multiple whiskers, each with a different length and taper.
@@ -53,7 +53,7 @@ Whisker-inspired tactile sensors have extensive applications, including~\cite{s2
 \end{itemize}
 
 Whisker-inspired tactile sensors offer low power consumption, minimal computational requirements, and high spatial resolution.
-Some of the most commonly used whisker-inspired tactile sensors are:~\cite{s22072705}
+Some of the most commonly used whisker-inspired tactile sensors are~\cite{s22072705}:
 \begin{itemize}
     \item \textbf{Strain gauge sensors:} measure changes in electrical resistance caused by deformation of strain gauges attached to the whisker shaft.
     \item \textbf{Hall effect sensors:} detect changes in magnetic field strength caused by displacement or rotation of the magnet positioned at the whisker base.
@@ -75,8 +75,8 @@ Taxonomy of whisker sensors is shown in Figure~\ref{fig:taxonomy}.
 
 \section{Active Tactile Perception}
 One of the most critical problems in robotics is \textbf{reconstruction of unstructured environments}.
-It is essential for efforts to develop \textbf{autonomous mobile manipulators}, that are said to have significant societal and economic impact~\cite{how-can-robots-succeed}.
-Operation in unstructured environments poses multiple challenges, such as:~\cite{how-can-robots-succeed}
+According to~\textcite{how-can-robots-succeed}, it is essential for efforts to develop \textbf{autonomous mobile manipulators}, that are said to have significant societal and economic impact.
+Operation in unstructured environments poses multiple challenges, such as:
 \begin{itemize}
     \item Limited knowledge of the surroundings
     \item Uncertainty in the robot's position
@@ -111,15 +111,14 @@ To sum up, a robust whisker array and active control system is required.
 
 \section{Overview of the Thesis}
 
-\subsection{Goal}
-\textbf{This thesis focuses on the use of whisker sensors for active tactile perception in unstructured environments.
-We aim to develop a control algorithm that allows a robotic platform to actively explore and reconstruct its environment using whisker sensors.}
-The ultimate goal a couple of papers down the line is to integrate the whisker arrays into a robotic rat and let it navigate autonomously in unstructured environments.
+This thesis focuses on the use of \textbf{whisker sensors for active tactile perception in unstructured environments.}
+We aim to develop a control algorithm that allows a robotic platform to \textbf{actively explore and reconstruct its environment using whisker sensors.}
+The ultimate goal is to integrate the whisker arrays into a robotic rat and let it navigate autonomously in unstructured environments.
 This is very similar to the autonomous mobile manipulators discussed before.
 This thesis assumes that the navigation and whisker deflection happen in 2D and that all the objects are immovable.
 
 \subsection{Simulation}
-First, a \textbf{simulation framework based on MuJoCo} is developed to test the proposed control algorithms.
+First, a \textbf{simulation backed by MuJoCo~\cite{todorov2012mujoco}}, a physics simulation framework maintained by Google DeepMind, is developed to test the proposed control algorithms.
 The whisker shaft is simulated as a composite of 40 elastic cables.
 The whisker contacts with the objects are assumed to be frictionless.
 A massive platform with two integrated whisker from left and right sides is set up for active control.
@@ -177,7 +176,7 @@ In order to test the control system in real-world conditions, a whisker sensor a
 It supports 3 magnetically transduced whiskers on each side of the platform and features a mount for the Franka Emika Panda robotic arm equipped with a gripper.
 The whiskers made from nitinol wire are 7.5cm long and 0.2mm in diameter.
 Underneath them a neodymium magnet is glued to the suspension.
-MLX90393 Hall sensor is placed 2--3mm away from the magnet and is used to measure the whisker deflection by detecting the change in the Z axis of the magnetic field.
+Adafruit MLX90393 Hall-effect sensor is placed 2--3mm away from the magnet and is used to measure the whisker deflection by detecting the change in the $Y$ axis of the magnetic field.
 Whiskers are tilted by 15\degree{} away towards the nose to increase the contact search space in front of the platform.
 
 \subsection{System Infrastructure}
@@ -187,7 +186,7 @@ The dashboard backed by Grafana visualizes the sensor data from the whisker arra
 
 
 \section{Key Contributions}
-
+The following key contributions are made in this thesis:
 \begin{enumerate}
     \item We propose \textbf{Retrieval policy} for object retrieval in case of whisker detachment at sharp corners, managing the entire range of corner angles and ensuring edge contour reconstruction.
     It involves edge angle resolution, whisking back and reattaching the whisker to the object.
